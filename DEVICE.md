@@ -43,9 +43,10 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 ---
 
 
-Источники: raw/adb_20261028_232150/ (adb shell без root, uid=shell), raw/fastboot_20261028_232246/.
-Root нет (`su: inaccessible or not found`), поэтому /proc/cmdline, dmesg, /proc/partitions,
-/proc/bus/input/devices, /proc/asound, /proc/device-tree выдают Permission denied. Это ещё предстоит получить.
+Источники: raw/adb_20261028_232150/ (adb shell без root, uid=shell), raw/fastboot_20261028_232246/,
+затем root (Magisk, 28.10 вечер, raw/root_20261028/) и mainline (тесты 3–9). Разделы ниже до «Дополнено» записаны до root;
+уточнения и исправления в разделе «Дополнено 2026-10-29» в конце.
+> Сейчас (29.10): Android удалён (super = rootfs pmOS, userdata = ext4 j606f_work), активный слот **b** (boot_b = pmOS).
 
 ## Идентификация (getprop)
 | Параметр | Значение |
@@ -72,7 +73,7 @@ Root нет (`su: inaccessible or not found`), поэтому /proc/cmdline, dme
 - product: bengal, variant: SMP UFS, hw-revision: 10000, secure: yes, **unlocked: yes**
 - **current-slot: a**; slot-count 2
 - slot a: successful=yes, unbootable=no, retry=6
-- slot b: successful=**no**, retry=0 → слот b никогда не загружался, не трогать
+- slot b: successful=**no**, retry=0 → слот b до нас никогда не загружался (теперь в нём pmOS, активный)
 - is-userspace: no (это bootloader-fastboot, не fastbootd), kernel: uefi, max-download-size 805306368 (768 MiB)
 - version-bootloader и version-baseband пустые
 - off-mode-charge 1, charger-screen-enabled 1
@@ -92,7 +93,7 @@ Root нет (`su: inaccessible or not found`), поэтому /proc/cmdline, dme
 ## Дисплей
 - 1200x2000 (физически портрет), 60 Гц, density 240, 213×216 dpi; в Android по умолчанию ландшафт (rotation 1)
 - Подсветка: I2C 1-0036 → драйвер **sgm37604a**; питание панели: I2C 1-003e → **tps65132** (±5V bias)
-- Модель панели НЕ подтверждена: в mainline описана BOE NT36523W, а у J606F есть вторая ревизия с другой связкой панели и тача (см. DECISIONS). Нужен cmdline или DT стока.
+- Модель панели: **Himax HX83102P (BOE)**, подтверждено по cmdline стока (см. «Дополнено»). В mainline описана другая ревизия, NT36523W.
 
 ## Ввод
 - I2C 0-0060 и 1-0061: hid-over-i2c (i2c_hid). Скорее всего, это тач и/или клавиатура/тачпад (power_supply «touchpad» есть). Не подтверждено.

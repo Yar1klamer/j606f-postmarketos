@@ -20,13 +20,17 @@ UPSTREAM = {
     "/codeberg/": "https://codeberg.org/",
 }
 CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "out", "proxy-cache")
+# Разрешённые клиенты: USB link-local (планшет) и localhost (pmbootstrap на сборочном хосте)
+ALLOWED = ("169.254.", "127.0.0.1") + tuple(x for x in os.environ.get("MIRROR_ALLOW", "").split(",") if x)
+# Обход DNS-блокировки mirror.nura.eco в домашней сети: PMOS_PIN_IP=95.216.1.254 → ходим по IP с заголовком Host
+PIN_IP = os.environ.get("PMOS_PIN_IP")
 SERVE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "out", "serve")
 
 
 class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         # только USB link-local клиенты (планшет); домашняя сеть получает 403
-        if not self.client_address[0].startswith("169.254."):
+        if not self.client_address[0].startswith(ALLOWED):
             return self.send_error(403)
         if self.path.startswith("/local/"):
             p = os.path.realpath(os.path.join(SERVE, self.path[len("/local/"):]))
@@ -53,7 +57,11 @@ class H(http.server.BaseHTTPRequestHandler):
                 shutil.copyfileobj(f, self.wfile)
             return
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "j606f-port-proxy"})
+            hdrs = {"User-Agent": "j606f-port-proxy"}
+            if PIN_IP and url.startswith("https://mirror.nura.eco/"):
+                url = "http://" + PIN_IP + url[len("https://mirror.nura.eco"):]
+                hdrs["Host"] = "mirror.nura.eco"
+            req = urllib.request.Request(url, headers=hdrs)
             with urllib.request.urlopen(req, timeout=120, context=CTX) as r:
                 self.send_response(r.status)
                 for k in ("Content-Length", "Content-Type", "Last-Modified", "ETag"):

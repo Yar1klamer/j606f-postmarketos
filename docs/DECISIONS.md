@@ -43,3 +43,12 @@ Mainline покрывает загрузку, UFS, дисплей (для BOE-SK
 - **Установка pmOS: раздел super** (12 ГиБ, бывшие system/vendor/product Android) под pmOS_boot+pmOS_root, boot.img в **boot_b**, слот b активный. Слот a (boot_a/dtbo_a) остаётся как есть, на случай отката загрузчика.
 - Переход в fastboot без Android: в mainline есть reboot-mode PON (pm6125.dtsi: mode-bootloader = <0x2>, CONFIG_REBOOT_MODE=y) → `reboot bootloader`.
 - Первая сборка pmOS: UI = none (консоль + SSH), затем UI по выбору пользователя.
+
+## 2026-10-29 (днём) — установка и сборка ядра на Ubuntu
+- **Установка выполнена не по install_plan.md**, а так: rootfs pmOS в **super** (12 ГиБ, бывшие system/vendor/product), boot.img в **boot_b**, активный слот **b**.
+  userdata (sda15) оставлен под рабочее место pmbootstrap на планшете. dtbo не трогали: «отстойник» в DTB работает, пустой dtbo не проверяли.
+  и освободил место (~24–29 ГБ). На планшете сборка ядра заняла бы 3–4 ч, и планшет нужен для проверки.
+  Mac 127.0.0.1:8080) в scripts/mirror_proxy.py на Mac (с Mac 56–82 КБ/с, *.apk кэшируются). Прокси принимает только link-local, 127.0.0.1 и адреса из MIRROR_ALLOW.
+- device-lenovo-j606f r3: без готовых .ko/.dtb (всё из ядра pkgrel 101), cmdline `console=tty0 fbcon=rotate:2 clk_ignore_unused pd_ignore_unused`,
+  `/usr/lib/modules-load.d/j606f.conf` с mm8013. Ядро: patches 0001–0003 + config-фрагмент (HX83102, TPS65132, MM8013, NT36523 = m).
+- HACK 0002 пока остаётся (ABL подменяет корневой compatible). Убрать можно только после проверки пустого dtbo_b.

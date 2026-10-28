@@ -16,12 +16,13 @@
 - smb1355: драйвера нет.
 - fusb302: драйвер есть (tcpm/fusb302.c). Но в стоке typec обслуживает pmi632. Что подключено к CC-линиям, выяснить.
 
-## Статус
-Не проверено.
+## Статус (29.10)
+- mm8013: работает в отладке (100%, 4.39 В, 328 циклов); в pmOS нужен modules-load (device r3).
+- Зарядка идёт на HW-дефолтах pmi632, драйвера зарядника нет. Thermal-троттлинг CPU подключён (тест 9).
 
 ## Thermal в mainline (2026-10-29)
 - Зоны cpu*-thermal: trip 90 °C passive, 95 °C passive, 110 °C critical (выключение); gpu-thermal: 85 °C passive, 110 °C critical; прочие 115/125 °C.
-- Cooling-устройства: только ath10k_thermal и devfreq-5900000.gpu. **CPU cooling (cpufreq) не зарегистрирован** → Linux не троттлит CPU по температуре (остаётся аппаратный LMH/OSM). TODO: #cooling-cells в узлах CPU + cooling-maps в sm6115.dtsi/j606f (или проверить, что делает qcom-cpufreq-hw LMH).
+- Cooling-устройства: только ath10k_thermal и devfreq-5900000.gpu. **CPU cooling (cpufreq) не зарегистрирован** → Linux не троттлит CPU по температуре (остаётся аппаратный LMH/OSM). ~~TODO~~ **Сделано (тест 9):** `#cooling-cells` в cpu0–7 и cooling-maps в нашем DTS, cooling_device cpufreq-cpu0/cpu4.
 - Под полной нагрузкой 8 ядер + GPU: 42 → 65 °C за 4 мин (тест остановлен моей страховкой на 65 °C).
 ## Зарядка без драйвера (2026-10-29)
 - В простое с USB от Mac: mm8013 current_now −136…−141 мА, charge_now растёт (+1 мА·ч за ~20 с) → заряд идёт на HW-дефолтах pmi632. Под полной нагрузкой разряд ≈ +160 мА сверх USB.

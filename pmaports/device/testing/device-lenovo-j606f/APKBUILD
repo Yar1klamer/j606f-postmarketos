@@ -1,36 +1,25 @@
 # Reference: <https://nura.eco/devicepkg>
 # LOCAL package for Lenovo Tab P11 TB-J606F (HX83102P panel SKU).
-# Temporary: ships out-of-tree modules and the DTB built for the binary
-# linux-nura-qcom-sm61x5 7.2.3, until the kernel package carries the j606f patches.
 pkgname=device-lenovo-j606f
 pkgdesc="Lenovo Tab P11 (TB-J606F, HX83102P panel SKU)"
 pkgver=1
-pkgrel=2
+pkgrel=3
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
-options="!check !archcheck !strip !tracedeps"
-_kver="7.2.3-sm61x5"
+options="!check !archcheck"
 depends="
 	android-tools-mkbootimg
 	kmod
-	linux-nura-qcom-sm61x5=7.2.3-r0
+	linux-nura-qcom-sm61x5
 	postmarketos-base
 "
 makedepends="devicepkg-dev"
-install="$pkgname.post-install $pkgname.post-upgrade"
 subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
 source="
 	deviceinfo
 	modules-initfs
-	j606f-depmod.conf
 	j606f-modules-load.conf
-	sm6115p-lenovo-j606f-hx83102p.dtb
-	panel-himax-hx83102.ko
-	tps65132-regulator.ko
-	mm8013.ko
-	ubwc_config.ko
-	qcom_pd_mapper.ko
 "
 
 build() {
@@ -40,13 +29,6 @@ build() {
 package() {
 	devicepkg_package $startdir $pkgname
 
-	install -Dm644 "$srcdir"/sm6115p-lenovo-j606f-hx83102p.dtb \
-		"$pkgdir"/boot/dtbs/qcom/sm6115p-lenovo-j606f-hx83102p.dtb
-	local m
-	for m in panel-himax-hx83102 tps65132-regulator mm8013 ubwc_config qcom_pd_mapper; do
-		install -Dm644 "$srcdir"/$m.ko "$pkgdir"/usr/lib/modules/$_kver/extra/$m.ko
-	done
-	install -Dm644 "$srcdir"/j606f-depmod.conf "$pkgdir"/usr/lib/depmod.d/j606f.conf
 	install -Dm644 "$srcdir"/j606f-modules-load.conf "$pkgdir"/usr/lib/modules-load.d/j606f.conf
 }
 
@@ -60,12 +42,5 @@ nonfree_firmware() {
 sha512sums="
 2208572787008cfbc89038f0fba55fa856976cfa1b0f09c6cfba81dedcffc1b6982d27b9c0178933595ae05f737593227d9c896b79ba562fa047ddef19aaaaf9  deviceinfo
 40b1c6bbe32fda4e02ad607f60c661f81229166a9822dd0a8755266f7c6c87131ad282c443e99f200e0388f56aa5f2df930d33ebab45a62f2b5cc20ad125e078  modules-initfs
-c9421c239396e0483743a1335003b35edca7e0b55d484802a2f037c477cc8df652fb9d6ca28e175edab5210c553d72348d06431247cbf49e6b792c357a867e81  j606f-depmod.conf
 7f80465744962b7118a267c020cb0def18a7323fd2caf33c7527bc9c0133ebdf6f8fcc6778f812b4672169e71abdd66716d004f9d5478ab10cc8edbfc6a4be58  j606f-modules-load.conf
-3f3d9ecec96294490ead83551181ad3a2796e3b04d2766a4fcce5b6b498daeb95726f9026955d32b0f239ec525c3240a8da2e62cec8deff3a5c141fde32efc85  sm6115p-lenovo-j606f-hx83102p.dtb
-d7d61b6d01490e98811b74fb390532f284bb66591b2110c7faa123194487b621034b32b4ad7f087addf9997f1f7b2b95e04b1a01bb8887f597576418b2820d2b  panel-himax-hx83102.ko
-2ad6ebeb947a02b0450ae6cee390daaa2b7d8f825967fead2d332a37a47979fd250a872e7608a8914464368ea3e270587870bbaf9362bf105e4826264d66ada6  tps65132-regulator.ko
-740ede1a0883831941e54aadc700351dd12a0860e489feb7c726f4fec1db7daff148c79a26461efdfc1dc4e1595aaa90ad3fe019eb167d9b2cc2d18dfe377859  mm8013.ko
-c29c17484aae2ca39a02b16002f8342e8f3d53145d9829690bdc7c5d76b8aad7e267b0d674900df83df0cc0327d0de42a971e5bd8293fb06d21c77344095e1a5  ubwc_config.ko
-11e89d908eca38e16e99057be98dcc32ca06a754f6498c73c9ba9f1d1a3063525d6cfd83b01a69aa289cf12fe5407ff373bbc4a9855250e3b0eccc63049044eb  qcom_pd_mapper.ko
 "

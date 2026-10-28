@@ -129,16 +129,15 @@ python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 ### 2. pmaports
 ```bash
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
-cp -r pmaports/device/testing/device-lenovo-j606f   <pmaports>/device/testing/
-cp -r pmaports/device/testing/firmware-lenovo-j606f <pmaports>/device/testing/
+cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
+cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
+cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001–0003 (pkgrel 101)
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
-# ядро: добавить kernel/patches/000*.patch в source= пакета linux-nura-qcom-sm61x5,
-# применить config-j606f.fragment к его config, затем:
-pmbootstrap checksum linux-nura-qcom-sm61x5 device-lenovo-j606f firmware-lenovo-j606f
+pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
 ```
-> Временный вариант (в этом репозитории): device-пакет кладёт уже собранные модули и DTB поверх бинарного
-> `linux-nura-qcom-sm61x5 7.2.3-r0`, чтобы не пересобирать ядро. Модули и DTB собираются скриптом
-> [`scripts/device_build_inner.sh`](scripts/device_build_inner.sh).
+> Пакет ядра здесь — апстримный `linux-nura-qcom-sm61x5` 7.2.3 с добавленными патчами из [`kernel/patches/`](kernel/patches/) и опциями
+> из `config-j606f.fragment`. Первая установка делалась иначе: бинарное ядро 7.2.3-r0 + модули/DTB, собранные отдельно
+> ([`scripts/device_build_inner.sh`](scripts/device_build_inner.sh)); этот путь описан в [WORKLOG.md](WORKLOG.md).
 
 ### 3. pmbootstrap
 ```bash
@@ -146,18 +145,18 @@ pmbootstrap init         # device: lenovo-j606f
 pmbootstrap install
 pmbootstrap export
 ```
-Проверено, что pmbootstrap 3.12 работает **на самом планшете** (aarch64, под mainline, в chroot на userdata)
-с зеркалами через HTTP-прокси на соседнем компьютере ([`scripts/device_pmb_env.sh`](scripts/device_pmb_env.sh),
-[`scripts/mirror_proxy.py`](scripts/mirror_proxy.py)).
+Проверено на x86_64 Ubuntu 22.04 (ядро собирается cross-native) и **на самом планшете** (aarch64, под mainline, в chroot на userdata,
+[`scripts/device_pmb_env.sh`](scripts/device_pmb_env.sh)). Если зеркало медленное, поможет кэширующий прокси
+[`scripts/mirror_proxy.py`](scripts/mirror_proxy.py) на соседнем компьютере.
 
 ## Установка
 
 Рекомендуемая схема: **слот b** под pmOS, слот a не трогаем.
 ```bash
-fastboot boot boot.img                     # сначала всегда проверка без записи
-fastboot flash boot_b boot.img
-# rootfs-образ (pmOS_boot + pmOS_root) → super или userdata;
-# initramfs pmOS сам найдёт подразделы (losetup -P, sector size 4096)
+fastboot flash super lenovo-j606f.img      # rootfs (pmOS_boot + pmOS_root), образ sparse: только fastboot, не dd!
+fastboot boot boot.img                     # проверка ядра без записи (fastboot boot — 1 раз за сессию bootloader)
+# если загрузилось: снова в fastboot (reboot bootloader из Linux или Vol− + Power), затем
+fastboot flash boot_b boot.img             # super и boot_b — из одного pmbootstrap install (UUID)
 fastboot --set-active=b && fastboot reboot
 ```
 Подробно, с откатом: [`docs/notes/install_plan.md`](docs/notes/install_plan.md), скрипт с проверкой разделов и sha256:

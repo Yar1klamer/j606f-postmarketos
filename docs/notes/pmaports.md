@@ -1,4 +1,8 @@
-# Сборка нормального образа pmOS (Nura) на Linux-хосте — план (ЧЕРНОВИК, не проверен)
+# Сборка образа pmOS (Nura) через pmbootstrap
+
+> **Статус 29.10:** схема проверена. Первая установка собрана pmbootstrap на самом планшете (бинарное ядро 7.2.3-r0 + модули/DTB в device-пакете),
+> установлена и грузится (STATE.md). Сейчас ядро с патчами (pkgrel 101) собирается на Ubuntu-хосте; device-пакет r3 уже без готовых модулей.
+> Локальные коммиты в src/pmaports-main: 9f25afd, 02cd3cd, f0ab532, c523e3a.
 
 
 ## 1. Ядро: локальная доработка linux-nura-qcom-sm61x5 (7.2.3)
@@ -29,7 +33,7 @@ pmbootstrap export          # boot.img и rootfs-образ в /tmp/postmarketOS
 ## 4. Установка во внутреннюю память — РЕШЕНИЕ ПОЛЬЗОВАТЕЛЯ
 Вариант A (рекомендую): **слот b** под pmOS, Android на слоте a не трогаем.
 - `fastboot flash boot_b boot.img`; dtbo_b: пустой dtbo (mkdtboimg без записей) → ABL не наложит оверлей, тогда HACK 0002 и abl-sink не нужны (проверить!);
-- rootfs: userdata (110 ГиБ, данные не важны, но форматировать только с явного «да»);
+- rootfs: userdata (110 ГиБ, данные не важны, но форматировать только с явного «да»). **Сделано иначе: rootfs в super, userdata под сборку;**
 - `fastboot set_active b`; откат: `fastboot set_active a`. pmOS должен помечать слот успешным (qbootctl), иначе ABL через ~7 попыток вернётся на a.
 Вариант B: слот a (заменить Android). Откат: BACKUP/.
 
@@ -37,7 +41,7 @@ pmbootstrap export          # boot.img и rootfs-образ в /tmp/postmarketOS
 - тач HX83102E SPI (zero-flash) — нет драйвера;
 - зарядка pmi632/smb1355 — нет драйвера;
 - MAC Wi-Fi/BT: ABL не передаёт, нужно из persist/userspace (сейчас Wi-Fi со случайным MAC, BT с адресом, заданным вручную);
-- медленные page flip в msm (notes/display.md) — влияет на композитор;
+- ~~медленные page flip в msm~~ — оказалось артефактом теста (modetest без stdin), реально 60 Гц (notes/display.md);
 - аудио (aw88xxx, es7210, wcd937x/pm4125) и датчики (SSC) — не начаты.
 
 ## 6. Апстрим (P3)
