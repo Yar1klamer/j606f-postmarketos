@@ -1,0 +1,3 @@
+#!/bin/sh
+for k in /usr/lib/modules/*; do [ -d "$k/extra" ] && depmod -a "$(basename "$k")"; done
+exit 0

@@ -1,0 +1,5 @@
+#!/bin/sh
+touch /tmp/keepalive
+echo "Content-Type: text/plain"
+echo ""
+dmesg

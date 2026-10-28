@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * DEBUG ONLY, not for upstream: first-boot DTB for the HX83102P SKU.
+ * MDSS is disabled so the NT36523W panel driver never touches the HX83102P
+ * panel and the bootloader's splash stays usable as simple-framebuffer.
+ */
+
+#include "sm6115p-lenovo-j606f.dts"
+
+/ {
+	model = "Lenovo Tab P11 (fbonly debug)";
+};
+
+&mdss {
+	status = "disabled";
+};

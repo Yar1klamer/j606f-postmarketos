@@ -1,0 +1,15 @@
+        qcom,dsi-display-primary {
+            compatible = "qcom,dsi-display";
+            label = "primary";
+            qcom,dsi-ctrl = <0x3C4>;
+            qcom,dsi-phy = <0x3C5>;
+            clocks = <0x3BD 0x0 0x3BD 0x2 0x3BD 0x1 0x3BD 0x3 0x3BD 0x7 0x3BD 0x8>;
+            clock-names = "mux_byte_clk0", "mux_pixel_clk0", "src_byte_clk0", "src_pixel_clk0", "shadow_byte_clk0", "shadow_pixel_clk0";
+            pinctrl-names = "panel_active", "panel_suspend";
+            pinctrl-0 = <0x2E8>;
+            pinctrl-1 = <0x2E9>;
+            vddio-supply = <0x11>;
+            qcom,mdp = <0x1AD>;
+            qcom,dsi-default-panel = <0x3F4>;
+            phandle = <0x3F7>;
+        };

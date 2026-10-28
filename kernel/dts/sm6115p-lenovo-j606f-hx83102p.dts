@@ -1,0 +1,304 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Lenovo Tab P11 (TB-J606F), SKU with the BOE panel driven by a Himax HX83102P
+ * TDDI (stock cmdline: msm_drm.dsi_display0=qcom,mdss_dsi_himax83102p_boe_2k_video).
+ * Everything else is shared with the NT36523W SKU described in
+ * sm6115p-lenovo-j606f.dts. Values below come from the stock DT of
+ * TB-J606F_S120184_210520_ROW (see notes/stock_dt/).
+ */
+
+#include "sm6115p-lenovo-j606f.dts"
+#include "pmi632.dtsi"
+/* Lenovo ABL applies the stock dtbo unconditionally, see the dtsi */
+#include "sm6115p-lenovo-j606f-abl-sink.dtsi"
+
+/ {
+	model = "Lenovo Tab P11 (HX83102P)";
+
+	aliases {
+		serial1 = &uart3;
+	};
+};
+
+&gpi_dma0 {
+	status = "okay";
+};
+
+&qupv3_id_0 {
+	status = "okay";
+};
+
+&i2c0 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	fuel-gauge@55 {
+		compatible = "mitsumi,mm8013";
+		reg = <0x55>;
+	};
+};
+
+&i2c1 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	regulator@3e {
+		compatible = "ti,tps65132";
+		reg = <0x3e>;
+
+		lcd_bias_pos: outp {
+			regulator-name = "lcd_bias_pos";
+			/* stock: VPOS/VNEG = 0x11 */
+			regulator-min-microvolt = <5700000>;
+			regulator-max-microvolt = <5700000>;
+			regulator-boot-on;
+			enable-gpios = <&tlmm 111 GPIO_ACTIVE_HIGH>;
+		};
+
+		lcd_bias_neg: outn {
+			regulator-name = "lcd_bias_neg";
+			/* stock: VPOS/VNEG = 0x11 */
+			regulator-min-microvolt = <5700000>;
+			regulator-max-microvolt = <5700000>;
+			regulator-boot-on;
+			enable-gpios = <&tlmm 44 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&panel {
+	compatible = "lenovo,j606f-boe-hx83102p", "himax,hx83102";
+	/delete-property/ reset-gpios;
+	/delete-property/ vddio-supply;
+
+	enable-gpios = <&tlmm 82 GPIO_ACTIVE_HIGH>;
+	pp1800-supply = <&pm6125_l9>;
+	avdd-supply = <&lcd_bias_pos>;
+	avee-supply = <&lcd_bias_neg>;
+};
+
+&pmi632_gpios {
+	/* SGM37604A LED driver enable (stock: qcom,platform-bklight-en-gpio) */
+	backlight-en-hog {
+		gpio-hog;
+		gpios = <6 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "backlight-en";
+	};
+};
+
+&tlmm {
+	/* WCN3990 BT UART (QUP SE3), pins from stock qupv3_se3_4uart */
+	bt_uart3_default: bt-uart3-default-state {
+		cts-pins {
+			pins = "gpio8";
+			function = "qup3";
+			drive-strength = <2>;
+			bias-bus-hold;
+		};
+
+		rts-pins {
+			pins = "gpio9";
+			function = "qup3";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		tx-pins {
+			pins = "gpio10";
+			function = "qup3";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		rx-pins {
+			pins = "gpio11";
+			function = "qup3";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	bt_uart3_sleep: bt-uart3-sleep-state {
+		cts-pins {
+			pins = "gpio8";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-bus-hold;
+		};
+
+		rts-pins {
+			pins = "gpio9";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
+		tx-pins {
+			pins = "gpio10";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		rx-pins {
+			pins = "gpio11";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+};
+
+&uart3 {
+	interrupts-extended = <&intc GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
+			      <&tlmm 11 IRQ_TYPE_EDGE_FALLING>;
+	pinctrl-0 = <&bt_uart3_default>;
+	pinctrl-1 = <&bt_uart3_sleep>;
+	pinctrl-names = "default", "sleep";
+	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,wcn3990-bt";
+		/* stock bt_wcn3990: io = L9, core = L17, pa = L23, xtal = L16 */
+		vddio-supply = <&pm6125_l9>;
+		vddxo-supply = <&pm6125_l16>;
+		vddrf-supply = <&pm6125_l17>;
+		vddch0-supply = <&pm6125_l23>;
+		max-speed = <3200000>;
+	};
+};
+
+/*
+ * CPU thermal throttling: sm6115.dtsi has passive trips on the CPU zones but no
+ * cooling devices; without these the kernel never lowers CPU clocks on overheat.
+ */
+&cpu0 {
+	#cooling-cells = <2>;
+};
+
+&cpu1 {
+	#cooling-cells = <2>;
+};
+
+&cpu2 {
+	#cooling-cells = <2>;
+};
+
+&cpu3 {
+	#cooling-cells = <2>;
+};
+
+&cpu4 {
+	#cooling-cells = <2>;
+};
+
+&cpu5 {
+	#cooling-cells = <2>;
+};
+
+&cpu6 {
+	#cooling-cells = <2>;
+};
+
+&cpu7 {
+	#cooling-cells = <2>;
+};
+
+&{/thermal-zones/cpu0123-thermal} {
+	polling-delay-passive = <250>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu0123_alert0>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&{/thermal-zones/cpu4-thermal} {
+	polling-delay-passive = <250>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu4_alert0>;
+			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&{/thermal-zones/cpu5-thermal} {
+	polling-delay-passive = <250>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu5_alert0>;
+			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&{/thermal-zones/cpu6-thermal} {
+	polling-delay-passive = <250>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu6_alert0>;
+			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&{/thermal-zones/cpu7-thermal} {
+	polling-delay-passive = <250>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu7_alert0>;
+			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&{/thermal-zones/cpu45-thermal} {
+	polling-delay-passive = <250>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu45_alert0>;
+			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};
+
+&{/thermal-zones/cpu67-thermal} {
+	polling-delay-passive = <250>;
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu67_alert0>;
+			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
+};

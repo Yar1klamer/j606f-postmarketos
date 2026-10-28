@@ -1,0 +1,20 @@
+# Никогда не коммитить: дампы, прошивки, образы, ключи, пароли
+*.img
+*.mbn
+*.tlv
+*.tar
+*.ko
+*.dtb
+*.apk
+*.zst
+BACKUP/
+raw/
+out/
+dl/
+*.pem
+*_test
+id_*
+*password*
+.pw
+.DS_Store
+__pycache__/

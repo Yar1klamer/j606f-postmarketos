@@ -1,0 +1,46 @@
+        spi@4a88000 {
+            compatible = "qcom,spi-geni";
+            #address-cells = <0x1>;
+            #size-cells = <0x0>;
+            reg = <0x4A88000 0x4000>;
+            reg-names = "se_phys";
+            clock-names = "se-clk", "m-ahb", "s-ahb";
+            clocks = <0x16 0x60 0x16 0x68 0x16 0x69>;
+            pinctrl-names = "default", "sleep";
+            pinctrl-0 = <0x154 0x155>;
+            pinctrl-1 = <0x156 0x157>;
+            interrupts = <0x0 0x149 0x4>;
+            spi-max-frequency = <0x2FAF080>;
+            qcom,wrapper-core = <0x140>;
+            dmas = <0x146 0x0 0x2 0x1 0x40 0x0 0x146 0x1 0x2 0x1 0x40 0x0>;
+            dma-names = "tx", "rx";
+            status = "okay";
+            phandle = <0x305>;
+            himax_ts@0 {
+                compatible = "himax,hxcommon";
+                reg = <0x0>;
+                spi-max-frequency = <0x989680>;
+                spi-cpha;
+                interrupt-parent = <0x25>;
+                himax,panel-coords = <0x0 0x4B0 0x0 0x7D0>;
+                himax,display-coords = <0x0 0x4B0 0x0 0x7D0>;
+                himax,irq-gpio = <0x25 0x56 0x2008>;
+                himax,rst-gpio = <0x25 0x36 0x0>;
+                report_type = <0x1>;
+                panel = <0x3F4>;
+            };
+            novatek@1 {
+                compatible = "novatek,NVT-ts-spi";
+                reg = <0x1>;
+                status = "okay";
+                spi-max-frequency = <0x927C00>;
+                interrupt-parent = <0x25>;
+                novatek,reset-gpio = <0x25 0x36 0x0>;
+                novatek,irq-gpio = <0x25 0x56 0x2008>;
+                novatek,pen-support;
+                novatek,wgp-stylus;
+                novatek,swrst-n8-addr = <0x3F0FE>;
+                novatek,spi-rd-fast-addr = <0x3F310>;
+                panel = <0x40B>;
+            };
+        };
