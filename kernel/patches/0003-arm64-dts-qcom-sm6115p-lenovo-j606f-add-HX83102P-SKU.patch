@@ -589,10 +589,10 @@ index 0000000..6046db6
 +
 diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
 new file mode 100644
-index 0000000..d826283
+index 0000000..c504ee4
 --- /dev/null
 +++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
-@@ -0,0 +1,304 @@
+@@ -0,0 +1,313 @@
 +// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 +/*
 + * Lenovo Tab P11 (TB-J606F), SKU with the BOE panel driven by a Himax HX83102P
@@ -896,4 +896,13 @@ index 0000000..d826283
 +						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 +		};
 +	};
++};
++
++/*
++ * USB runs on the HS PHY only (the base DTS drops the QMP PHY); without this the
++ * pipe clock is never selected and dwc3 fails with "failed to enable ep0out"
++ * unless ABL fastboot already configured the controller.
++ */
++&usb {
++	qcom,select-utmi-as-pipe-clk;
 +};

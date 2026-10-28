@@ -4,33 +4,27 @@
 > Решения, команды, грабли, TODO: [NOTES.md](NOTES.md). Подробные заметки по подсистемам: `docs/notes/*.md`.
 
 ## 1. Одной строкой
-**pmOS (Nura edge) установлен и грузится** на Lenovo Tab P11 TB-J606F (ревизия с панелью Himax HX83102P): rootfs в разделе `super`,
-ядро грузится через `fastboot boot out/pmos/boot-dbg1.img` (ещё НЕ прошито в boot_b). SSH, Wi-Fi, BT, экран, GPU, DSP работают.
+**pmOS (Nura edge) установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
+rootfs в `super`, boot.img в `boot_b` (`out/pmos/boot-dbg3-utmi.img`), активный слот **b**. Обычная загрузка → USB-сеть + SSH (`ssh user@172.16.42.1`). Wi-Fi, BT, экран, GPU, DSP работают.
 
 ## 2. Состояние устройства прямо сейчас
 | Что | Значение |
 |---|---|
-| Что запущено | pmOS, загружен `fastboot boot out/pmos/boot-dbg1.img` (по USB с Mac) |
-| Активный слот | **a** (`fastboot getvar current-slot` → a) |
+| Что запущено | pmOS, обычная загрузка со слота b (29.10) |
+| Активный слот | **b** |
 | boot_a | стоковый boot + Magisk (пользователь поставил Magisk до бэкапа); стоковый оригинал сохранён в приватном бэкапе |
-| boot_b | НЕ трогали (заводской) |
+| boot_b | `out/pmos/boot-dbg3-utmi.img` (sha256 92a0e5db…): ядро+initramfs pmOS, cmdline + clk_ignore_unused pd_ignore_unused panic=10, DTB + `qcom,select-utmi-as-pipe-clk` |
 | dtbo_a / dtbo_b, vbmeta_a / vbmeta_b | стоковые, побайтно одинаковые (sha256 326cbcbc… / af75b84f…) |
 | super (`/dev/sda14`, 12 ГиБ) | **rootfs pmOS**: `fastboot flash super out/pmos/lenovo-j606f.img` (Android-sparse, 937228412 байт, sha256 e7e2e7c3…). Внутри GPT с секторами 4096: pmOS_boot + pmOS_root |
 | userdata (`/dev/sda15`, 102 ГиБ) | ext4, метка `j606f_work`: рабочее место pmbootstrap (`/mnt/work/alpine/...`) |
 | Android | **не загрузится** (super перезаписан, userdata отформатирован) — пользователь разрешил снести |
 | modem*/persist/fsg/abl/xbl | не трогали (кроме того, что rmtfs в pmOS пишет EFS в modemst1/2, fsg — см. NOTES) |
 
-## 3. Следующий шаг (пользователь сказал: «переведу в fastboot»)
-1. Пользователь: Power ~15 с → затем Vol− + Power → fastboot.
-2. С Mac (из `~/Documents/pm for p11/pmos-j606f`):
-   ```bash
-   ~/platform-tools/fastboot flash boot_b out/pmos/boot-dbg1.img
-   ~/platform-tools/fastboot --set-active=b
-   ~/platform-tools/fastboot reboot
-   ```
-3. Проверить: через ~90 с `ssh user@172.16.42.1 uptime`; затем тест выключение → включение кнопкой (пункт P0 «стабильная загрузка»).
-   pmOS должен помечать слот успешным (`qbootctl` / bootctl в pmOS), иначе ABL после нескольких попыток вернётся на a. Проверить `fastboot getvar slot-successful:b` после пары загрузок.
-4. Исправить device-пакет (см. раздел 6) → `pmbootstrap install` → `fastboot flash super …` + `fastboot flash boot_b …`.
+## 3. Следующий шаг
+1. Тест P0: полное выключение → включение кнопкой Power → `ssh user@172.16.42.1 uptime` (должен загрузиться слот b сам). Проверить `slot-successful:b` (`fastboot getvar slot-successful:b`) после нескольких загрузок; если ABL откатится на a — разобраться с qbootctl.
+2. Пересобрать образ с device-пакетом r2 (локальный коммит f0ab532 в src/pmaports-main: cmdline с clk_ignore_unused/pd_ignore_unused, modules-load mm8013, DTB с utmi):
+   на планшете `/mnt/work/alpine/work/pmaports-main` применить патч коммита f0ab532 (`git format-patch -1` на Mac → wget → `git am`), затем `sh /mnt/work/pmb.sh build device-lenovo-j606f`, `sh /mnt/work/pmb_install.sh`; забрать sparse-образ и boot.img; `fastboot flash super …`, `fastboot flash boot_b …`.
+   ВНИМАНИЕ: pmbootstrap install перегенерирует UUID → нужно прошивать super и boot_b вместе.
 
 ## 4. Что собрано и где
 ### Mac, приватный проект `~/Documents/pm for p11/pmos-j606f` (НЕ публикуется: серийники, бэкапы, блобы)
@@ -60,7 +54,7 @@
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021», UEFI 5.0.210904.
 
 ## 6. Незавершённые задачи (по приоритету)
-1. **boot_b + слот b** (раздел 3) — постоянная загрузка с внутренней памяти; тест выключения/включения.
+1. ~~boot_b + слот b~~ ГОТОВО (29.10); остался тест выключения/включения кнопкой.
 2. **device-lenovo-j606f**:
    - `deviceinfo_kernel_cmdline="console=tty0 fbcon=rotate:2 clk_ignore_unused pd_ignore_unused"` (без них USB-гаджет: «dwc3 4e00000.usb: failed to enable ep0out»);
    - `/usr/lib/modules-load.d/j606f.conf` с `mm8013` (нет автозагрузки: alias только `i2c:mm8013`, modalias устройства `of:Nfuel-gaugeT(null)Cmitsumi,mm8013`);
@@ -70,8 +64,8 @@
 6. Тач HX83102E (нет драйвера), звук (AW88258/ES7210), датчики (hexagonrpcd), зарядник, suspend, MAC Wi-Fi/BT, клавиатура pogo.
 
 ## 7. Чек-лист
-P0: [x] дисплей+подсветка (подтверждено пользователем) · [ ] стабильная загрузка с внутренней памяти (rootfs уже в super, нужен boot_b) ·
-[ ] тач · [~] USB SSH работает (в pmOS), по Wi-Fi не проверено · [~] Wi-Fi видит сети, подключение не проверено ·
+P0: [x] дисплей+подсветка (подтверждено пользователем) · [~] загрузка с внутренней памяти работает (слот b, обычный reboot), тест выкл/вкл кнопкой не сделан ·
+[ ] тач · [~] USB SSH работает в установленном pmOS, по Wi-Fi не проверено · [~] Wi-Fi видит сети, подключение не проверено ·
 [~] батарея: в отладке mm8013 работал, в pmOS модуль не грузится; заряд идёт на HW-дефолтах · [ ] кнопки (нажатия не проверены).
 P1: [x] GPU + Wayland (weston 60 fps, подтверждено визуально) · [ ] звук · [~] BT сканирует · [ ] датчики · [ ] suspend.
 P2/P3: черновики pmaports-пакетов готовы; документация — этот репозиторий.

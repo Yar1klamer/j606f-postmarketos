@@ -302,3 +302,12 @@
 		};
 	};
 };
+
+/*
+ * USB runs on the HS PHY only (the base DTS drops the QMP PHY); without this the
+ * pipe clock is never selected and dwc3 fails with "failed to enable ep0out"
+ * unless ABL fastboot already configured the controller.
+ */
+&usb {
+	qcom,select-utmi-as-pipe-clk;
+};

@@ -5,7 +5,7 @@
 pkgname=device-lenovo-j606f
 pkgdesc="Lenovo Tab P11 (TB-J606F, HX83102P panel SKU)"
 pkgver=1
-pkgrel=1
+pkgrel=2
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
@@ -24,6 +24,7 @@ source="
 	deviceinfo
 	modules-initfs
 	j606f-depmod.conf
+	j606f-modules-load.conf
 	sm6115p-lenovo-j606f-hx83102p.dtb
 	panel-himax-hx83102.ko
 	tps65132-regulator.ko
@@ -46,6 +47,7 @@ package() {
 		install -Dm644 "$srcdir"/$m.ko "$pkgdir"/usr/lib/modules/$_kver/extra/$m.ko
 	done
 	install -Dm644 "$srcdir"/j606f-depmod.conf "$pkgdir"/usr/lib/depmod.d/j606f.conf
+	install -Dm644 "$srcdir"/j606f-modules-load.conf "$pkgdir"/usr/lib/modules-load.d/j606f.conf
 }
 
 nonfree_firmware() {
@@ -56,10 +58,11 @@ nonfree_firmware() {
 }
 
 sha512sums="
-97be3335f35f5aa9d375e1a5966c2f6c371671a8887c368364e53e215bb6d3b5be3c635eef5dd6e1ae47e0a2c89b37992df6b1e2b0b8ec78f55af9a561b67555  deviceinfo
+2208572787008cfbc89038f0fba55fa856976cfa1b0f09c6cfba81dedcffc1b6982d27b9c0178933595ae05f737593227d9c896b79ba562fa047ddef19aaaaf9  deviceinfo
 40b1c6bbe32fda4e02ad607f60c661f81229166a9822dd0a8755266f7c6c87131ad282c443e99f200e0388f56aa5f2df930d33ebab45a62f2b5cc20ad125e078  modules-initfs
 c9421c239396e0483743a1335003b35edca7e0b55d484802a2f037c477cc8df652fb9d6ca28e175edab5210c553d72348d06431247cbf49e6b792c357a867e81  j606f-depmod.conf
-5b98294e5b34303b519e33acea38221e641e9adb37f6c79155a102019708e72d13dabecc07bc6fc780ab8600cf5854f8a1c4036073c62fd52122d913d037dc18  sm6115p-lenovo-j606f-hx83102p.dtb
+7f80465744962b7118a267c020cb0def18a7323fd2caf33c7527bc9c0133ebdf6f8fcc6778f812b4672169e71abdd66716d004f9d5478ab10cc8edbfc6a4be58  j606f-modules-load.conf
+3f3d9ecec96294490ead83551181ad3a2796e3b04d2766a4fcce5b6b498daeb95726f9026955d32b0f239ec525c3240a8da2e62cec8deff3a5c141fde32efc85  sm6115p-lenovo-j606f-hx83102p.dtb
 d7d61b6d01490e98811b74fb390532f284bb66591b2110c7faa123194487b621034b32b4ad7f087addf9997f1f7b2b95e04b1a01bb8887f597576418b2820d2b  panel-himax-hx83102.ko
 2ad6ebeb947a02b0450ae6cee390daaa2b7d8f825967fead2d332a37a47979fd250a872e7608a8914464368ea3e270587870bbaf9362bf105e4826264d66ada6  tps65132-regulator.ko
 740ede1a0883831941e54aadc700351dd12a0860e489feb7c726f4fec1db7daff148c79a26461efdfc1dc4e1595aaa90ad3fe019eb167d9b2cc2d18dfe377859  mm8013.ko
