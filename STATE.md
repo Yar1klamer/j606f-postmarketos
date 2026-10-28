@@ -21,7 +21,7 @@ rootfs в `super`, boot.img в `boot_b` (`out/pmos/boot-dbg3-utmi.img`), акт�
 | modem*/persist/fsg/abl/xbl | не трогали (кроме того, что rmtfs в pmOS пишет EFS в modemst1/2, fsg — см. NOTES) |
 
 ## 3. Следующий шаг
-1. Тест P0: полное выключение → включение кнопкой Power → `ssh user@172.16.42.1 uptime` (должен загрузиться слот b сам). Проверить `slot-successful:b` (`fastboot getvar slot-successful:b`) после нескольких загрузок; если ABL откатится на a — разобраться с qbootctl.
+1. ~~Тест P0 выкл/вкл~~ ГОТОВО (29.10). Проверить `slot-successful:b` (`fastboot getvar slot-successful:b`) после нескольких загрузок; если ABL откатится на a — разобраться с qbootctl.
 2. Пересобрать образ с device-пакетом r2 (локальный коммит f0ab532 в src/pmaports-main: cmdline с clk_ignore_unused/pd_ignore_unused, modules-load mm8013, DTB с utmi):
    на планшете `/mnt/work/alpine/work/pmaports-main` применить патч коммита f0ab532 (`git format-patch -1` на Mac → wget → `git am`), затем `sh /mnt/work/pmb.sh build device-lenovo-j606f`, `sh /mnt/work/pmb_install.sh`; забрать sparse-образ и boot.img; `fastboot flash super …`, `fastboot flash boot_b …`.
    ВНИМАНИЕ: pmbootstrap install перегенерирует UUID → нужно прошивать super и boot_b вместе.
@@ -64,7 +64,7 @@ rootfs в `super`, boot.img в `boot_b` (`out/pmos/boot-dbg3-utmi.img`), акт�
 6. Тач HX83102E (нет драйвера), звук (AW88258/ES7210), датчики (hexagonrpcd), зарядник, suspend, MAC Wi-Fi/BT, клавиатура pogo.
 
 ## 7. Чек-лист
-P0: [x] дисплей+подсветка (подтверждено пользователем) · [~] загрузка с внутренней памяти работает (слот b, обычный reboot), тест выкл/вкл кнопкой не сделан ·
+P0: [x] дисплей+подсветка (подтверждено пользователем) · [x] стабильная загрузка с внутренней памяти после выключения и включения (слот b, 29.10, подтверждено пользователем + ssh) ·
 [ ] тач · [~] USB SSH работает в установленном pmOS, по Wi-Fi не проверено · [~] Wi-Fi видит сети, подключение не проверено ·
 [~] батарея: в отладке mm8013 работал, в pmOS модуль не грузится; заряд идёт на HW-дефолтах · [ ] кнопки (нажатия не проверены).
 P1: [x] GPU + Wayland (weston 60 fps, подтверждено визуально) · [ ] звук · [~] BT сканирует · [ ] датчики · [ ] suspend.
