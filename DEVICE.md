@@ -1,4 +1,47 @@
-# DEVICE_INFO — всё только из вывода команд на устройстве
+# DEVICE — Lenovo Tab P11 TB-J606F (всё, что известно)
+
+> Серийный номер, MAC и GUID разделов вычищены (`<SERIAL>`, `<WIFI_MAC>`, `<BT_MAC>`, …). Источники: adb/getprop, root-дампы,
+> fastboot getvar, dmesg стока, DT стока (live.dtb), логи mainline. Хронология — [WORKLOG.md](WORKLOG.md).
+
+## Режимы загрузки и доступ
+| Режим | Как попасть | Примечание |
+|---|---|---|
+| fastboot (ABL) | выкл. → **Vol− + Power**; из Android `adb reboot bootloader`; из Linux `reboot(RESTART2,"bootloader")` (PON reboot-mode, pm6125 mode-bootloader=0x2) | `fastboot boot` — 1 раз за сессию; `is-userspace: no`; max-download 768 МиБ |
+| recovery | Vol− + Vol+ + Power | раздел recovery_a/b (отдельный, A/B + recovery как у Android 10) |
+| EDL | держать Vol+ и подключить USB | для qdl-отката |
+| Жёсткий сброс | держать Power ~10–15 с | |
+| Android adb | USB 18d1:4ee7 (bcdDevice 4.19), модель «Lenovo Tab P11» | Android больше не грузится (super перезаписан) |
+| fastboot USB | 18d1:d00d | |
+| отладочный initramfs (наш) | `scripts/make_debug_bootimg.py` | гаджет 18d1:d001 ECM+ACM, 169.254.42.1, nc :9100 |
+| pmOS | `ssh user@172.16.42.1` | initramfs: debug shell telnet :23, ACM `/dev/cu.usbmodempostmarketOS*` |
+
+fastboot getvar (сток): product bengal, variant SMP UFS, hw-revision 10000, secure yes, unlocked yes, current-slot a, slot-count 2,
+slot a successful=yes retry=6, slot b successful=no retry=0 (b не загружался до нас), kernel uefi, off-mode-charge 1, version-bootloader/baseband пустые.
+
+## Статус железа в Linux (mainline 7.2.3)
+| Блок | Чип / драйвер | Статус |
+|---|---|---|
+| Экран | BOE + Himax HX83102P, DSI 4 lane, 1200x2000@60, msm DPU 6.3 + panel-himax-hx83102 (патч 0001) | ✅ подтверждено визуально; панель смонтирована перевёрнутой (rotation 180) |
+| Подсветка | DCS 0x51 12 бит (0…4095) → SGM37604A (en: pmi632 gpio6) | ✅ подтверждено визуально; DCS 0x52 (чтение) не поддерживается |
+| LCD bias | TPS65132 I2C1 0x3e, ±5.7 В, ENP tlmm 111, ENN tlmm 44 | ✅ |
+| GPU | Adreno 610, freedreno FD610 (Mesa 26.2.5), zap a610_zap.mbn | ✅ GLES 3.2, kmscube 59.99 fps, weston 60 fps |
+| Тач/стилус | Himax HX83102E zero-flash, SPI0 (QUP SE2 4a88000), irq tlmm 86, rst tlmm 54, FW Himax_firmware.bin | ❌ нет драйвера |
+| Wi-Fi | WCN3990 ath10k_snoc, chip_id 0x150, FW WLAN.HL.3.2.4-00564 (через MPSS + rmtfs + tqftpserv) | ✅ сканирование (2.4+5 ГГц); подключение не проверено |
+| BT | WCN3990 (cherokee) на uart3 4a8c000, SOC 0x40020150, crbtfw21.tlv/crnv21.bin | ✅ сканирование (21 LE-устройство) |
+| USB | DWC3 4e00000, peripheral, HS | ✅ ECM/NCM/ACM; host/OTG не проверены |
+| Батарея | MM8013 I2C0 0x55 (`mitsumi,mm8013`), 7500 мА·ч, 328 циклов | ✅ в отладке; в pmOS нужен modules-load |
+| Зарядка | PMI632 (smb5) + SMB1355 | ⚠️ заряжается на HW-дефолтах, драйвера нет |
+| Кнопки | Power/Vol− (PON pwrkey/resin), Vol+ (pm6125 gpio5) | input-устройства есть, нажатия не проверены |
+| CPU/thermal | qcom-cpufreq-hw (1.8/2.016 ГГц), tsens 16 зон, cooling-maps (наш DTS) | ✅ |
+| DSP | modem (MPSS), ADSP, CDSP (стоковые .mbn) | ✅ стартуют |
+| Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ❌ |
+| Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ❌ hexagonrpcd падает |
+| SD | sdhc_2, cd tlmm 88 | ❓ карты не было |
+| Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ❓ клавиатуры нет |
+| Камеры, вибро, RGB LED, датчик Холла (tlmm 36) | — | ❓ не проверялось |
+
+---
+
 
 Источники: raw/adb_20261028_232150/ (adb shell без root, uid=shell), raw/fastboot_20261028_232246/.
 Root нет (`su: inaccessible or not found`), поэтому /proc/cmdline, dmesg, /proc/partitions,

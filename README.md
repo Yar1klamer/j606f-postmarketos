@@ -4,8 +4,8 @@
 **Lenovo Tab P11 TB-J606F** (Wi-Fi) на основе **mainline-ядра Linux 7.2**
 ([linux-nura-qcom-sm61x5](https://codeberg.org/sm61x5-mainline/linux)).
 
-> **Статус: ранний bring-up.** Ядро, дисплей, GPU, Wayland, Wi-Fi, Bluetooth и USB-сеть работают;
-> тача, звука и датчиков пока нет. Как повседневная система ещё не годится. Подробности ниже и в [docs/STATE.md](docs/STATE.md).
+> **Статус: pmOS (Nura edge) устанавливается и грузится** (rootfs в super). Ядро, дисплей, GPU, Wayland, Wi-Fi, Bluetooth и USB-сеть/SSH работают;
+> тача, звука и датчиков пока нет. Как повседневная система ещё не годится. Подробности ниже и в [STATE.md](STATE.md).
 
 ![weston на TB-J606F (снимок буфера композитора)](docs/img/weston_screenshot.png)
 
@@ -44,7 +44,7 @@
 
 ## Что работает
 
-Проверено на mainline 7.2.3 через `fastboot boot`. Доказательства (команды и вывод) в [docs/WORKLOG.md](docs/WORKLOG.md).
+Проверено на mainline 7.2.3 через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
 
 | Подсистема | Статус | Примечание |
 |---|---|---|
@@ -97,11 +97,12 @@ pmaports/device/testing/
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,
                            сборка на самом планшете, прокси для USB-сети, установка
+STATE.md                   ← НАЧАТЬ ЗДЕСЬ: текущее состояние, пути, версии, следующий шаг
+WORKLOG.md                 полная хронология (команды, вывод, ошибки, тупики)
+DEVICE.md                  всё про планшет: железо, разделы, режимы загрузки, статус
+NOTES.md                   решения, грабли, команды, ссылки, TODO
 docs/
-  STATE.md                 текущее состояние и чек-лист
-  WORKLOG.md               полный журнал работ (команды, вывод, результат)
-  DECISIONS.md             принятые решения и почему
-  DEVICE_INFO.md           факты об устройстве
+  DECISIONS.md             принятые решения и почему (подробно)
   COMMANDS.md              проверенные команды
   notes/                   заметки по подсистемам (display, touch, wifi_bt, power, audio, sensors, boot …)
 ```
