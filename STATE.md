@@ -5,7 +5,7 @@
 
 ## 1. Одной строкой
 **pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
-rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — наша сборка linux-nura-qcom-sm61x5 7.2.3 **pkgrel 105** (патчи 0001, 0003, 0004, 0005; без HACK 0002).
+**rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — наша сборка linux-nura-qcom-sm61x5 7.2.3 **pkgrel 105** (патчи 0001, 0003, 0004, 0005; без HACK 0002).
 Автологин в Plasma, альбомная ориентация, Wi-Fi подключён, батарея и зарядник видны, Bluetooth включается сам. Тача, звука и датчиков нет.
 
 ## 2. Состояние устройства прямо сейчас
@@ -17,8 +17,8 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 | boot_b | `/boot/boot.img` с самого планшета (ядро r105, device r5), записан `dd` в `/dev/disk/by-partlabel/boot_b` |
 | dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | стоковые |
-| super (12 ГиБ) | rootfs pmOS с Plasma (образ ~4.1 ГБ, sparse), прошит `fastboot flash super`; внутри GPT с секторами 4096: pmOS_boot + pmOS_root |
-| userdata (102 ГиБ) | ext4 `j606f_work`: старое рабочее место pmbootstrap на планшете |
+| userdata (102 ГиБ) | **rootfs pmOS**: GPT (сектор 4096) pmOS_boot 480 МиБ + pmOS_root 102 ГиБ (перенесено поблочно из super с теми же UUID, 29.10) |
+| super (12 ГиБ) | старая копия системы, **GPT подразделов удалена** (иначе initramfs выберет super раньше userdata); дамп таблицы для восстановления сохранён |
 | Android | **не загрузится** (super перезаписан) — с согласия владельца |
 | modem*/persist/fsg/abl/xbl | не трогали (rmtfs в pmOS пишет EFS в modemst1/2, fsg — штатно) |
 | Доступ | `ssh user@172.16.42.1` (USB) или по Wi-Fi; на планшете `sudo` без пароля для user и автологин (локальная настройка, **не в образе**) |
@@ -29,7 +29,8 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 - Bluetooth-мышь Mi Mouse3C сопряжена и доверена (`bluetoothctl`);
 - экранная клавиатура: `kwinrc [Wayland] InputMethod=/usr/share/applications/org.kde.plasma.keyboard.desktop`, `VirtualKeyboardMode=2`; `plasmakeyboardrc [General] enabledLocales=en_US,ru_RU`;
   ярлык `~/.local/bin/osk-toggle` + `org.j606f.osk-toggle.desktop` на панели;
-- `systemctl mask iio-sensor-proxy` (дёргал ADSP раз в секунду, датчики пока не работают);
+- датчики: `/usr/share/qcom/sm6115/LENOVO/J606F/` (dsp, sensors, socinfo — со своего устройства), hexagonrpcd 0.4.0-r50 (наш патч), drop-in'ы
+  `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` с `-R …/J606F`; iio-sensor-proxy снова включён (дёргал ADSP раз в секунду, датчики пока не работают);
 - `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (без тача/клавиатуры экран блокировки не пройти);
 - `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
 - `/etc/apk/repositories`: pmOS — `https://mirror.minlexx.ru/postmarketos/{extra-repos/systemd/main,main}`, Alpine — `http://mirror.yandex.ru/mirrors/alpine/edge/{main,community,testing}`
@@ -69,5 +70,5 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 P0: [x] дисплей+подсветка · [x] стабильная загрузка с внутренней памяти после выключения и включения · [ ] тач ·
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
 [~] батарея и зарядка: индикация (mm8013) и статус зарядника (pmi632-charger, read-only) работают, заряд на настройках загрузчика (4.40 В / 3 А) · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
-P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [ ] звук · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [ ] датчики · [ ] suspend.
+P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [ ] звук · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [ ] suspend.
 P2/P3: пакеты pmaports (ядро pkgrel 103, device r5, firmware) — в `pmaports/`, собираются и ставятся; документация — этот репозиторий.

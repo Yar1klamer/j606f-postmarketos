@@ -26,6 +26,9 @@ deviceinfo_append_dtb="false"
 deviceinfo_rootfs_image_sector_size="4096"
 deviceinfo_flash_pagesize="4096"
 deviceinfo_flash_sparse="true"
+# rootfs lives in userdata (~100 GiB); super must not carry a pmOS GPT, the initramfs
+# probes partitions in /proc/diskstats order and would pick super (sda14) first
+deviceinfo_flash_fastboot_partition_rootfs="userdata"
 # Values from the stock boot.img (TB-J606F_S120184_210520_ROW), see notes/boot.md
 deviceinfo_flash_offset_base="0x00000000"
 deviceinfo_flash_offset_kernel="0x00008000"
