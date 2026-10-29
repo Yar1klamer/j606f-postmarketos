@@ -27,6 +27,8 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 - kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
 - `apk add mesa-vulkan-freedreno fastfetch` (Vulkan: Turnip Adreno 610); `~/.config/fastfetch/config.jsonc` — GPU через Vulkan;
 - Bluetooth-мышь Mi Mouse3C сопряжена и доверена (`bluetoothctl`);
+- экранная клавиатура: `kwinrc [Wayland] InputMethod=/usr/share/applications/org.kde.plasma.keyboard.desktop`, `VirtualKeyboardMode=2`; `plasmakeyboardrc [General] enabledLocales=en_US,ru_RU`;
+  ярлык `~/.local/bin/osk-toggle` + `org.j606f.osk-toggle.desktop` на панели;
 - `systemctl mask iio-sensor-proxy` (дёргал ADSP раз в секунду, датчики пока не работают);
 - `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (без тача/клавиатуры экран блокировки не пройти);
 - `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);

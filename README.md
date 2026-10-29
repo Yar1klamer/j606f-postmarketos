@@ -4,9 +4,9 @@
 **Lenovo Tab P11 TB-J606F** (Wi-Fi) на основе **mainline-ядра Linux 7.2**
 ([linux-nura-qcom-sm61x5](https://codeberg.org/sm61x5-mainline/linux)).
 
-> **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU, Plasma (Wayland),
-> Wi-Fi, Bluetooth, USB-сеть/SSH, батарея и статус зарядки. Тача, звука и датчиков пока нет, поэтому без Bluetooth-клавиатуры/мыши
-> как повседневная система ещё не годится. Подробности ниже и в [STATE.md](STATE.md).
+> **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU (OpenGL ES и Vulkan),
+> Plasma (Wayland), Wi-Fi, **Bluetooth (полностью: сопряжение и устройства ввода)**, USB-сеть/SSH, кнопки, батарея и статус зарядки.
+> Тача, звука и датчиков пока нет: управление Bluetooth-мышью/клавиатурой, текст — экранной клавиатурой. Подробности ниже и в [STATE.md](STATE.md).
 
 ![KDE Plasma Desktop на TB-J606F](docs/img/plasma_desktop.png)
 
@@ -66,9 +66,11 @@
 | Дисплей HX83102P + подсветка | ✅ | свой драйвер панели (init из стокового DT), 60 Гц, DCS-яркость 0…4095 |
 | GPU Adreno 610 | ✅ | Mesa freedreno (GLES 3.2, kmscube 60 fps) и **Vulkan** через turnip (`mesa-vulkan-freedreno`) |
 | Wayland, KDE Plasma Desktop | ✅ | weston и Plasma (kwin_wayland) на GPU, 60 Гц; автологин и ландшафт настраиваются вручную |
+| Экранная клавиатура | ✅ | plasma-keyboard (EN/RU), значок на панели; см. [NOTES.md](NOTES.md) п. 39 |
+| Кнопки Power, Vol± | ✅ | Power гасит/включает экран (настройка PowerDevil) |
 | USB-сеть, SSH | ✅ | гаджет ECM/ACM |
 | Wi-Fi | ✅ | ath10k (WCN3990): подключение WPA2, DHCP, интернет |
-| Bluetooth | ✅ сканирование | btqca; адрес задаёт bootmac, сопряжение не проверено |
+| Bluetooth | ✅ полностью | WCN3990 (btqca): поиск, сопряжение, HID-устройства (проверено с мышью); постоянный адрес задаёт bootmac |
 | Батарея | ✅ | fuel gauge mm8013 |
 | cpufreq, thermal, троттлинг CPU | ✅ | cooling-maps добавлены в DTS |
 | Modem / ADSP / CDSP | ✅ стартуют | стоковые прошивки |
