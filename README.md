@@ -15,7 +15,7 @@
 
 | fastfetch | Информация о системе (KInfoCenter) |
 |---|---|
-| ![fastfetch: Nura edge, Linux 7.2.3-sm61x5, KDE Plasma 6.8.1](docs/img/plasma_fastfetch.png) | ![KInfoCenter: Plasma 6.8.1, Qt 6.11.1, ядро 7.2.3-sm61x5](docs/img/plasma_infocenter.png) |
+| ![fastfetch: Nura edge, Linux 7.2.3-sm61x5, KDE Plasma 6.8.1, Turnip Adreno 610](docs/img/plasma_fastfetch.png) | ![KInfoCenter: Plasma 6.8.1, Qt 6.11.1, ядро 7.2.3-sm61x5](docs/img/plasma_infocenter.png) |
 
 Ранний этап bring-up — weston на mainline-ядре (снимок буфера композитора):
 
@@ -64,7 +64,7 @@
 | Загрузка ядра | ✅ | со стёртым `dtbo` (или через «отстойник» для стокового dtbo, см. ниже) |
 | UFS, разметка | ✅ | |
 | Дисплей HX83102P + подсветка | ✅ | свой драйвер панели (init из стокового DT), 60 Гц, DCS-яркость 0…4095 |
-| GPU Adreno 610 | ✅ | Mesa freedreno, GLES 3.2, kmscube 60 fps |
+| GPU Adreno 610 | ✅ | Mesa freedreno (GLES 3.2, kmscube 60 fps) и **Vulkan** через turnip (`mesa-vulkan-freedreno`) |
 | Wayland, KDE Plasma Desktop | ✅ | weston и Plasma (kwin_wayland) на GPU, 60 Гц; автологин и ландшафт настраиваются вручную |
 | USB-сеть, SSH | ✅ | гаджет ECM/ACM |
 | Wi-Fi | ✅ | ath10k (WCN3990): подключение WPA2, DHCP, интернет |

@@ -25,6 +25,8 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 
 Локальные настройки на планшете (пропадут при полной переустановке образа):
 - kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
+- `apk add mesa-vulkan-freedreno fastfetch` (Vulkan: Turnip Adreno 610); `~/.config/fastfetch/config.jsonc` — GPU через Vulkan;
+- Bluetooth-мышь Mi Mouse3C сопряжена и доверена (`bluetoothctl`);
 - `systemctl mask iio-sensor-proxy` (дёргал ADSP раз в секунду, датчики пока не работают);
 - `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (без тача/клавиатуры экран блокировки не пройти);
 - `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
@@ -65,5 +67,5 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 P0: [x] дисплей+подсветка · [x] стабильная загрузка с внутренней памяти после выключения и включения · [ ] тач ·
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
 [~] батарея и зарядка: индикация (mm8013) и статус зарядника (pmi632-charger, read-only) работают, заряд на настройках загрузчика (4.40 В / 3 А) · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
-P1: [x] GPU + Wayland (Plasma) · [ ] звук · [~] BT (powered, сканирует, сопряжение не проверено) · [ ] датчики · [ ] suspend.
+P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [ ] звук · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [ ] датчики · [ ] suspend.
 P2/P3: пакеты pmaports (ядро pkgrel 103, device r5, firmware) — в `pmaports/`, собираются и ставятся; документация — этот репозиторий.
