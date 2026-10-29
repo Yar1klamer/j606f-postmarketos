@@ -10,6 +10,8 @@
 > GPU после исправления голосования за память DDR (патч 0009) быстрее в 2.5–7 раз. Звука, сна и офлайн-зарядки пока нет.
 > Обновления ставятся через **apk-репозиторий** (см. [ниже](#обновления-через-apk-репозиторий)). Подробности — в [STATE.md](STATE.md).
 
+**Автор порта и apk-репозитория — [@nnshould](https://t.me/nnshould) (Telegram).** Вопросы по репозиторию, установке и помощь — туда.
+
 ![KDE Plasma Desktop на TB-J606F](docs/img/plasma_desktop.png)
 
 <details>
@@ -215,7 +217,7 @@ fastboot --set-active=b && fastboot reboot
 ## Обновления через apk-репозиторий
 
 Собранные пакеты порта (ядро, device-пакеты, hexagonrpcd) лежат в подписанном apk-репозитории
-**https://repo.yarnick.ru/j606f** (ключ `pmos@local-6ae27901`). Прошивок Lenovo (`firmware-lenovo-j606f`) там нет и не будет —
+**https://repo.yarnick.ru/j606f** (ключ `pmos@local-6ae27901`). Репозиторий ведёт [@nnshould](https://t.me/nnshould) (Telegram) — по вопросам о нём писать туда. Прошивок Lenovo (`firmware-lenovo-j606f`) там нет и не будет —
 это блобы конкретного устройства, их каждый собирает сам.
 
 Подключение (один раз):
@@ -274,6 +276,7 @@ firmware и всё с `license = proprietary`, строит индекс v2 (`ap
   [AI policy postmarketOS](https://docs.postmarketos.org/policies-and-processes/development/ai-policy.html)).
 
 ## Благодарности и лицензии
+- Автор порта, сборки и apk-репозитория: [@nnshould](https://t.me/nnshould) (Telegram, GitHub Yar1klamer).
 - Mainline-поддержка SM6115 и исходный DTS `sm6115p-lenovo-j606f.dts`: Linaro, Konrad Dybcio и сообщество linux-msm.
 - Ядро `linux-nura-qcom-sm61x5`: [sm61x5-mainline](https://codeberg.org/sm61x5-mainline/linux), Barnabás Czémán.
 - Драйвер `panel-himax-hx83102`: Cong Yang и др.; postmarketOS/Nura, pmbootstrap, Mesa freedreno.
