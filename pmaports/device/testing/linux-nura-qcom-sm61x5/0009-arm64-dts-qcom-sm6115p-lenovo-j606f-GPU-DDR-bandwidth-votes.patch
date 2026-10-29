@@ -1,0 +1,64 @@
+From: Yar1klamer
+Subject: [PATCH] arm64: dts: qcom: sm6115p-lenovo-j606f: GPU DDR bandwidth votes
+
+sm6115.dtsi gives the Adreno 610 no interconnect path, so the GPU never
+votes for DDR bandwidth and the BIMC stays at what other masters ask for.
+Add the gfx-mem path and per-OPP peak bandwidth from the stock kgsl table.
+glmark2-es2-wayland 277 -> 694, vkmark 87 -> 599 on TB-J606F.
+---
+diff -ruN a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi	2026-10-30 09:57:00
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi	2026-10-30 09:57:00
+@@ -358,6 +358,52 @@
+ 	remote-endpoint = <&fusb302_hs_in>;
+ };
+ 
++/*
++ * GPU memory bandwidth: sm6115.dtsi gives the Adreno no interconnect path, so it never
++ * votes for DDR bandwidth and the BIMC stays at whatever other masters asked for (glmark2
++ * 277, vkmark 87, vkmark "clear" 130 fps at 800x600). Peak values per GPU OPP from the
++ * stock kgsl table (qcom,msm-bus vectors ib, bus-freq index per gpu-pwrlevel).
++ */
++&gpu {
++	interconnects = <&bimc MASTER_GRAPHICS_3D RPM_ALWAYS_TAG
++			 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>;
++	interconnect-names = "gfx-mem";
++};
++
++&gpu_opp_table {
++	opp-320000000 {
++		opp-peak-kBps = <3608000>;
++	};
++
++	opp-465000000 {
++		opp-peak-kBps = <6144000>;
++	};
++
++	opp-600000000 {
++		opp-peak-kBps = <8136000>;
++	};
++
++	opp-745000000 {
++		opp-peak-kBps = <10824000>;
++	};
++
++	opp-820000000 {
++		opp-peak-kBps = <12440000>;
++	};
++
++	opp-900000000 {
++		opp-peak-kBps = <14432000>;
++	};
++
++	opp-950000000 {
++		opp-peak-kBps = <14432000>;
++	};
++
++	opp-980000000 {
++		opp-peak-kBps = <14432000>;
++	};
++};
++
+ /* PMI632 SMB5 charger, read-only status driver for now */
+ &spmi_bus {
+ 	pmic@2 {

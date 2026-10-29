@@ -6,7 +6,9 @@
 
 > **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU (OpenGL ES и Vulkan),
 > Plasma (Wayland), Wi-Fi, **Bluetooth (полностью: сопряжение и устройства ввода)**, USB-сеть/SSH, кнопки, батарея и статус зарядки.
-> Работают датчики (свет, приближение, акселерометр) и **тачскрин** (порт GPL-драйвера Lenovo для HX83102E). Звука пока нет. Подробности ниже и в [STATE.md](STATE.md).
+> Работают датчики (свет, приближение, акселерометр), **тачскрин** (порт GPL-драйвера Lenovo для HX83102E), **USB OTG** и зарядка от сетевой USB-C,
+> GPU после исправления голосования за память DDR (патч 0009) быстрее в 2.5–7 раз. Звука, сна и офлайн-зарядки пока нет.
+> Обновления ставятся через **apk-репозиторий** (см. [ниже](#обновления-через-apk-репозиторий)). Подробности — в [STATE.md](STATE.md).
 
 ![KDE Plasma Desktop на TB-J606F](docs/img/plasma_desktop.png)
 
@@ -31,6 +33,7 @@
 - [Структура репозитория](#структура-репозитория)
 - [Сборка](#сборка)
 - [Установка](#установка)
+- [Обновления через apk-репозиторий](#обновления-через-apk-репозиторий)
 - [Откат на Android](#откат-на-android)
 - [Отладочная среда без rootfs](#отладочная-среда-без-rootfs)
 - [Известные проблемы и планы](#известные-проблемы-и-планы)
@@ -57,19 +60,20 @@
 
 ## Что работает
 
-Проверено в установленном pmOS (ядро 7.2.3-r105, Plasma Desktop), сначала — через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
+Проверено в установленном pmOS (ядро 7.2.3 с патчами до 0009, Plasma Desktop), сначала — через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
 
 | Подсистема | Статус | Примечание |
 |---|---|---|
 | Загрузка ядра | ✅ | со стёртым `dtbo` (или через «отстойник» для стокового dtbo, см. ниже) |
 | UFS, разметка | ✅ | |
 | Дисплей HX83102P + подсветка | ✅ | свой драйвер панели (init из стокового DT), 60 Гц, DCS-яркость 0…4095 |
-| GPU Adreno 610 | ✅ | Mesa freedreno (GLES 3.2, kmscube 60 fps) и **Vulkan** через turnip (`mesa-vulkan-freedreno`) |
+| GPU Adreno 610 | ✅ | Mesa freedreno (GLES 3.2) и **Vulkan** через turnip (`mesa-vulkan-freedreno`). Патч 0009: GPU голосует за пропускную способность DDR (в sm6115.dtsi её не было) — glmark2-es2 277 → 694, vkmark 87 → 599 |
 | Wayland, KDE Plasma Desktop | ✅ | weston и Plasma (kwin_wayland) на GPU, 60 Гц; автологин и ландшафт настраиваются вручную |
 | Экранная клавиатура | ✅ | plasma-keyboard (EN/RU), значок на панели; см. [NOTES.md](NOTES.md) п. 39 |
 | Кнопки Power, Vol± | ✅ | Power гасит/включает экран (настройка PowerDevil) |
 | USB-сеть, SSH | ✅ | гаджет ECM/ACM |
-| USB OTG (хост) | ✅ | Type-C через FUSB302 + внешний 5 В буст (gpio38), патч 0008; USB 2.0, без PD. Проверено с USB-ресивером мыши |
+| USB OTG (хост) | ✅ | Type-C через FUSB302 + внешний 5 В буст (gpio38), патч 0008; USB 2.0, без PD. Проверено с USB-ресивером мыши. После выхода из режима хоста USB-сеть к ПК не работает до перезагрузки (dwc3 «failed to enable ep0out») |
+| Зарядка от сетевой USB-C (C-to-C) | ✅ | FUSB302 выставляет Rd, зарядка даёт 5 В / до 3 А (без PD); в батарею ~1.4 А. Без патча 0008 C-to-C-зарядки не включаются |
 | Wi-Fi | ✅ | ath10k (WCN3990): подключение WPA2, DHCP, интернет |
 | Bluetooth | ✅ полностью | WCN3990 (btqca): поиск, сопряжение, HID-устройства (проверено с мышью); постоянный адрес задаёт bootmac |
 | Батарея | ✅ | fuel gauge mm8013 (патч 0005: правильный знак тока по ABI, связь с зарядником, Li-ion) — Plasma/UPower показывают заряд/разряд верно |
@@ -81,7 +85,9 @@
 | Звук | ❌ | нет драйверов AW88258, ES7210 |
 | Датчики (акселерометр, свет, приближение) | ✅ | Qualcomm SSC на ADSP: hexagonrpcd (свой патч, `pmaports/temp/hexagonrpcd`) + libssc + iio-sensor-proxy; файлы SSC — со своего устройства. Матрица ориентации акселерометра ещё не подобрана |
 | Зарядник PMI632 | ⚠️ только статус | свой read-only драйвер (патч 0004): онлайн, статус, тип USB, лимиты; заряд на настройках загрузчика (4.40 В / 3 А). SMB1355 нет |
-| Suspend, камеры, клавиатура | ❓ | не проверялось |
+| Сон (s2idle) | ❌ | засыпает, но: dwc3 после сна не поднимает ep0 (USB-сеть до перезагрузки), ADSP падает и будит через ~2 с. Автосон PowerDevil лучше выключить. [NOTES](NOTES.md) п. 48 |
+| Офлайн-зарядка | ❌ | загрузчик при зарядке выключенного планшета запускает систему полностью (androidboot.mode=charger в initramfs pmOS не обрабатывается) |
+| Камеры, клавиатура на pogo-пинах | ❓ | не проверялось |
 
 ## Главная особенность: загрузчик Lenovo и dtbo
 
@@ -115,11 +121,12 @@ kernel/
     0006-…-HX83102E-…patch    тачскрин Himax HX83102E (порт драйвера Lenovo) + узел в DTS
     0007-…-NT36523W-SKU.patch общая часть DTS (common.dtsi) + DTB ревизии NT36523W
     0008-…-USB-C-OTG…patch     USB-C OTG: FUSB302 (I2C0 0x22) + VBUS-буст по gpio38, dwc3 dual-role
+    0009-…-GPU-DDR-bandwidth…  голосование GPU за пропускную способность DDR (gfx-mem + opp-peak-kBps из стока)
     config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E, TYPEC_FUSB302)
   himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0008 (pkgrel 108)
+  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0009 (pkgrel 109)
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
@@ -161,7 +168,7 @@ python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0008 (pkgrel 108)
+cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0009 (pkgrel 109)
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
@@ -205,6 +212,35 @@ fastboot --set-active=b && fastboot reboot
 Подробно, с откатом: [`docs/notes/install_plan.md`](docs/notes/install_plan.md).
 [`scripts/device_install_pmos.sh`](scripts/device_install_pmos.sh) — старый скрипт установки в **super** из запущенного mainline (история).
 
+## Обновления через apk-репозиторий
+
+Собранные пакеты порта (ядро, device-пакеты, hexagonrpcd) лежат в подписанном apk-репозитории
+**https://repo.yarnick.ru/j606f** (ключ `pmos@local-6ae27901`). Прошивок Lenovo (`firmware-lenovo-j606f`) там нет и не будет —
+это блобы конкретного устройства, их каждый собирает сам.
+
+Подключение (один раз):
+```bash
+sudo wget -O /etc/apk/keys/pmos@local-6ae27901.rsa.pub https://repo.yarnick.ru/pmos@local-6ae27901.rsa.pub
+echo "@j606f https://repo.yarnick.ru/j606f" | sudo tee -a /etc/apk/repositories
+sudo apk update
+# закрепить пакеты порта за этим репозиторием (иначе более новый апстримный linux-nura-qcom-sm61x5 без патчей j606f может их заменить)
+sudo apk add linux-nura-qcom-sm61x5@j606f device-lenovo-j606f@j606f device-lenovo-j606f-nonfree-firmware@j606f
+```
+`hexagonrpcd@j606f` ставьте, только если настроены датчики (без drop-in'ов с `-R` ADSP падает в цикле, NOTES п. 42).
+
+Обновление:
+```bash
+sudo apk update && sudo apk upgrade
+# ВАЖНО: apk пересобирает /boot/boot.img, но в раздел ядра сам пока НЕ пишет (deviceinfo_flash_kernel_on_update не задан):
+sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync && sudo reboot
+```
+Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r109 → `#110`).
+Если в сети локальный DNS-фильтр, а systemd-resolved пишет `DNSSEC validation failed: no-signature`, помогает
+`sudo resolvectl reset-server-features && sudo resolvectl flush-caches` (NOTES п. 50).
+
+Публикация (для сопровождающего): [`scripts/publish_repo.sh`](scripts/publish_repo.sh) — берёт свежие целые пакеты, отсекает
+firmware и всё с `license = proprietary`, строит индекс v2 (`apk index` + `abuild-sign`; `apk mkndx` даёт формат adb) и заливает rsync.
+
 ## Откат на Android
 - Перед любой записью сделайте полный бэкап ([`scripts/backup_partitions.sh`](scripts/backup_partitions.sh)).
 - `fastboot --set-active=a` вернёт загрузку со слота a, если он не трогался.
@@ -225,7 +261,7 @@ fastboot --set-active=b && fastboot reboot
 - **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md), NOTES п. 41–42.
 - **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. NOTES п. 43.
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
-- **suspend**, клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- **Сон** (dwc3/ADSP, п. 48), **офлайн-зарядка** (свой хук initramfs или `fastboot oem off-mode-charge 0`), клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
 - **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура, drop-in'ы hexagonrpcd) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2).
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
   ```bash

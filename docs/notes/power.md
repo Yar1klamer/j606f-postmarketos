@@ -39,3 +39,10 @@
   (для шага 2: ICL под DCP/адаптер, JEITA, step-charging).
 - `smb1355-charger.c` — параллельный зарядник SMB1355 (I2C1 0x0c), образец для mainline-драйвера.
 - `qg-*.c` — Qualcomm QG (fuel gauge pmi632) и профиль батареи; `mm8013.c` — версия Lenovo (сравнить с mainline и патчем 0005).
+
+## USB-C: OTG и зарядка от C-to-C (2026-10-30, патч 0008)
+- Type-C блок PMI632 в режиме micro-USB (0x1570 = 0x03) — CC обслуживает FUSB302B (I2C0 0x22, ID 0x91, INT gpio97). VBUS для устройств — внешний буст по gpio38
+  (сток: fusb302 → pogo_psy usb_vbus_ctl), а не OTG PMI632. DTS: regulator-fixed usb_otg_vbus (gpio38) → vbus-supply fusb302; connector dual/dual, try sink, pd-disable.
+- OTG: ресивер мыши определяется (hid-generic), зарядник при этом offline (петли нет).
+- Зарядка: C-to-C-зарядка теперь включается (Rd от FUSB302): 5 В / 3 А по Rp, ~+1.36 А в батарею, ICL PMI632 1.5 А (железные умолчания). PD выключен.
+- Не работает офлайн-зарядка: ABL при подключении зарядки к выключенному планшету грузит ядро с androidboot.mode=charger, initramfs pmOS это не обрабатывает.
