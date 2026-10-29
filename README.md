@@ -209,8 +209,8 @@ fastboot --set-active=b && fastboot reboot
 - `scripts/cycle_boot.sh`: перезагрузка → bootloader → `fastboot boot` → ожидание сети.
 
 ## Известные проблемы и планы
-- **Тач HX83102E:** нужны GPL-исходники Himax «hxchipset» (в стоковом ядре драйвер встроен: `himax_mcu_firmware_update_0f`, `hx83102e_*`). [Заметки](docs/notes/touch.md).
-- **Звук:** драйвер AW88258 (ID 0x1852) и ES7210, машинный драйвер для SM6115. [Заметки](docs/notes/audio.md).
+- **Тач HX83102E:** GPL-драйвер стока найден в [adazem009/kernel_lenovo_tbj606](https://github.com/adazem009/kernel_lenovo_tbj606) (`drivers/input/touchscreen/himax83102p`, zero-flash SPI) — нужен порт на 7.2 (panel follower вместо downstream-уведомлений). [Заметки](docs/notes/touch.md).
+- **Звук:** разъём наушников (PM4125/WCD937x, драйверы в ядре есть); для динамиков AW88258 (ID 0x1852) и микрофонов ES7210 GPL-драйверы Lenovo есть в том же репозитории — нужен порт. [Заметки](docs/notes/audio.md).
 - **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md), NOTES п. 41–42.
 - **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. NOTES п. 43.
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.

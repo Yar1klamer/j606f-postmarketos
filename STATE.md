@@ -41,7 +41,7 @@
 2. Звук: разъём наушников и микрофон гарнитуры (PM4125/WCD937x, DTS + UCM); динамики AW88258 и микрофоны ES7210 — нет драйверов.
 3. Упаковать датчики: drop-in'ы hexagonrpcd и зависимость от hexagonrpcd r50 — в device-пакет; файлы прошивки — приватно.
 4. Зарядник, шаг 2: запись лимитов (ICL под сетевой адаптер, JEITA), только после проверки от адаптера.
-5. Тач (HX83102E, нужны исходники Himax), suspend/resume.
+5. Тач HX83102E: GPL-драйвер стока найден (github.com/adazem009/kernel_lenovo_tbj606, `drivers/input/touchscreen/himax83102p`) — порт на 7.2; там же aw88258_4pa, es7210, smb5/smb1355. suspend/resume.
 
 ## 4. Как обновлять без переустановки (проверено 29.10)
 Полная переустановка (`pmbootstrap install` + `fastboot flash super/boot_b`) сбрасывает локальные настройки и требует fastboot. Вместо неё:

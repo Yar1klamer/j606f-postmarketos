@@ -33,3 +33,9 @@
 - power_supply `pmi632-charger` (USB): ONLINE, STATUS, CHARGE_TYPE, USB_TYPE (APSD), HEALTH, INPUT_CURRENT_LIMIT (ICL_STATUS), CONSTANT_CHARGE_CURRENT/VOLTAGE (FCC/FV cfg). Опрос 5 с.
 - Значения от загрузчика (USB порт Mac): FCC 0x3c = 3.0 А, FV 0x50 = 4.40 В (= профиль стока), ICL max 1.5 А, ICL фактически 950 мА, APSD = SDP, статус FULLON/Fast.
 - Шаг 2 (не делали): запись USB ICL под DCP-адаптер (до 3 А), JEITA (1.5 А и 4.2 В при 45–50 °C), step-charging, SMB1355 (параллельный, I2C1 0x0c).
+
+## Исходники Lenovo (2026-10-29): github.com/adazem009/kernel_lenovo_tbj606 → `src/kernel_lenovo_tbj606/drivers/power/supply/qcom/`
+- `qpnp-smb5.c` (`smb5_pmi632_params`, `PMI632_MAX_ICL_UA 3000000`, JEITA), `smb5-lib.c/.h`, `smb5-reg.h` — стоковая логика зарядника с правками Lenovo
+  (для шага 2: ICL под DCP/адаптер, JEITA, step-charging).
+- `smb1355-charger.c` — параллельный зарядник SMB1355 (I2C1 0x0c), образец для mainline-драйвера.
+- `qg-*.c` — Qualcomm QG (fuel gauge pmi632) и профиль батареи; `mm8013.c` — версия Lenovo (сравнить с mainline и патчем 0005).

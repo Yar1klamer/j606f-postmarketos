@@ -34,3 +34,16 @@
 3. DT: &spi2 (QUP SE2, 4a88000) okay, узел himax_ts@0 (spi-cpha, 10 МГц, irq tlmm 86, reset tlmm 54) + пины QUP SE2 из стока.
 4. Прошивка: /lib/firmware/Himax_firmware.bin (из BACKUP/firmware/vendor_firmware.tar).
 Альтернатива: серия Allen Lin «HID: Add support for Himax HX83102j» (LKML 2024, hid-himax, грузит прошивку из файла), но чип у нас E, протокол может отличаться.
+
+## ★ GPL-исходники найдены (2026-10-29): github.com/adazem009/kernel_lenovo_tbj606
+Ядро Lenovo 4.19 для TB-J606F/L/X (ветки lineage-17.1/18.1/19.1, halium-10/11; на нём у другой ревизии работает Droidian/Ubuntu Touch).
+Частичный клон (lineage-18.1, f6bb9c6): `src/kernel_lenovo_tbj606/` (не публикуется, лежит только у нас).
+- `drivers/input/touchscreen/himax83102p/` — **тот самый драйвер стока** (GPL-2.0, Himax 2019): HX83102E, `HX_ZERO_FLASH`, `Himax_firmware.bin` + `Himax_mpfw.bin`,
+  `spi_driver` с `compatible = "himax,hxcommon"`; в нём есть `hx83102e_sense_off`, `himax_mcu_firmware_update_0f` (символы, которые мы искали в стоковом Image).
+  Импортирован коммитом a56fd12c01 (2024-08-09), правка wakeup_source 1a2dfc0533. Конфиг стока: `TOUCHSCREEN_HIMAX_CHIPSET/COMMON/INCELL/IC_HX83102=y`, DEBUG и INSPECT.
+- DT-свойства драйвера: `himax,irq-gpio`, `himax,rst-gpio`, `himax,3v3-gpio`, `himax,pon-gpio`, `himax,lcm-rst`, `himax,panel-coords`, `himax,display-coords`,
+  `report_type`, регуляторы `vdd`/`avdd`.
+- Что менять для mainline 7.2: убрать downstream-API (`drm_panel_notifier`/`fb_notifier` → `drm_panel_follower`, как i2c-hid), `<linux/hqsysfs.h>`, `asm/segment.h`,
+  `kallsyms`, `buffer_head`; отключить DEBUG/INSPECT (proc-интерфейсы); charger-notifier (USB-режим) можно оставить через power_supply.
+  HX83102P — TDDI (дисплей и тач в одном чипе), сброс общий с панелью (`himax,lcm-rst`) → порядок включения должен идти за панелью (panel follower).
+- План: собрать как внешний модуль под 7.2.3 → DT-узел в `&spi2` (QUP SE2, irq tlmm 86, reset tlmm 54, `panel = <&panel>`) → прошивка из BACKUP/firmware/vendor_firmware.tar.
