@@ -16,7 +16,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7). Нет: з�
 | Что запущено | pmOS + Plasma Desktop (автологин user), обычная загрузка со слота b |
 | Активный слот | **b** (`slot-successful:b` = yes) |
 | boot_a | стоковый boot + Magisk; стоковый оригинал в приватном бэкапе |
-| boot_b | ядро **r106** из пакета + DTB из дерева r109 (OTG + GPU DDR votes), собран mkinitfs на планшете и записан `dd`; `fusb302.ko` временно в `/usr/lib/modules/7.2.3-sm61x5/extra/` (уйдёт с установкой r109) |
+| boot_b | ядро **r109** из пакета (uname `#110`), boot.img собран mkinitfs на планшете и записан `dd` |
 | dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | стоковые |
 | userdata (102 ГиБ) | **rootfs pmOS**: GPT (сектор 4096) pmOS_boot 480 МиБ + pmOS_root 102 ГиБ (перенесено поблочно из super с теми же UUID, 29.10) |
@@ -24,7 +24,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7). Нет: з�
 | Android | **не загрузится** (super перезаписан) — с согласия владельца |
 | modem*/persist/fsg/abl/xbl | не трогали (rmtfs в pmOS пишет EFS в modemst1/2, fsg — штатно) |
 | Доступ | `ssh user@172.16.42.1` (USB) или по Wi-Fi; на планшете `sudo` без пароля для user и автологин (локальная настройка, **не в образе**) |
-| apk | добавлен `@j606f https://repo.yarnick.ru/j606f` (apk update и policy проверены; upgrade не делали) |
+| apk | добавлен `@j606f https://repo.yarnick.ru/j606f`; ядро r109 стоит, оно же в репозитории |
 
 Локальные настройки на планшете (пропадут при полной переустановке образа):
 - kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
@@ -41,7 +41,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7). Нет: з�
   (mirror.nura.eco из этой сети отдаёт ~500 Б/с; запасной вариант — официальное RWTH Aachen).
 
 ## 3. Следующий шаг
-1. Поставить ядро **r109** на этот планшет (убрать временный `extra/fusb302.ko`), проверить: OTG, зарядка C-to-C, тач, GPU-тесты; затем `publish_repo.sh` (r109 → репозиторий).
+1. Ядро **r109** стоит и опубликовано (тач, fusb302 из пакета, зарядка C-to-C, vkmark 540). Осталось проверить OTG-хост на r109 с устройством.
    У друга после apk upgrade OTG «не работает» — скорее всего не сделан `dd` boot.img в boot_b (ядро не сменилось). Проверить у него `uname -v`.
 2. Решение владельца: `deviceinfo_flash_kernel_on_update="true"` в device-lenovo-j606f (boot-deploy сам пишет boot_b после обновления; риск — битое ядро/обрыв питания → fastboot).
 3. Сон: dwc3 HS-only теряет ep0 после CoreSoftReset (сон, смена роли host→device), ADSP падает при засыпании (проверить с остановленными hexagonrpcd/iio-sensor-proxy);
@@ -69,7 +69,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7). Нет: з�
 
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
-- Ядро: **linux-nura-qcom-sm61x5 7.2.3-r109** в pmaports, **r108** в репозитории, **r106** на планшете (codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0009`), uname `7.2.3-sm61x5`.
+- Ядро: **linux-nura-qcom-sm61x5 7.2.3-r109** в pmaports, **r109** в репозитории и на планшете (codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0009`), uname `7.2.3-sm61x5`.
 - device-lenovo-j606f **r5** на планшете, **r6** в pmaports и репозитории (rootfs → userdata); cmdline с clk_ignore_unused, mm8013 modules-load, прошивка GPU в initramfs, bootmac; firmware-lenovo-j606f r1 (у каждого свой, не публикуется); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
