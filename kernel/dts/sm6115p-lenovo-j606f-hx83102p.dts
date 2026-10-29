@@ -35,6 +35,7 @@
 	fuel-gauge@55 {
 		compatible = "mitsumi,mm8013";
 		reg = <0x55>;
+		power-supplies = <&pmi632_charger>;
 	};
 };
 

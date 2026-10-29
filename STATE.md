@@ -5,7 +5,7 @@
 
 ## 1. Одной строкой
 **pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
-rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — наша сборка linux-nura-qcom-sm61x5 7.2.3 **pkgrel 103** (патчи 0001, 0003, 0004; без HACK 0002).
+rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — наша сборка linux-nura-qcom-sm61x5 7.2.3 **pkgrel 105** (патчи 0001, 0003, 0004, 0005; без HACK 0002).
 Автологин в Plasma, альбомная ориентация, Wi-Fi подключён, батарея и зарядник видны, Bluetooth включается сам. Тача, звука и датчиков нет.
 
 ## 2. Состояние устройства прямо сейчас
@@ -14,7 +14,7 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 | Что запущено | pmOS + Plasma Desktop (автологин user), обычная загрузка со слота b |
 | Активный слот | **b** (`slot-successful:b` = yes) |
 | boot_a | стоковый boot + Magisk; стоковый оригинал в приватном бэкапе |
-| boot_b | `/boot/boot.img` с самого планшета (ядро r103, device r5), записан `dd` в `/dev/disk/by-partlabel/boot_b` |
+| boot_b | `/boot/boot.img` с самого планшета (ядро r105, device r5), записан `dd` в `/dev/disk/by-partlabel/boot_b` |
 | dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | стоковые |
 | super (12 ГиБ) | rootfs pmOS с Plasma (образ ~4.1 ГБ, sparse), прошит `fastboot flash super`; внутри GPT с секторами 4096: pmOS_boot + pmOS_root |
@@ -60,7 +60,7 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
-- Ядро: **linux-nura-qcom-sm61x5 7.2.3-r103** (codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003, 0004`), uname `7.2.3-sm61x5`.
+- Ядро: **linux-nura-qcom-sm61x5 7.2.3-r105** (codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003, 0004, 0005`), uname `7.2.3-sm61x5`.
 - device-lenovo-j606f **r5** (cmdline с clk_ignore_unused, mm8013 modules-load, прошивка GPU в initramfs, bootmac); firmware-lenovo-j606f r0.
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».

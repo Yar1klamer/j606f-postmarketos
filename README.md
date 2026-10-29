@@ -71,7 +71,7 @@
 | USB-сеть, SSH | ✅ | гаджет ECM/ACM |
 | Wi-Fi | ✅ | ath10k (WCN3990): подключение WPA2, DHCP, интернет |
 | Bluetooth | ✅ полностью | WCN3990 (btqca): поиск, сопряжение, HID-устройства (проверено с мышью); постоянный адрес задаёт bootmac |
-| Батарея | ✅ | fuel gauge mm8013 |
+| Батарея | ✅ | fuel gauge mm8013 (патч 0005: правильный знак тока по ABI, связь с зарядником, Li-ion) — Plasma/UPower показывают заряд/разряд верно |
 | cpufreq, thermal, троттлинг CPU | ✅ | cooling-maps добавлены в DTS |
 | Modem / ADSP / CDSP | ✅ стартуют | стоковые прошивки |
 | Перезагрузка в bootloader | ✅ | reboot-mode PON |
@@ -109,10 +109,11 @@ kernel/
     0002-HACK-…patch        qcom,bengalp для ubwc_config/pd_mapper (только если dtbo не стёрт; в пакет не входит)
     0003-…-HX83102P-SKU.patch  DTS ревизии HX83102P + abl-sink.dtsi + Makefile
     0004-…-PMI632-charger…patch  read-only драйвер зарядника PMI632 (SMB5) + узел в DTS
+    0005-…-mm8013-…patch      mm8013: знак current_now, power-supplies → зарядник, TECHNOLOGY=Li-ion
     config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632)
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003, 0004 (pkgrel 103)
+  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003, 0004, 0005 (pkgrel 105)
   device-lenovo-j606f/     device-пакет (deviceinfo, modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,

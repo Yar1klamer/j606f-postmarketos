@@ -1,0 +1,66 @@
+From: Yar1klamer
+Subject: [PATCH] power: supply: mm8013: fix current sign, notify on charger changes, report Li-ion
+
+- current_now: the gauge already reports AverageCurrent negative while
+  discharging (measured on TB-J606F: about +0.9 A shown under load on
+  battery, -0.2 A while charging); drop the extra negation so the value
+  follows the sysfs ABI (negative = discharging). UPower derived the
+  battery state from the inverted sign and showed "discharging" while
+  charging.
+- link the fuel gauge to the PMI632 charger (power-supplies) and forward
+  external power changes as power_supply_changed (as max17042 does).
+- report POWER_SUPPLY_TECHNOLOGY_LION.
+
+---
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
+index 760067f..54fb71a 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
+@@ -35,6 +35,7 @@
+ 	fuel-gauge@55 {
+ 		compatible = "mitsumi,mm8013";
+ 		reg = <0x55>;
++		power-supplies = <&pmi632_charger>;
+ 	};
+ };
+ 
+diff --git a/drivers/power/supply/mm8013.c b/drivers/power/supply/mm8013.c
+index 819667a..081b260 100644
+--- a/drivers/power/supply/mm8013.c
++++ b/drivers/power/supply/mm8013.c
+@@ -80,6 +80,7 @@ static enum power_supply_property mm8013_battery_props[] = {
+ 	POWER_SUPPLY_PROP_HEALTH,
+ 	POWER_SUPPLY_PROP_PRESENT,
+ 	POWER_SUPPLY_PROP_STATUS,
++	POWER_SUPPLY_PROP_TECHNOLOGY,
+ 	POWER_SUPPLY_PROP_TEMP,
+ 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
+ 	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
+@@ -135,7 +136,8 @@ static int mm8013_get_property(struct power_supply *psy,
+ 		if (ret < 0)
+ 			return ret;
+ 
+-		val->intval = -1000 * (s16)regval;
++		/* AverageCurrent is already negative while discharging, as the ABI expects */
++		val->intval = 1000 * (s16)regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
+ 		ret = regmap_read(chip->regmap, REG_CYCLE_COUNT, &regval);
+@@ -185,6 +187,9 @@ static int mm8013_get_property(struct power_supply *psy,
+ 		else
+ 			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+ 		break;
++	case POWER_SUPPLY_PROP_TECHNOLOGY:
++		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
++		break;
+ 	case POWER_SUPPLY_PROP_TEMP:
+ 		ret = regmap_read(chip->regmap, REG_TEMPERATURE, &regval);
+ 		if (ret < 0)
+@@ -231,6 +236,7 @@ static int mm8013_get_property(struct power_supply *psy,
+ static const struct power_supply_desc mm8013_desc = {
+ 	.name			= "mm8013",
+ 	.type			= POWER_SUPPLY_TYPE_BATTERY,
++	.external_power_changed	= power_supply_changed,
+ 	.properties		= mm8013_battery_props,
+ 	.num_properties		= ARRAY_SIZE(mm8013_battery_props),
+ 	.get_property		= mm8013_get_property,
