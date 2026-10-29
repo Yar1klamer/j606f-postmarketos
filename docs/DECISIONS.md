@@ -52,3 +52,9 @@ Mainline покрывает загрузку, UFS, дисплей (для BOE-SK
 - device-lenovo-j606f r3: без готовых .ko/.dtb (всё из ядра pkgrel 101), cmdline `console=tty0 fbcon=rotate:2 clk_ignore_unused pd_ignore_unused`,
   `/usr/lib/modules-load.d/j606f.conf` с mm8013. Ядро: patches 0001–0003 + config-фрагмент (HX83102, TPS65132, MM8013, NT36523 = m).
 - HACK 0002 пока остаётся (ABL подменяет корневой compatible). Убрать можно только после проверки пустого dtbo_b.
+
+## 2026-10-29 (вечер) — dtbo_b стёрт
+- Совет напарника пользователя: если раздел dtbo стёрт, ABL берёт DTB из boot.img без оверлея. Проверено: `fastboot erase dtbo_b` → корневой compatible
+  остаётся `lenovo,j606f`, model из нашего DTS. Решение: для pmOS на слоте b dtbo_b держать стёртым. abl-sink и HACK 0002 пока оставлены в ядре r101
+  (безвредны, нужны, если dtbo вернётся); в следующей сборке ядра HACK 0002 убрать.
+- GPU-прошивка (a630_sqe, a610_zap) кладётся в initramfs через /usr/share/mkinitfs/files (device r4), потому что msm в modules-initfs.

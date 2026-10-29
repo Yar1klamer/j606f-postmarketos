@@ -38,6 +38,8 @@ deviceinfo_append_dtb="false"
   Побочный эффект: ABL ставит /model = «Lenovo P11 WIFI PVT» (корень оверлея). Безвредно.
 - Результат: ядро linux-nura-qcom-sm61x5 7.2.3 (бинарный пакет) + этот DTB загрузились через `fastboot boot`, USB-гаджет поднялся через ~9 с после «Booting OKAY».
 - Альтернатива для постоянной установки: прошить пустой или «нейтральный» dtbo в dtbo_a. Это ЗАПИСЬ, только с согласия пользователя.
+- ★ **Проверено 29.10: `fastboot erase dtbo_b`** → ABL грузит DTB из boot.img без оверлея (model и compatible из нашего DTS, `androidboot.dtb_idx` = мусор).
+  Так установлено сейчас (слот b). Совет напарника пользователя.
   Плюс подхода с «отстойником»: стоковый Android на слоте a продолжает работать без изменений.
 - ABL правит cmdline: «rdinit=/init» превращается в «rd_nit=/init» (ABL ищет и портит подстроку «init=»?). Дефолт rdinit и так /init, на работу не влияет.
 - В dmesg: «[Firmware Bug]: Kernel image misaligned at boot» (ABL кладёт ядро по 0x8000, не по 2 МиБ). Только предупреждение.

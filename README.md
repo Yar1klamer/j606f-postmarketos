@@ -71,7 +71,10 @@
 ABL этого планшета **всегда** накладывает оверлей из раздела `dtbo` (запись «Lenovo P11 WIFI PVT») на DTB из boot.img.
 В mainline DTB нет `__symbols__`, наложение не удаётся, и ABL отвечает `Booting OKAY`, но ядро не запускает.
 
-Решение без записи в `dtbo`:
+**Простое решение (проверено): стереть dtbo слота, с которого грузится pmOS** — `fastboot erase dtbo_b`.
+Тогда ABL берёт DTB из boot.img как есть (подсказал коллега, тоже портирующий pmOS на этот планшет). Стоковый `dtbo_a` при этом не трогается.
+
+Решение без записи в `dtbo` (если стирать нельзя):
 [`kernel/dts/sm6115p-lenovo-j606f-abl-sink.dtsi`](kernel/dts/sm6115p-lenovo-j606f-abl-sink.dtsi) добавляет выключенный узел `/abl-sink`
 с узлом-phandle на каждую метку из `__fixups__` стокового оверлея (138 штук) и `__symbols__`, которые указывают на эти узлы.
 Оверлей ложится в «отстойник», ядро его не трогает. Генератор: [`scripts/gen_abl_sink_dtsi.py`](scripts/gen_abl_sink_dtsi.py).
@@ -157,6 +160,7 @@ fastboot flash super lenovo-j606f.img      # rootfs (pmOS_boot + pmOS_root), о�
 fastboot boot boot.img                     # проверка ядра без записи (fastboot boot — 1 раз за сессию bootloader)
 # если загрузилось: снова в fastboot (reboot bootloader из Linux или Vol− + Power), затем
 fastboot flash boot_b boot.img             # super и boot_b — из одного pmbootstrap install (UUID)
+fastboot erase dtbo_b                      # ABL перестаёт накладывать стоковый оверлей
 fastboot --set-active=b && fastboot reboot
 ```
 Подробно, с откатом: [`docs/notes/install_plan.md`](docs/notes/install_plan.md), скрипт с проверкой разделов и sha256:

@@ -1,11 +1,12 @@
-# STATE — где мы остановились (2026-10-29, вечер)
+# STATE — где мы остановились (2026-10-29, поздний вечер)
 
 > Читать первым после потери контекста. Полная хронология: [WORKLOG.md](WORKLOG.md). Устройство: [DEVICE.md](DEVICE.md).
 > Решения, команды, грабли, TODO: [NOTES.md](NOTES.md). Подробные заметки по подсистемам: `docs/notes/*.md`.
 
 ## 1. Одной строкой
 **pmOS (Nura edge) установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
-rootfs в `super`, boot.img в `boot_b` (`out/pmos/boot-dbg3-utmi.img`), активный слот **b**. Обычная загрузка → USB-сеть + SSH (`ssh user@172.16.42.1`). Wi-Fi, BT, экран, GPU, DSP работают.
+rootfs в `super`, boot.img в `boot_b` (образ r4: **наше ядро 7.2.3-r101 с патчами**, device r4), **dtbo_b стёрт**, активный слот **b**. Обычная загрузка → USB-сеть + SSH (`ssh user@172.16.42.1`).
+Экран, GPU (прошивка из initramfs), батарея (mm8013), Wi-Fi/BT (сканирование), DSP работают.
 
 ## 2. Состояние устройства прямо сейчас
 | Что | Значение |
@@ -13,21 +14,18 @@ rootfs в `super`, boot.img в `boot_b` (`out/pmos/boot-dbg3-utmi.img`), акт�
 | Что запущено | pmOS, обычная загрузка со слота b (29.10) |
 | Активный слот | **b** |
 | boot_a | стоковый boot + Magisk (пользователь поставил Magisk до бэкапа); стоковый оригинал сохранён в приватном бэкапе |
-| boot_b | `out/pmos/boot-dbg3-utmi.img` (sha256 92a0e5db…): ядро+initramfs pmOS, cmdline + clk_ignore_unused pd_ignore_unused panic=10, DTB + `qcom,select-utmi-as-pipe-clk` |
-| dtbo_a / dtbo_b, vbmeta_a / vbmeta_b | стоковые, побайтно одинаковые (sha256 326cbcbc… / af75b84f…) |
-| super (`/dev/sda14`, 12 ГиБ) | **rootfs pmOS**: `fastboot flash super out/pmos/lenovo-j606f.img` (Android-sparse, 937228412 байт, sha256 e7e2e7c3…). Внутри GPT с секторами 4096: pmOS_boot + pmOS_root |
+| boot_b | `out/pmos-r4/boot.img` (sha256 c42f347d…): ядро 7.2.3-r101 + initramfs с a630_sqe/a610_zap, cmdline с clk_ignore_unused pd_ignore_unused, DTB с utmi |
+| dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
+| dtbo_a, vbmeta_a / vbmeta_b | стоковые (sha256 326cbcbc… / af75b84f…) |
+| super (`/dev/sda14`, 12 ГиБ) | **rootfs pmOS r4**: `fastboot flash super out/pmos-r4/lenovo-j606f.img` (Android-sparse, sha256 9f1b7e79…). Внутри GPT с секторами 4096: pmOS_boot + pmOS_root |
 | userdata (`/dev/sda15`, 102 ГиБ) | ext4, метка `j606f_work`: рабочее место pmbootstrap (`/mnt/work/alpine/...`) |
 | Android | **не загрузится** (super перезаписан, userdata отформатирован) — пользователь разрешил снести |
 | modem*/persist/fsg/abl/xbl | не трогали (кроме того, что rmtfs в pmOS пишет EFS в modemst1/2, fsg — см. NOTES) |
 
 ## 3. Следующий шаг
-1. ~~Тест P0 выкл/вкл~~ ГОТОВО (29.10). Проверить `slot-successful:b` (`fastboot getvar slot-successful:b`) после нескольких загрузок; если ABL откатится на a — разобраться с qbootctl.
-2. **Идёт:** сборка ядра linux-nura-qcom-sm61x5 **pkgrel 101** (патчи 0001–0003 + config-фрагмент) на Ubuntu-хосте (pmbootstrap, cross-native, 4 vCPU).
-   Пакеты: [`pmaports/device/testing/`](pmaports/device/testing/) (ядро, device r3, firmware). Как устроена сборка на хосте — раздел 4.
-3. Затем `pmbootstrap build device-lenovo-j606f` (r3: без готовых .ko/.dtb, modules-load mm8013, cmdline с clk_ignore_unused/pd_ignore_unused)
-   и `build firmware-lenovo-j606f`, `install`, `export`. Проверить в boot.img DTB с `qcom,select-utmi-as-pipe-clk` и cmdline.
-4. `fastboot flash super <rootfs>.img` и `fastboot flash boot_b boot.img` **вместе** (install меняет UUID), `fastboot reboot`, проверить батарею, USB/SSH.
-   Откат: прежняя пара `lenovo-j606f.img` (super) + `boot-dbg3-utmi.img` (boot_b).
+1. Ядро pkgrel 102 **без HACK 0002** (при стёртом dtbo_b он не нужен), проверить msm, remoteproc, Wi-Fi.
+2. В README/инструкцию: `fastboot erase dtbo_b` как шаг установки.
+3. Wi-Fi-подключение (вводит пользователь), MAC Wi-Fi/BT, тач (нужны исходники Himax), звук, датчики, UI.
 
 ## 4. Что собрано и где
 ### Mac, приватный проект `~/Documents/pm for p11/pmos-j606f` (НЕ публикуется: серийники, бэкапы, блобы)
@@ -75,6 +73,6 @@ rootfs в `super`, boot.img в `boot_b` (`out/pmos/boot-dbg3-utmi.img`), акт�
 ## 7. Чек-лист
 P0: [x] дисплей+подсветка (подтверждено пользователем) · [x] стабильная загрузка с внутренней памяти после выключения и включения (слот b, 29.10, подтверждено пользователем + ssh) ·
 [ ] тач · [~] USB SSH работает в установленном pmOS, по Wi-Fi не проверено · [~] Wi-Fi видит сети, подключение не проверено ·
-[~] батарея: в отладке mm8013 работал, в pmOS модуль не грузится (исправлено в device r3, не установлено); заряд идёт на HW-дефолтах · [ ] кнопки (нажатия не проверены).
-P1: [x] GPU + Wayland (weston 60 fps, подтверждено визуально) · [ ] звук · [~] BT сканирует · [ ] датчики · [ ] suspend.
+[~] батарея: **в pmOS работает** (mm8013, Charging 84→88%); заряд идёт на HW-дефолтах · [ ] кнопки (нажатия не проверены).
+P1: [x] GPU + Wayland (weston 60 fps в отладке, подтверждено визуально; в pmOS прошивка GPU грузится из initramfs) · [ ] звук · [~] BT сканирует · [ ] датчики · [ ] suspend.
 P2/P3: пакеты pmaports (ядро pkgrel 101, device r3, firmware) — в `pmaports/`, собираются; документация — этот репозиторий.
