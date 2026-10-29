@@ -45,7 +45,7 @@
 | CPU | 4× Kryo 260 Gold до 2.016 ГГц + 4× Kryo 260 Silver до 1.8 ГГц |
 | GPU | Adreno 610 |
 | RAM / память | 4 или 6 ГБ / UFS 64 или 128 ГБ (проверено на 6/128) |
-| Экран | 11", 2000×1200, **две ревизии**: BOE + Novatek NT36523W или **BOE + Himax HX83102P** (этот порт) |
+| Экран | 11", 2000×1200, **две ревизии**: BOE + **Himax HX83102P** (основная, проверена) и BOE + Novatek NT36523W (свой DTB и device-пакет, не проверено) |
 | Тач | Himax HX83102E (zero-flash, SPI) + стилус; у второй ревизии Novatek |
 | Wi-Fi / BT | WCN3990 (ath10k_snoc / btqca) |
 | Батарея | 7500 мА·ч, fuel gauge MM8013, зарядник PMI632 + SMB1355 |
@@ -112,11 +112,13 @@ kernel/
     0004-…-PMI632-charger…patch  read-only драйвер зарядника PMI632 (SMB5) + узел в DTS
     0005-…-mm8013-…patch      mm8013: знак current_now, power-supplies → зарядник, TECHNOLOGY=Li-ion
     0006-…-HX83102E-…patch    тачскрин Himax HX83102E (порт драйвера Lenovo) + узел в DTS
+    0007-…-NT36523W-SKU.patch общая часть DTS (common.dtsi) + DTB ревизии NT36523W
     config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E)
   himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0006 (pkgrel 106)
+  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0007 (pkgrel 107)
+  device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
 pmaports/temp/hexagonrpcd/ hexagonrpcd 0.4.0-r50 с патчем: отдаёт ADSP файл sns_reg_version (нужно для датчиков SSC)
@@ -157,7 +159,7 @@ python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0006 (pkgrel 106)
+cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0007 (pkgrel 107)
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
@@ -177,6 +179,9 @@ pmbootstrap export
 [`scripts/mirror_proxy.py`](scripts/mirror_proxy.py) на соседнем компьютере.
 
 ## Установка
+
+> **Ревизия с панелью Novatek NT36523W** (`dsi_display0=…nt36523w…`): отдельный device `lenovo-j606f-nt36523w`,
+> инструкция — [`docs/notes/install_nt36523w.md`](docs/notes/install_nt36523w.md) (в железе пока не проверено, тача нет).
 
 Рекомендуемая схема: **rootfs в userdata** (~100 ГиБ), boot.img в **boot_b**, dtbo_b стёрт, слот a не трогаем.
 **userdata стирается целиком** (данные Android пропадут).

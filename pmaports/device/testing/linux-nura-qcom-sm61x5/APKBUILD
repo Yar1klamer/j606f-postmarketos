@@ -3,7 +3,7 @@ maintainer="Barnabas Czeman <barnabas.czeman@postmarketos.org>"
 _flavor="nura-qcom-sm61x5"
 pkgname=linux-$_flavor
 pkgver=7.2.3
-pkgrel=106
+pkgrel=107
 pkgdesc="Close to mainline linux kernel for Qualcomm Snapdragon SM61x5"
 arch="aarch64"
 _carch="arm64"
@@ -40,6 +40,7 @@ source="
 	0004-power-supply-add-read-only-Qualcomm-PMI632-charger-driver.patch
 	0005-power-supply-mm8013-fix-current-sign-notify-report-Li-ion.patch
 	0006-Input-add-Himax-HX83102E-touchscreen-for-Lenovo-J606F.patch
+	0007-arm64-dts-qcom-sm6115p-lenovo-j606f-split-common-add-NT36523W-SKU.patch
 "
 builddir="$srcdir/linux"
 
@@ -81,4 +82,5 @@ d03008864ed14c0d5f3907abae7f3f9945d0b952d22fa48298e44f13d8475afb0afb186febf7d721
 f7ec249b9c58d19d861082a4dc3b410921886c918dafeb3983c674f7f533a1aac916c55a13781aa4382dff65d664491e031d8edeb03e5a228462f5653e3f1a18  0004-power-supply-add-read-only-Qualcomm-PMI632-charger-driver.patch
 1c4aee9ac53392e88b39268091abc23a0c3028ef02e3c8b262cb606d0cc3adb2c51530c1728b8ddde83ca715bf2f4ac241ac40dac7a28df2509c52829ce142e5  0005-power-supply-mm8013-fix-current-sign-notify-report-Li-ion.patch
 53052759378bdb11ca80fb308b8f2967e400fb7305913b608e3aff7f00e15b4130477f13d73809e0481100a8eaf0a9b38187f7a1d8a6595eaff8bad7fd005f4a  0006-Input-add-Himax-HX83102E-touchscreen-for-Lenovo-J606F.patch
+8c9e5418b8c4fe39a2bf35aa4626f3eefd6ba7933d292a3711b5f3a5491bc85b0ade93a0a155c76cf330c159a3280653051d811e6974e2ba330fbc46594d98e0  0007-arm64-dts-qcom-sm6115p-lenovo-j606f-split-common-add-NT36523W-SKU.patch
 "

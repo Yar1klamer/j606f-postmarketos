@@ -1,0 +1,638 @@
+From: Yar1klamer
+Subject: [PATCH] arm64: dts: qcom: sm6115p-lenovo-j606f: split common parts, add NT36523W SKU
+
+Move everything that is not panel specific (I2C, MM8013, PMI632 charger, BT, USB,
+CPU cooling, backlight enable) into sm6115p-lenovo-j606f-common.dtsi and add
+sm6115p-lenovo-j606f-nt36523w.dts for the SKU with the Novatek NT36523W panel
+(the panel itself is described by the base dts). The HX83102P dtb is unchanged
+(dtc -I dtb -O dts -s output identical).
+---
+diff -ruN a/arch/arm64/boot/dts/qcom/Makefile b/arch/arm64/boot/dts/qcom/Makefile
+--- a/arch/arm64/boot/dts/qcom/Makefile	2026-10-29 10:55:45.857183027 +0000
++++ b/arch/arm64/boot/dts/qcom/Makefile	2026-10-29 10:55:45.845182799 +0000
+@@ -339,6 +339,7 @@
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6115-fxtec-pro1x.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6115p-lenovo-j606f.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6115p-lenovo-j606f-hx83102p.dtb
++dtb-$(CONFIG_ARCH_QCOM)	+= sm6115p-lenovo-j606f-nt36523w.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6125-sony-xperia-seine-pdx201.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6125-xiaomi-ginkgo.dtb
+ dtb-$(CONFIG_ARCH_QCOM)	+= sm6125-xiaomi-laurel-sprout.dtb
+diff -ruN a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi	1970-01-01 00:00:00.000000000 +0000
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi	2026-10-29 10:55:46.037186461 +0000
+@@ -0,0 +1,286 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Lenovo Tab P11 (TB-J606F): board parts shared by both panel SKUs
++ * (BOE + Himax HX83102P TDDI, BOE + Novatek NT36523W). Included after
++ * sm6115p-lenovo-j606f.dts by the per-SKU dts. Values come from the stock DT of
++ * TB-J606F_S120184_210520_ROW (see notes/stock_dt/).
++ */
++
++#include "pmi632.dtsi"
++/* Lenovo ABL applies the stock dtbo unconditionally unless dtbo is erased, see the dtsi */
++#include "sm6115p-lenovo-j606f-abl-sink.dtsi"
++
++/ {
++	aliases {
++		serial1 = &uart3;
++	};
++};
++
++&gpi_dma0 {
++	status = "okay";
++};
++
++&qupv3_id_0 {
++	status = "okay";
++};
++
++&i2c0 {
++	clock-frequency = <400000>;
++	status = "okay";
++
++	fuel-gauge@55 {
++		compatible = "mitsumi,mm8013";
++		reg = <0x55>;
++		power-supplies = <&pmi632_charger>;
++	};
++};
++
++&i2c1 {
++	clock-frequency = <400000>;
++	status = "okay";
++};
++
++&pmi632_gpios {
++	/* SGM37604A LED driver enable (stock: qcom,platform-bklight-en-gpio) */
++	backlight-en-hog {
++		gpio-hog;
++		gpios = <6 GPIO_ACTIVE_HIGH>;
++		output-high;
++		line-name = "backlight-en";
++	};
++};
++
++&tlmm {
++	/* WCN3990 BT UART (QUP SE3), pins from stock qupv3_se3_4uart */
++	bt_uart3_default: bt-uart3-default-state {
++		cts-pins {
++			pins = "gpio8";
++			function = "qup3";
++			drive-strength = <2>;
++			bias-bus-hold;
++		};
++
++		rts-pins {
++			pins = "gpio9";
++			function = "qup3";
++			drive-strength = <2>;
++			bias-disable;
++		};
++
++		tx-pins {
++			pins = "gpio10";
++			function = "qup3";
++			drive-strength = <2>;
++			bias-disable;
++		};
++
++		rx-pins {
++			pins = "gpio11";
++			function = "qup3";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++	};
++
++	bt_uart3_sleep: bt-uart3-sleep-state {
++		cts-pins {
++			pins = "gpio8";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-bus-hold;
++		};
++
++		rts-pins {
++			pins = "gpio9";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-pull-down;
++		};
++
++		tx-pins {
++			pins = "gpio10";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++
++		rx-pins {
++			pins = "gpio11";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-pull-up;
++		};
++	};
++};
++
++&uart3 {
++	interrupts-extended = <&intc GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
++			      <&tlmm 11 IRQ_TYPE_EDGE_FALLING>;
++	pinctrl-0 = <&bt_uart3_default>;
++	pinctrl-1 = <&bt_uart3_sleep>;
++	pinctrl-names = "default", "sleep";
++	status = "okay";
++
++	bluetooth {
++		compatible = "qcom,wcn3990-bt";
++		/* stock bt_wcn3990: io = L9, core = L17, pa = L23, xtal = L16 */
++		vddio-supply = <&pm6125_l9>;
++		vddxo-supply = <&pm6125_l16>;
++		vddrf-supply = <&pm6125_l17>;
++		vddch0-supply = <&pm6125_l23>;
++		max-speed = <3200000>;
++	};
++};
++
++/*
++ * CPU thermal throttling: sm6115.dtsi has passive trips on the CPU zones but no
++ * cooling devices; without these the kernel never lowers CPU clocks on overheat.
++ */
++&cpu0 {
++	#cooling-cells = <2>;
++};
++
++&cpu1 {
++	#cooling-cells = <2>;
++};
++
++&cpu2 {
++	#cooling-cells = <2>;
++};
++
++&cpu3 {
++	#cooling-cells = <2>;
++};
++
++&cpu4 {
++	#cooling-cells = <2>;
++};
++
++&cpu5 {
++	#cooling-cells = <2>;
++};
++
++&cpu6 {
++	#cooling-cells = <2>;
++};
++
++&cpu7 {
++	#cooling-cells = <2>;
++};
++
++&{/thermal-zones/cpu0123-thermal} {
++	polling-delay-passive = <250>;
++
++	cooling-maps {
++		map0 {
++			trip = <&cpu0123_alert0>;
++			cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++&{/thermal-zones/cpu4-thermal} {
++	polling-delay-passive = <250>;
++
++	cooling-maps {
++		map0 {
++			trip = <&cpu4_alert0>;
++			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++&{/thermal-zones/cpu5-thermal} {
++	polling-delay-passive = <250>;
++
++	cooling-maps {
++		map0 {
++			trip = <&cpu5_alert0>;
++			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++&{/thermal-zones/cpu6-thermal} {
++	polling-delay-passive = <250>;
++
++	cooling-maps {
++		map0 {
++			trip = <&cpu6_alert0>;
++			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++&{/thermal-zones/cpu7-thermal} {
++	polling-delay-passive = <250>;
++
++	cooling-maps {
++		map0 {
++			trip = <&cpu7_alert0>;
++			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++&{/thermal-zones/cpu45-thermal} {
++	polling-delay-passive = <250>;
++
++	cooling-maps {
++		map0 {
++			trip = <&cpu45_alert0>;
++			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++&{/thermal-zones/cpu67-thermal} {
++	polling-delay-passive = <250>;
++
++	cooling-maps {
++		map0 {
++			trip = <&cpu67_alert0>;
++			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
++						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
++		};
++	};
++};
++
++/*
++ * USB runs on the HS PHY only (the base DTS drops the QMP PHY); without this the
++ * pipe clock is never selected and dwc3 fails with "failed to enable ep0out"
++ * unless ABL fastboot already configured the controller.
++ */
++&usb {
++	qcom,select-utmi-as-pipe-clk;
++};
++
++/* PMI632 SMB5 charger, read-only status driver for now */
++&spmi_bus {
++	pmic@2 {
++		pmi632_charger: charger@1000 {
++			compatible = "qcom,pmi632-charger";
++			reg = <0x1000>;
++		};
++	};
++};
+diff -ruN a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts	2026-10-29 10:55:46.033186385 +0000
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts	2026-10-29 10:55:46.037186461 +0000
+@@ -2,47 +2,18 @@
+ /*
+  * Lenovo Tab P11 (TB-J606F), SKU with the BOE panel driven by a Himax HX83102P
+  * TDDI (stock cmdline: msm_drm.dsi_display0=qcom,mdss_dsi_himax83102p_boe_2k_video).
+- * Everything else is shared with the NT36523W SKU described in
+- * sm6115p-lenovo-j606f.dts. Values below come from the stock DT of
+- * TB-J606F_S120184_210520_ROW (see notes/stock_dt/).
++ * The base dts describes the NT36523W SKU; this file swaps the panel and adds
++ * the Himax touch. Values from the stock DT (see notes/stock_dt/).
+  */
+ 
+ #include "sm6115p-lenovo-j606f.dts"
+-#include "pmi632.dtsi"
+-/* Lenovo ABL applies the stock dtbo unconditionally, see the dtsi */
+-#include "sm6115p-lenovo-j606f-abl-sink.dtsi"
++#include "sm6115p-lenovo-j606f-common.dtsi"
+ 
+ / {
+ 	model = "Lenovo Tab P11 (HX83102P)";
+-
+-	aliases {
+-		serial1 = &uart3;
+-	};
+-};
+-
+-&gpi_dma0 {
+-	status = "okay";
+-};
+-
+-&qupv3_id_0 {
+-	status = "okay";
+-};
+-
+-&i2c0 {
+-	clock-frequency = <400000>;
+-	status = "okay";
+-
+-	fuel-gauge@55 {
+-		compatible = "mitsumi,mm8013";
+-		reg = <0x55>;
+-		power-supplies = <&pmi632_charger>;
+-	};
+ };
+ 
+ &i2c1 {
+-	clock-frequency = <400000>;
+-	status = "okay";
+-
+ 	regulator@3e {
+ 		compatible = "ti,tps65132";
+ 		reg = <0x3e>;
+@@ -78,16 +49,6 @@
+ 	avee-supply = <&lcd_bias_neg>;
+ };
+ 
+-&pmi632_gpios {
+-	/* SGM37604A LED driver enable (stock: qcom,platform-bklight-en-gpio) */
+-	backlight-en-hog {
+-		gpio-hog;
+-		gpios = <6 GPIO_ACTIVE_HIGH>;
+-		output-high;
+-		line-name = "backlight-en";
+-	};
+-};
+-
+ /*
+  * Himax HX83102E touch (TDDI with the HX83102P panel), zero-flash: the firmware
+  * (Himax_firmware.bin) is loaded by the host after every panel power-up.
+@@ -137,237 +98,4 @@
+ 		drive-strength = <8>;
+ 		bias-pull-up;
+ 	};
+-
+-	/* WCN3990 BT UART (QUP SE3), pins from stock qupv3_se3_4uart */
+-	bt_uart3_default: bt-uart3-default-state {
+-		cts-pins {
+-			pins = "gpio8";
+-			function = "qup3";
+-			drive-strength = <2>;
+-			bias-bus-hold;
+-		};
+-
+-		rts-pins {
+-			pins = "gpio9";
+-			function = "qup3";
+-			drive-strength = <2>;
+-			bias-disable;
+-		};
+-
+-		tx-pins {
+-			pins = "gpio10";
+-			function = "qup3";
+-			drive-strength = <2>;
+-			bias-disable;
+-		};
+-
+-		rx-pins {
+-			pins = "gpio11";
+-			function = "qup3";
+-			drive-strength = <2>;
+-			bias-pull-up;
+-		};
+-	};
+-
+-	bt_uart3_sleep: bt-uart3-sleep-state {
+-		cts-pins {
+-			pins = "gpio8";
+-			function = "gpio";
+-			drive-strength = <2>;
+-			bias-bus-hold;
+-		};
+-
+-		rts-pins {
+-			pins = "gpio9";
+-			function = "gpio";
+-			drive-strength = <2>;
+-			bias-pull-down;
+-		};
+-
+-		tx-pins {
+-			pins = "gpio10";
+-			function = "gpio";
+-			drive-strength = <2>;
+-			bias-pull-up;
+-		};
+-
+-		rx-pins {
+-			pins = "gpio11";
+-			function = "gpio";
+-			drive-strength = <2>;
+-			bias-pull-up;
+-		};
+-	};
+-};
+-
+-&uart3 {
+-	interrupts-extended = <&intc GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
+-			      <&tlmm 11 IRQ_TYPE_EDGE_FALLING>;
+-	pinctrl-0 = <&bt_uart3_default>;
+-	pinctrl-1 = <&bt_uart3_sleep>;
+-	pinctrl-names = "default", "sleep";
+-	status = "okay";
+-
+-	bluetooth {
+-		compatible = "qcom,wcn3990-bt";
+-		/* stock bt_wcn3990: io = L9, core = L17, pa = L23, xtal = L16 */
+-		vddio-supply = <&pm6125_l9>;
+-		vddxo-supply = <&pm6125_l16>;
+-		vddrf-supply = <&pm6125_l17>;
+-		vddch0-supply = <&pm6125_l23>;
+-		max-speed = <3200000>;
+-	};
+-};
+-
+-/*
+- * CPU thermal throttling: sm6115.dtsi has passive trips on the CPU zones but no
+- * cooling devices; without these the kernel never lowers CPU clocks on overheat.
+- */
+-&cpu0 {
+-	#cooling-cells = <2>;
+-};
+-
+-&cpu1 {
+-	#cooling-cells = <2>;
+-};
+-
+-&cpu2 {
+-	#cooling-cells = <2>;
+-};
+-
+-&cpu3 {
+-	#cooling-cells = <2>;
+-};
+-
+-&cpu4 {
+-	#cooling-cells = <2>;
+-};
+-
+-&cpu5 {
+-	#cooling-cells = <2>;
+-};
+-
+-&cpu6 {
+-	#cooling-cells = <2>;
+-};
+-
+-&cpu7 {
+-	#cooling-cells = <2>;
+-};
+-
+-&{/thermal-zones/cpu0123-thermal} {
+-	polling-delay-passive = <250>;
+-
+-	cooling-maps {
+-		map0 {
+-			trip = <&cpu0123_alert0>;
+-			cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+-		};
+-	};
+-};
+-
+-&{/thermal-zones/cpu4-thermal} {
+-	polling-delay-passive = <250>;
+-
+-	cooling-maps {
+-		map0 {
+-			trip = <&cpu4_alert0>;
+-			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+-		};
+-	};
+-};
+-
+-&{/thermal-zones/cpu5-thermal} {
+-	polling-delay-passive = <250>;
+-
+-	cooling-maps {
+-		map0 {
+-			trip = <&cpu5_alert0>;
+-			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+-		};
+-	};
+-};
+-
+-&{/thermal-zones/cpu6-thermal} {
+-	polling-delay-passive = <250>;
+-
+-	cooling-maps {
+-		map0 {
+-			trip = <&cpu6_alert0>;
+-			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+-		};
+-	};
+-};
+-
+-&{/thermal-zones/cpu7-thermal} {
+-	polling-delay-passive = <250>;
+-
+-	cooling-maps {
+-		map0 {
+-			trip = <&cpu7_alert0>;
+-			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+-		};
+-	};
+-};
+-
+-&{/thermal-zones/cpu45-thermal} {
+-	polling-delay-passive = <250>;
+-
+-	cooling-maps {
+-		map0 {
+-			trip = <&cpu45_alert0>;
+-			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+-		};
+-	};
+-};
+-
+-&{/thermal-zones/cpu67-thermal} {
+-	polling-delay-passive = <250>;
+-
+-	cooling-maps {
+-		map0 {
+-			trip = <&cpu67_alert0>;
+-			cooling-device = <&cpu4 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu5 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu6 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+-						 <&cpu7 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+-		};
+-	};
+-};
+-
+-/*
+- * USB runs on the HS PHY only (the base DTS drops the QMP PHY); without this the
+- * pipe clock is never selected and dwc3 fails with "failed to enable ep0out"
+- * unless ABL fastboot already configured the controller.
+- */
+-&usb {
+-	qcom,select-utmi-as-pipe-clk;
+-};
+-
+-/* PMI632 SMB5 charger, read-only status driver for now */
+-&spmi_bus {
+-	pmic@2 {
+-		pmi632_charger: charger@1000 {
+-			compatible = "qcom,pmi632-charger";
+-			reg = <0x1000>;
+-		};
+-	};
+ };
+diff -ruN a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-nt36523w.dts b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-nt36523w.dts
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-nt36523w.dts	1970-01-01 00:00:00.000000000 +0000
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-nt36523w.dts	2026-10-29 10:55:46.037186461 +0000
+@@ -0,0 +1,15 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Lenovo Tab P11 (TB-J606F), SKU with the BOE panel driven by a Novatek NT36523W
++ * (stock cmdline: msm_drm.dsi_display0=qcom,mdss_dsi_nt36523w_boe_2k_video).
++ * The panel itself is described by the base dts (Linaro, 2023). LCD bias (TPS65132)
++ * and backlight enable are left as ABL configured them, as in the base dts.
++ * TODO: Novatek NT36523 touch on SPI0 CS1 (stock "novatek,NVT-ts-spi", host-download fw).
++ */
++
++#include "sm6115p-lenovo-j606f.dts"
++#include "sm6115p-lenovo-j606f-common.dtsi"
++
++/ {
++	model = "Lenovo Tab P11 (NT36523W)";
++};

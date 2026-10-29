@@ -1,0 +1,54 @@
+# Reference: <https://nura.eco/devicepkg>
+# LOCAL package for Lenovo Tab P11 TB-J606F, SKU with the BOE + Novatek NT36523W panel
+# (stock cmdline: msm_drm.dsi_display0=qcom,mdss_dsi_nt36523w_boe_2k_video). UNTESTED on hardware.
+# The HX83102P SKU is device-lenovo-j606f.
+pkgname=device-lenovo-j606f-nt36523w
+pkgdesc="Lenovo Tab P11 (TB-J606F, NT36523W panel SKU)"
+pkgver=1
+pkgrel=0
+url="https://nura.eco"
+license="MIT"
+arch="aarch64"
+options="!check !archcheck"
+depends="
+	android-tools-mkbootimg
+	bootmac
+	kmod
+	linux-nura-qcom-sm61x5
+	postmarketos-base
+"
+makedepends="devicepkg-dev"
+subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
+source="
+	deviceinfo
+	modules-initfs
+	j606f-modules-load.conf
+	30-gpu-firmware.files
+"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+
+	install -Dm644 "$srcdir"/j606f-modules-load.conf "$pkgdir"/usr/lib/modules-load.d/j606f.conf
+}
+
+nonfree_firmware() {
+	pkgdesc="GPU/WiFi/BT/DSP firmware"
+	depends="firmware-lenovo-j606f linux-firmware-ath10k linux-firmware-qcom
+		rmtfs tqftpserv qbootctl"
+
+	# msm is in modules-initfs: the GPU needs its firmware already in the initramfs
+	install -Dm644 "$srcdir"/30-gpu-firmware.files \
+		"$subpkgdir"/usr/share/mkinitfs/files/30-gpu-firmware.files
+}
+
+sha512sums="
+fb8288273f6327f5c4cdbca5d5c1aef7345b16a993336e69e0d85c5663ff3545c3a93066ef4cb55f3bd45f0d81aee075a6844d8ddf7aa3ba2079931196e9287b  deviceinfo
+d1557e7dab8933129b82c4a6c370f9e341b3ac37178e6b045873bd7c620e6b7fcc5be8dfa0d5e6707e6927476331adf6bb168f80281973a17c2c4c4cdc3bae26  modules-initfs
+7f80465744962b7118a267c020cb0def18a7323fd2caf33c7527bc9c0133ebdf6f8fcc6778f812b4672169e71abdd66716d004f9d5478ab10cc8edbfc6a4be58  j606f-modules-load.conf
+9e3a863a8e641fab6d614b8fefd5ff96e8407240800430e0002f044869a73f7bfe7549164559509afdaeddbb69dee76ec3fb0978c86d0fc0c89b295663346c26  30-gpu-firmware.files
+"

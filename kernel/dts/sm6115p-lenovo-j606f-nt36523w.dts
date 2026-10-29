@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Lenovo Tab P11 (TB-J606F), SKU with the BOE panel driven by a Novatek NT36523W
+ * (stock cmdline: msm_drm.dsi_display0=qcom,mdss_dsi_nt36523w_boe_2k_video).
+ * The panel itself is described by the base dts (Linaro, 2023). LCD bias (TPS65132)
+ * and backlight enable are left as ABL configured them, as in the base dts.
+ * TODO: Novatek NT36523 touch on SPI0 CS1 (stock "novatek,NVT-ts-spi", host-download fw).
+ */
+
+#include "sm6115p-lenovo-j606f.dts"
+#include "sm6115p-lenovo-j606f-common.dtsi"
+
+/ {
+	model = "Lenovo Tab P11 (NT36523W)";
+};
