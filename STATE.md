@@ -6,7 +6,7 @@
 ## 1. Одной строкой
 **pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
 **rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — наша сборка linux-nura-qcom-sm61x5 7.2.3 **pkgrel 105** (патчи 0001, 0003, 0004, 0005; без HACK 0002).
-Автологин в Plasma, альбомная ориентация, Wi-Fi подключён, батарея и зарядник видны, Bluetooth включается сам. Тача, звука и датчиков нет.
+Автологин в Plasma, альбомная ориентация, Wi-Fi, Bluetooth (мышь), батарея и зарядник, датчики (свет, приближение, акселерометр). Тача и звука нет.
 
 ## 2. Состояние устройства прямо сейчас
 | Что | Значение |
@@ -14,7 +14,7 @@
 | Что запущено | pmOS + Plasma Desktop (автологин user), обычная загрузка со слота b |
 | Активный слот | **b** (`slot-successful:b` = yes) |
 | boot_a | стоковый boot + Magisk; стоковый оригинал в приватном бэкапе |
-| boot_b | `/boot/boot.img` с самого планшета (ядро r105, device r5), записан `dd` в `/dev/disk/by-partlabel/boot_b` |
+| boot_b | `/boot/boot.img` с самого планшета (ядро r105, device r5; device r6 собран в pmaports, на планшет не ставился), записан `dd` в `/dev/disk/by-partlabel/boot_b` |
 | dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | стоковые |
 | userdata (102 ГиБ) | **rootfs pmOS**: GPT (сектор 4096) pmOS_boot 480 МиБ + pmOS_root 102 ГиБ (перенесено поблочно из super с теми же UUID, 29.10) |
@@ -30,18 +30,18 @@
 - экранная клавиатура: `kwinrc [Wayland] InputMethod=/usr/share/applications/org.kde.plasma.keyboard.desktop`, `VirtualKeyboardMode=2`; `plasmakeyboardrc [General] enabledLocales=en_US,ru_RU`;
   ярлык `~/.local/bin/osk-toggle` + `org.j606f.osk-toggle.desktop` на панели;
 - датчики: `/usr/share/qcom/sm6115/LENOVO/J606F/` (dsp, sensors, socinfo — со своего устройства), hexagonrpcd 0.4.0-r50 (наш патч), drop-in'ы
-  `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` с `-R …/J606F`; iio-sensor-proxy снова включён (дёргал ADSP раз в секунду, датчики пока не работают);
+  `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` с `-R …/J606F`; iio-sensor-proxy включён, датчики работают (`monitor-sensor`: свет, приближение, акселерометр);
 - `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (без тача/клавиатуры экран блокировки не пройти);
 - `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
 - `/etc/apk/repositories`: pmOS — `https://mirror.minlexx.ru/postmarketos/{extra-repos/systemd/main,main}`, Alpine — `http://mirror.yandex.ru/mirrors/alpine/edge/{main,community,testing}`
   (mirror.nura.eco из этой сети отдаёт ~500 Б/с; запасной вариант — официальное RWTH Aachen).
 
 ## 3. Следующий шаг
-1. Bluetooth: сопряжение клавиатуры/мыши (адрес теперь задаёт bootmac, контроллер powered).
-2. Кнопки (Power/Vol±) — проверить нажатия (`evtest`), suspend/resume.
-3. Зарядник, шаг 2: запись лимитов (ICL под сетевой адаптер, JEITA), только после проверки от адаптера.
-4. Звук (AW88258, ES7210), датчики (hexagonrpcd/SSC), тач (нужны исходники Himax hxchipset или разбор стокового драйвера).
-5. В образ: автологин/ориентация по умолчанию для планшета (решить, что из этого место в device-пакете).
+1. Автоповорот: подобрать ACCEL_MOUNT_MATRIX (udev-правило), нужен владелец — поворачивать планшет.
+2. Звук: разъём наушников и микрофон гарнитуры (PM4125/WCD937x, DTS + UCM); динамики AW88258 и микрофоны ES7210 — нет драйверов.
+3. Упаковать датчики: drop-in'ы hexagonrpcd и зависимость от hexagonrpcd r50 — в device-пакет; файлы прошивки — приватно.
+4. Зарядник, шаг 2: запись лимитов (ICL под сетевой адаптер, JEITA), только после проверки от адаптера.
+5. Тач (HX83102E, нужны исходники Himax), suspend/resume.
 
 ## 4. Как обновлять без переустановки (проверено 29.10)
 Полная переустановка (`pmbootstrap install` + `fastboot flash super/boot_b`) сбрасывает локальные настройки и требует fastboot. Вместо неё:
@@ -62,7 +62,7 @@
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
 - Ядро: **linux-nura-qcom-sm61x5 7.2.3-r105** (codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003, 0004, 0005`), uname `7.2.3-sm61x5`.
-- device-lenovo-j606f **r5** (cmdline с clk_ignore_unused, mm8013 modules-load, прошивка GPU в initramfs, bootmac); firmware-lenovo-j606f r0.
+- device-lenovo-j606f **r5** на планшете, **r6** в pmaports (rootfs → userdata); cmdline с clk_ignore_unused, mm8013 modules-load, прошивка GPU в initramfs, bootmac; firmware-lenovo-j606f r0; hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
 
@@ -71,4 +71,4 @@ P0: [x] дисплей+подсветка · [x] стабильная загру
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
 [~] батарея и зарядка: индикация (mm8013) и статус зарядника (pmi632-charger, read-only) работают, заряд на настройках загрузчика (4.40 В / 3 А) · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
 P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [ ] звук · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [ ] suspend.
-P2/P3: пакеты pmaports (ядро pkgrel 103, device r5, firmware) — в `pmaports/`, собираются и ставятся; документация — этот репозиторий.
+P2/P3: пакеты pmaports (ядро pkgrel 105, device r6, firmware, hexagonrpcd r50) — в `pmaports/`, собираются и ставятся; документация — этот репозиторий.
