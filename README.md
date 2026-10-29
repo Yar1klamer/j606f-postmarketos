@@ -8,7 +8,19 @@
 > Wi-Fi, Bluetooth, USB-сеть/SSH, батарея и статус зарядки. Тача, звука и датчиков пока нет, поэтому без Bluetooth-клавиатуры/мыши
 > как повседневная система ещё не годится. Подробности ниже и в [STATE.md](STATE.md).
 
-![weston на TB-J606F (снимок буфера композитора)](docs/img/weston_screenshot.png)
+![KDE Plasma Desktop на TB-J606F](docs/img/plasma_desktop.png)
+
+<details>
+<summary>Ещё скриншоты</summary>
+
+| fastfetch | Информация о системе (KInfoCenter) |
+|---|---|
+| ![fastfetch: Nura edge, Linux 7.2.3-sm61x5, KDE Plasma 6.8.1](docs/img/plasma_fastfetch.png) | ![KInfoCenter: Plasma 6.8.1, Qt 6.11.1, ядро 7.2.3-sm61x5](docs/img/plasma_infocenter.png) |
+
+Ранний этап bring-up — weston на mainline-ядре (снимок буфера композитора):
+
+![weston](docs/img/weston_screenshot.png)
+</details>
 
 ---
 
@@ -189,7 +201,13 @@ fastboot --set-active=b && fastboot reboot
 - **Датчики:** раскладка файлов hexagonrpcd / libssc. [Заметки](docs/notes/sensors.md).
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
 - **suspend**, кнопки, клавиатура на pogo-пинах, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
-- **Зеркало:** если mirror.nura.eco медленный, выберите другое официальное зеркало из https://nura.eco/mirrors/ (мы используем RWTH Aachen).
+- **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
+  ```bash
+  pmbootstrap config mirrors.alpine   http://mirror.yandex.ru/mirrors/alpine/
+  pmbootstrap config mirrors.pmaports https://mirror.minlexx.ru/postmarketos/
+  pmbootstrap config mirrors.systemd  https://mirror.minlexx.ru/postmarketos/extra-repos/systemd/
+  ```
+  Официальный список: https://nura.eco/mirrors/ (например, RWTH Aachen). Зеркала git: `newgit.minlexx.ru/alexeymin/{pmaports,pmbootstrap}-mirror`.
 - Апстрим: DTS ревизии HX83102P и панель → LKML; пакеты → pmaports (с учётом
   [AI policy postmarketOS](https://docs.postmarketos.org/policies-and-processes/development/ai-policy.html)).
 

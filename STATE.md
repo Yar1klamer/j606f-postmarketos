@@ -26,7 +26,10 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 Локальные настройки на планшете (пропадут при полной переустановке образа):
 - kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
 - `systemctl mask iio-sensor-proxy` (дёргал ADSP раз в секунду, датчики пока не работают);
-- `/etc/apk/repositories`: pmOS-зеркало **RWTH Aachen** (`https://ftp.halifax.rwth-aachen.de/postmarketos/…`) + Alpine dl-cdn; mirror.nura.eco из этой сети отдаёт ~500 Б/с.
+- `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (без тача/клавиатуры экран блокировки не пройти);
+- `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
+- `/etc/apk/repositories`: pmOS — `https://mirror.minlexx.ru/postmarketos/{extra-repos/systemd/main,main}`, Alpine — `http://mirror.yandex.ru/mirrors/alpine/edge/{main,community,testing}`
+  (mirror.nura.eco из этой сети отдаёт ~500 Б/с; запасной вариант — официальное RWTH Aachen).
 
 ## 3. Следующий шаг
 1. Bluetooth: сопряжение клавиатуры/мыши (адрес теперь задаёт bootmac, контроллер powered).
@@ -45,6 +48,9 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 
 ## 5. Сборка (Ubuntu-хост)
 - `~/j606f/{pmbootstrap, pmaports, pmb-work}`; `~/.config/pmbootstrap_v3.cfg`: device lenovo-j606f, **ui plasma-desktop**, jobs 4, ssh_keys.
+  `pmbootstrap config mirrors.alpine http://mirror.yandex.ru/mirrors/alpine/`,
+  `pmbootstrap config mirrors.pmaports https://mirror.minlexx.ru/postmarketos/`,
+  `pmbootstrap config mirrors.systemd https://mirror.minlexx.ru/postmarketos/extra-repos/systemd/`.
 - Ядро собирается cross-native; повторная сборка с ccache ~12 мин, с нуля ~80 мин. Install с Plasma ~25 мин (медленный диск ВМ).
 - `pmb-work/cache_apk_*` принадлежат root: чистить через `sudo`.
 
@@ -58,6 +64,6 @@ rootfs в `super`, boot.img в `boot_b`, **dtbo_b стёрт**, активный
 ## 7. Чек-лист
 P0: [x] дисплей+подсветка · [x] стабильная загрузка с внутренней памяти после выключения и включения · [ ] тач ·
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
-[~] батарея и зарядка: индикация (mm8013) и статус зарядника (pmi632-charger, read-only) работают, заряд на настройках загрузчика (4.40 В / 3 А) · [ ] кнопки.
+[~] батарея и зарядка: индикация (mm8013) и статус зарядника (pmi632-charger, read-only) работают, заряд на настройках загрузчика (4.40 В / 3 А) · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
 P1: [x] GPU + Wayland (Plasma) · [ ] звук · [~] BT (powered, сканирует, сопряжение не проверено) · [ ] датчики · [ ] suspend.
 P2/P3: пакеты pmaports (ядро pkgrel 103, device r5, firmware) — в `pmaports/`, собираются и ставятся; документация — этот репозиторий.
