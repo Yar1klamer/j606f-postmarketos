@@ -20,7 +20,7 @@
 - Варианты: (1) портировать серию Allen Lin hid-himax и проверить с HX83102E; (2) портировать downstream himax_tp (Lenovo kernel source, если там есть hx83102e) как out-of-tree модуль. Это самый трудоёмкий пункт P0.
 
 ## Статус
-Не проверено. Риск высокий (нет драйвера).
+**Работает (29.10)**: касания в Plasma попадают точно (подтвердил владелец). Стилус: устройство есть, с пером не проверено. Подробно — раздел «Порт» ниже.
 
 ## Стоковый драйвер (из стокового ядра 4.19, 2026-10-29)
 - В стоковом Image (raw/stock_kernel/Image, распакован из boot) драйвер Himax встроен (не модуль): строки «Himax Touch Driver Version:», «HX83102A/B/D/E», «Himax_firmware.bin», «Himax_mpfw.bin», «g_core_fp», «himax,hxcommon», «himax,irq-gpio», «himax,rst-gpio», «himax,3v3-gpio», «himax-pen».
@@ -47,3 +47,17 @@
   `kallsyms`, `buffer_head`; отключить DEBUG/INSPECT (proc-интерфейсы); charger-notifier (USB-режим) можно оставить через power_supply.
   HX83102P — TDDI (дисплей и тач в одном чипе), сброс общий с панелью (`himax,lcm-rst`) → порядок включения должен идти за панелью (panel follower).
 - План: собрать как внешний модуль под 7.2.3 → DT-узел в `&spi2` (QUP SE2, irq tlmm 86, reset tlmm 54, `panel = <&panel>`) → прошивка из BACKUP/firmware/vendor_firmware.tar.
+
+## ★ Порт на 7.2 — работает (2026-10-29)
+- Исходник: `src/himax83102p-port/orig/` (Lenovo), скрипт `port.py` → `out/`; в ядро — патч `0006-Input-add-Himax-HX83102E-touchscreen-for-Lenovo-J606F.patch`
+  (каталог drivers/input/touchscreen/himax_hx83102e/, `CONFIG_TOUCHSCREEN_HIMAX_HX83102E=m`), генератор патча `make_patch.sh`.
+- Что изменено: см. LOG 29.10 и докстринг port.py. Главное: один модуль, без kallsyms/debug/inspection, gpiod, proc_ops, timespec64, strscpy, hrtimer_setup,
+  drm_panel_follower (prepared → resume с перезаливкой прошивки, unpreparing → suspend), spi_device_id «hxcommon», parent у input-устройств,
+  `touchscreen-inverted-x/y` и разрешение осей пера (8 ед./мм).
+- Ориентация: панель стоит на 180° (`rotation = <180>`, DRM «panel orientation: Upside Down», KWin это учитывает), а тач отдаёт координаты корпуса →
+  без инверсии касания отражены через центр. Тест по 4 углам (экран в ландшафте, как держит владелец): ЛВ (1109,114), ПВ (1050,1855), ПН (218,1859), ЛН (192,133).
+  Проверено сначала udev-матрицей `LIBINPUT_CALIBRATION_MATRIX="-1 0 1 0 -1 1"` → «точно», затем перенесено в драйвер (DT-свойства).
+- Лог probe: «detect IC HX83102E successfully» → через 2 с «Forced upgrade» → «Update FW success», FW_VER D403, CID 1741, BOE/P11; IRQ tlmm 86 edge falling.
+- Прошивка: `Himax_firmware.bin`, `Himax_mpfw.bin` — в firmware-lenovo-j606f r1 (тарбол локальный, не публикуется).
+- Грабли: `pkill -f` в ssh убивает свою же оболочку (снова); `udevadm info` сразу после insmod показывает свойства до обработки правил — ждать `udevadm settle`;
+  на этом образе нет /etc/udev/rules.d (создать).

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config TOUCHSCREEN_HIMAX_HX83102E
+	tristate "Himax HX83102E zero-flash SPI touchscreen (Lenovo TB-J606F)"
+	depends on SPI && OF && DRM_PANEL && GPIOLIB_LEGACY && INPUT_TOUCHSCREEN
+	help
+	  Port of the Himax "hxchipset" driver shipped by Lenovo for the Tab P11
+	  (TB-J606F) HX83102P panel SKU: in-cell HX83102E touch controller on SPI,
+	  firmware (Himax_firmware.bin) loaded by the host after every panel power-up.
+	  Suspend/resume follows the panel via drm_panel_follower.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called himax_hx83102e.

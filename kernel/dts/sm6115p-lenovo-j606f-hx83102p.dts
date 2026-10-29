@@ -88,7 +88,56 @@
 	};
 };
 
+/*
+ * Himax HX83102E touch (TDDI with the HX83102P panel), zero-flash: the firmware
+ * (Himax_firmware.bin) is loaded by the host after every panel power-up.
+ * Values from the stock himax_ts@0 node.
+ */
+&spi2 {
+	status = "okay";
+
+	touchscreen@0 {
+		compatible = "himax,hxcommon";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		spi-cpha;
+		pinctrl-0 = <&ts_int_default>, <&ts_reset_default>;
+		pinctrl-names = "default";
+
+		himax,irq-gpio = <&tlmm 86 GPIO_ACTIVE_HIGH>;
+		himax,rst-gpio = <&tlmm 54 GPIO_ACTIVE_HIGH>;
+		himax,panel-coords = <0 1200 0 2000>;
+		himax,display-coords = <0 1200 0 2000>;
+		report_type = <1>;
+		/* the panel is mounted upside down (rotation = <180>), touch reports chassis coordinates */
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+		panel = <&panel>;
+	};
+};
+
+&qup_spi2_default {
+	/* stock qupv3_se2_spi_active / cs0_active */
+	drive-strength = <6>;
+	bias-disable;
+	/delete-property/ bias-pull-up;
+};
+
 &tlmm {
+	ts_int_default: ts-int-default-state {
+		pins = "gpio86";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	ts_reset_default: ts-reset-default-state {
+		pins = "gpio54";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
 	/* WCN3990 BT UART (QUP SE3), pins from stock qupv3_se3_4uart */
 	bt_uart3_default: bt-uart3-default-state {
 		cts-pins {

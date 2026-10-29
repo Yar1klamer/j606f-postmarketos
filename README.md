@@ -6,7 +6,7 @@
 
 > **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU (OpenGL ES и Vulkan),
 > Plasma (Wayland), Wi-Fi, **Bluetooth (полностью: сопряжение и устройства ввода)**, USB-сеть/SSH, кнопки, батарея и статус зарядки.
-> Работают и датчики (свет, приближение, акселерометр). Тача и звука пока нет: управление Bluetooth-мышью/клавиатурой, текст — экранной клавиатурой. Подробности ниже и в [STATE.md](STATE.md).
+> Работают датчики (свет, приближение, акселерометр) и **тачскрин** (порт GPL-драйвера Lenovo для HX83102E). Звука пока нет. Подробности ниже и в [STATE.md](STATE.md).
 
 ![KDE Plasma Desktop на TB-J606F](docs/img/plasma_desktop.png)
 
@@ -75,7 +75,8 @@
 | cpufreq, thermal, троттлинг CPU | ✅ | cooling-maps добавлены в DTS |
 | Modem / ADSP / CDSP | ✅ стартуют | стоковые прошивки |
 | Перезагрузка в bootloader | ✅ | reboot-mode PON |
-| Тачскрин и стилус | ❌ | нет mainline-драйвера HX83102E |
+| Тачскрин | ✅ | HX83102E (zero-flash, SPI): порт драйвера Lenovo (патч 0006), прошивка `Himax_firmware.bin` со своего устройства; следует за панелью при гашении экрана |
+| Стилус | ❓ | устройство `himax-pen` есть, с пером не проверено |
 | Звук | ❌ | нет драйверов AW88258, ES7210 |
 | Датчики (акселерометр, свет, приближение) | ✅ | Qualcomm SSC на ADSP: hexagonrpcd (свой патч, `pmaports/temp/hexagonrpcd`) + libssc + iio-sensor-proxy; файлы SSC — со своего устройства. Матрица ориентации акселерометра ещё не подобрана |
 | Зарядник PMI632 | ⚠️ только статус | свой read-only драйвер (патч 0004): онлайн, статус, тип USB, лимиты; заряд на настройках загрузчика (4.40 В / 3 А). SMB1355 нет |
@@ -110,10 +111,12 @@ kernel/
     0003-…-HX83102P-SKU.patch  DTS ревизии HX83102P + abl-sink.dtsi + Makefile
     0004-…-PMI632-charger…patch  read-only драйвер зарядника PMI632 (SMB5) + узел в DTS
     0005-…-mm8013-…patch      mm8013: знак current_now, power-supplies → зарядник, TECHNOLOGY=Li-ion
-    config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632)
+    0006-…-HX83102E-…patch    тачскрин Himax HX83102E (порт драйвера Lenovo) + узел в DTS
+    config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E)
+  himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003, 0004, 0005 (pkgrel 105)
+  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0006 (pkgrel 106)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
 pmaports/temp/hexagonrpcd/ hexagonrpcd 0.4.0-r50 с патчем: отдаёт ADSP файл sns_reg_version (нужно для датчиков SSC)
@@ -146,14 +149,15 @@ python3 -I scripts/pil_squash.py modem.mbn image/modem.mdt
 python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 ```
 Из них собирается `firmware-lenovo-j606f-1.tar` (раскладка в APKBUILD пакета):
-`qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,wlanmdsp}.mbn`, `qca/{crbtfw21.tlv,crnv21.bin}`.
+`qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,wlanmdsp}.mbn`, `qca/{crbtfw21.tlv,crnv21.bin}`,
+`Himax_firmware.bin` и `Himax_mpfw.bin` (тач, из `/vendor/firmware`).
 
 ### 2. pmaports
 ```bash
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003, 0004, 0005 (pkgrel 105)
+cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0006 (pkgrel 106)
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
@@ -209,7 +213,7 @@ fastboot --set-active=b && fastboot reboot
 - `scripts/cycle_boot.sh`: перезагрузка → bootloader → `fastboot boot` → ожидание сети.
 
 ## Известные проблемы и планы
-- **Тач HX83102E:** GPL-драйвер стока найден в [adazem009/kernel_lenovo_tbj606](https://github.com/adazem009/kernel_lenovo_tbj606) (`drivers/input/touchscreen/himax83102p`, zero-flash SPI) — нужен порт на 7.2 (panel follower вместо downstream-уведомлений). [Заметки](docs/notes/touch.md).
+- **Тач:** работает (порт драйвера Lenovo из [adazem009/kernel_lenovo_tbj606](https://github.com/adazem009/kernel_lenovo_tbj606), патч 0006). Перо не проверено. [Заметки](docs/notes/touch.md).
 - **Звук:** разъём наушников (PM4125/WCD937x, драйверы в ядре есть); для динамиков AW88258 (ID 0x1852) и микрофонов ES7210 GPL-драйверы Lenovo есть в том же репозитории — нужен порт. [Заметки](docs/notes/audio.md).
 - **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md), NOTES п. 41–42.
 - **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. NOTES п. 43.
