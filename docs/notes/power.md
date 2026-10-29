@@ -26,3 +26,10 @@
 - Под полной нагрузкой 8 ядер + GPU: 42 → 65 °C за 4 мин (тест остановлен моей страховкой на 65 °C).
 ## Зарядка без драйвера (2026-10-29)
 - В простое с USB от Mac: mm8013 current_now −136…−141 мА, charge_now растёт (+1 мА·ч за ~20 с) → заряд идёт на HW-дефолтах pmi632. Под полной нагрузкой разряд ≈ +160 мА сверх USB.
+
+## Драйвер зарядника PMI632 (SMB5), шаг 1 — только чтение (2026-10-29)
+- Патч `0004-power-supply-add-read-only-Qualcomm-PMI632-charger-driver.patch`: drivers/power/supply/qcom_pmi632_charger.c + Kconfig CHARGER_QCOM_PMI632 + узел
+  `&spmi_bus { pmic@2 { charger@1000 { compatible = "qcom,pmi632-charger"; reg = <0x1000>; }; }; }`. Регистры — по smb5-reg.h / qpnp-smb5.c (smb5_pmi632_params) Qualcomm (GPL-2.0).
+- power_supply `pmi632-charger` (USB): ONLINE, STATUS, CHARGE_TYPE, USB_TYPE (APSD), HEALTH, INPUT_CURRENT_LIMIT (ICL_STATUS), CONSTANT_CHARGE_CURRENT/VOLTAGE (FCC/FV cfg). Опрос 5 с.
+- Значения от загрузчика (USB порт Mac): FCC 0x3c = 3.0 А, FV 0x50 = 4.40 В (= профиль стока), ICL max 1.5 А, ICL фактически 950 мА, APSD = SDP, статус FULLON/Fast.
+- Шаг 2 (не делали): запись USB ICL под DCP-адаптер (до 3 А), JEITA (1.5 А и 4.2 В при 45–50 °C), step-charging, SMB1355 (параллельный, I2C1 0x0c).

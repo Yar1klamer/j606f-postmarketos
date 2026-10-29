@@ -311,3 +311,13 @@
 &usb {
 	qcom,select-utmi-as-pipe-clk;
 };
+
+/* PMI632 SMB5 charger, read-only status driver for now */
+&spmi_bus {
+	pmic@2 {
+		pmi632_charger: charger@1000 {
+			compatible = "qcom,pmi632-charger";
+			reg = <0x1000>;
+		};
+	};
+};

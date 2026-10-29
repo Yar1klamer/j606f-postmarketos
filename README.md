@@ -4,8 +4,9 @@
 **Lenovo Tab P11 TB-J606F** (Wi-Fi) на основе **mainline-ядра Linux 7.2**
 ([linux-nura-qcom-sm61x5](https://codeberg.org/sm61x5-mainline/linux)).
 
-> **Статус: pmOS (Nura edge) устанавливается и грузится** (rootfs в super). Ядро, дисплей, GPU, Wayland, Wi-Fi, Bluetooth и USB-сеть/SSH работают;
-> тача, звука и датчиков пока нет. Как повседневная система ещё не годится. Подробности ниже и в [STATE.md](STATE.md).
+> **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU, Plasma (Wayland),
+> Wi-Fi, Bluetooth, USB-сеть/SSH, батарея и статус зарядки. Тача, звука и датчиков пока нет, поэтому без Bluetooth-клавиатуры/мыши
+> как повседневная система ещё не годится. Подробности ниже и в [STATE.md](STATE.md).
 
 ![weston на TB-J606F (снимок буфера композитора)](docs/img/weston_screenshot.png)
 
@@ -48,22 +49,22 @@
 
 | Подсистема | Статус | Примечание |
 |---|---|---|
-| Загрузка ядра | ✅ | через «отстойник» для стокового dtbo (см. ниже) |
+| Загрузка ядра | ✅ | со стёртым `dtbo` (или через «отстойник» для стокового dtbo, см. ниже) |
 | UFS, разметка | ✅ | |
 | Дисплей HX83102P + подсветка | ✅ | свой драйвер панели (init из стокового DT), 60 Гц, DCS-яркость 0…4095 |
 | GPU Adreno 610 | ✅ | Mesa freedreno, GLES 3.2, kmscube 60 fps |
-| Wayland (weston) | ✅ | DRM + GL, 60 fps |
+| Wayland, KDE Plasma Desktop | ✅ | weston и Plasma (kwin_wayland) на GPU, 60 Гц; автологин и ландшафт настраиваются вручную |
 | USB-сеть, SSH | ✅ | гаджет ECM/ACM |
-| Wi-Fi | ✅ сканирование | ath10k, подключение не проверено |
-| Bluetooth | ✅ сканирование | btqca, нужен ручной BD-адрес |
-| Батарея | ✅ | mm8013; заряд идёт на аппаратных настройках |
+| Wi-Fi | ✅ | ath10k (WCN3990): подключение WPA2, DHCP, интернет |
+| Bluetooth | ✅ сканирование | btqca; адрес задаёт bootmac, сопряжение не проверено |
+| Батарея | ✅ | fuel gauge mm8013 |
 | cpufreq, thermal, троттлинг CPU | ✅ | cooling-maps добавлены в DTS |
 | Modem / ADSP / CDSP | ✅ стартуют | стоковые прошивки |
 | Перезагрузка в bootloader | ✅ | reboot-mode PON |
 | Тачскрин и стилус | ❌ | нет mainline-драйвера HX83102E |
 | Звук | ❌ | нет драйверов AW88258, ES7210 |
 | Датчики (поворот, свет) | ❌ | hexagonrpcd/SSC пока не поднялся |
-| Зарядник (управление) | ❌ | нет драйвера PMI632/SMB1355 |
+| Зарядник PMI632 | ⚠️ только статус | свой read-only драйвер (патч 0004): онлайн, статус, тип USB, лимиты; заряд на настройках загрузчика (4.40 В / 3 А). SMB1355 нет |
 | Suspend, камеры, клавиатура | ❓ | не проверялось |
 
 ## Главная особенность: загрузчик Lenovo и dtbo
@@ -80,8 +81,8 @@ ABL этого планшета **всегда** накладывает овер
 Оверлей ложится в «отстойник», ядро его не трогает. Генератор: [`scripts/gen_abl_sink_dtsi.py`](scripts/gen_abl_sink_dtsi.py).
 
 Побочный эффект: ABL заменяет корневые `model`/`compatible` на `qcom,bengalp-idp`. Из-за этого `ubwc_config` и `qcom_pd_mapper`
-не узнают SoC. Временно это обходит патч `0002-HACK` (добавляет `qcom,bengalp`). Чистое решение — прошить пустой dtbo
-([`docs/notes/install_plan.md`](docs/notes/install_plan.md)).
+не узнают SoC. Это обходил патч `0002-HACK` (добавляет `qcom,bengalp`; лежит в `kernel/patches/` для этого случая).
+**Сейчас используется стёртый dtbo_b**, поэтому пакет ядра собирается **без** HACK 0002, а abl-sink остаётся в DTB как страховка.
 
 Ещё одна особенность: `fastboot boot` работает **один раз за сессию bootloader**. Перед каждой попыткой нужен `fastboot reboot bootloader`.
 
@@ -91,12 +92,14 @@ ABL этого планшета **всегда** накладывает овер
 kernel/
   patches/                 патчи к linux-nura-qcom-sm61x5 7.2.3
     0001-…-HX83102P.patch   панель BOE/Himax HX83102P в panel-himax-hx83102.c
-    0002-HACK-…patch        qcom,bengalp для ubwc_config/pd_mapper (обход ABL)
+    0002-HACK-…patch        qcom,bengalp для ubwc_config/pd_mapper (только если dtbo не стёрт; в пакет не входит)
     0003-…-HX83102P-SKU.patch  DTS ревизии HX83102P + abl-sink.dtsi + Makefile
-    config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523)
+    0004-…-PMI632-charger…patch  read-only драйвер зарядника PMI632 (SMB5) + узел в DTS
+    config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632)
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  device-lenovo-j606f/     device-пакет (deviceinfo, modules-initfs, APKBUILD)
+  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003, 0004 (pkgrel 103)
+  device-lenovo-j606f/     device-пакет (deviceinfo, modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,
                            сборка на самом планшете, прокси для USB-сети, установка
@@ -184,8 +187,9 @@ fastboot --set-active=b && fastboot reboot
 - **Тач HX83102E:** нужны GPL-исходники Himax «hxchipset» (в стоковом ядре драйвер встроен: `himax_mcu_firmware_update_0f`, `hx83102e_*`). [Заметки](docs/notes/touch.md).
 - **Звук:** драйвер AW88258 (ID 0x1852) и ES7210, машинный драйвер для SM6115. [Заметки](docs/notes/audio.md).
 - **Датчики:** раскладка файлов hexagonrpcd / libssc. [Заметки](docs/notes/sensors.md).
-- **dtbo:** проверить пустой dtbo вместо «отстойника» и убрать HACK 0002.
-- **MAC Wi-Fi/BT** из persist, **зарядник**, **suspend**, клавиатура на pogo-пинах.
+- **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
+- **suspend**, кнопки, клавиатура на pogo-пинах, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- **Зеркало:** если mirror.nura.eco медленный, выберите другое официальное зеркало из https://nura.eco/mirrors/ (мы используем RWTH Aachen).
 - Апстрим: DTS ревизии HX83102P и панель → LKML; пакеты → pmaports (с учётом
   [AI policy postmarketOS](https://docs.postmarketos.org/policies-and-processes/development/ai-policy.html)).
 

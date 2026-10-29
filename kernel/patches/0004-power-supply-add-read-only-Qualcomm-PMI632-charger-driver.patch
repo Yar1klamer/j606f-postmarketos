@@ -1,0 +1,435 @@
+From: Yar1klamer
+Subject: [PATCH] power: supply: add read-only Qualcomm PMI632 charger status driver
+
+Read-only SMB5 status driver for PMI632 (Lenovo Tab P11 TB-J606F) and its
+DT node. No register writes: charging stays on bootloader/HW defaults.
+
+---
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
+index c504ee4..760067f 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-hx83102p.dts
+@@ -311,3 +311,13 @@
+ &usb {
+ 	qcom,select-utmi-as-pipe-clk;
+ };
++
++/* PMI632 SMB5 charger, read-only status driver for now */
++&spmi_bus {
++	pmic@2 {
++		pmi632_charger: charger@1000 {
++			compatible = "qcom,pmi632-charger";
++			reg = <0x1000>;
++		};
++	};
++};
+diff --git a/drivers/power/supply/Kconfig b/drivers/power/supply/Kconfig
+index f0ede1c..07e850a 100644
+--- a/drivers/power/supply/Kconfig
++++ b/drivers/power/supply/Kconfig
+@@ -1165,6 +1165,15 @@ config CHARGER_QCOM_SMB2
+ 	  adds support for the SMB2 switch mode battery charger found
+ 	  in PMI8998 and related PMICs.
+ 
++config CHARGER_QCOM_PMI632
++	tristate "Qualcomm PMI632 charger status driver"
++	depends on MFD_SPMI_PMIC
++	help
++	  Say Y here to enable a read-only status driver for the SMB5
++	  charger found in the Qualcomm PMI632 PMIC. It reports the input
++	  presence, charge state and configured limits without changing
++	  the charger configuration.
++
+ config FUEL_GAUGE_MM8013
+ 	tristate "Mitsumi MM8013 fuel gauge driver"
+ 	depends on I2C
+diff --git a/drivers/power/supply/Makefile b/drivers/power/supply/Makefile
+index 31fe4a1..7df6de6 100644
+--- a/drivers/power/supply/Makefile
++++ b/drivers/power/supply/Makefile
+@@ -130,6 +130,7 @@ obj-$(CONFIG_CHARGER_SURFACE)	+= surface_charger.o
+ obj-$(CONFIG_BATTERY_CHARGER_SURFACE_RT) += surface-rt-ec.o
+ obj-$(CONFIG_BATTERY_UG3105)	+= ug3105_battery.o
+ obj-$(CONFIG_CHARGER_QCOM_SMB2)	+= qcom_smbx.o
++obj-$(CONFIG_CHARGER_QCOM_PMI632)	+= qcom_pmi632_charger.o
+ obj-$(CONFIG_FUEL_GAUGE_MM8013)	+= mm8013.o
+ obj-$(CONFIG_MACSMC_POWER)	+= macsmc-power.o
+ obj-$(CONFIG_CHARGER_MAX77759)	+= max77759_charger.o
+diff --git a/drivers/power/supply/qcom_pmi632_charger.c b/drivers/power/supply/qcom_pmi632_charger.c
+new file mode 100644
+index 0000000..9a0923d
+--- /dev/null
++++ b/drivers/power/supply/qcom_pmi632_charger.c
+@@ -0,0 +1,372 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Qualcomm PMI632 (SMB5) charger: read-only status driver.
++ *
++ * Reports what the charger hardware is doing (input present, charge state,
++ * configured limits) without writing any register. Charging keeps running on
++ * the configuration left by the bootloader / hardware defaults.
++ *
++ * Register layout: Qualcomm smb5-reg.h (GPL-2.0), PMI632 parameter ranges
++ * from qpnp-smb5.c (smb5_pmi632_params).
++ */
++
++#include <linux/bits.h>
++#include <linux/devm-helpers.h>
++#include <linux/mod_devicetable.h>
++#include <linux/module.h>
++#include <linux/platform_device.h>
++#include <linux/power_supply.h>
++#include <linux/property.h>
++#include <linux/regmap.h>
++#include <linux/workqueue.h>
++
++/* Offsets from the CHGR base (0x1000 on PMI632) */
++#define CHGR_STATUS_1			0x006
++#define  CHGR_STATUS_MASK		GENMASK(2, 0)
++#define CHGR_STATUS_2			0x007
++#define  CHGR_STATUS_2_BAT_OV		BIT(1)
++#define CHGR_STATUS_7			0x00d
++#define  CHGR_TEMP_TOO_HOT		BIT(3)
++#define  CHGR_TEMP_TOO_COLD		BIT(2)
++#define CHGR_FCC_CFG			0x061
++#define CHGR_FV_CFG			0x070
++
++#define DCDC_ICL_MAX_STATUS		0x106
++#define DCDC_ICL_STATUS			0x107
++#define DCDC_POWER_PATH_STATUS		0x10b
++#define  POWER_PATH_USBIN_SUSPEND	BIT(6)
++#define  POWER_PATH_VALID_INPUT		BIT(0)
++
++#define USBIN_APSD_RESULT		0x308
++#define  APSD_QC_3P0			BIT(6)
++#define  APSD_QC_2P0			BIT(5)
++#define  APSD_FLOAT			BIT(4)
++#define  APSD_DCP			BIT(3)
++#define  APSD_CDP			BIT(2)
++#define  APSD_OCP			BIT(1)
++#define  APSD_SDP			BIT(0)
++#define USBIN_INT_RT_STS		0x310
++#define  USBIN_PLUGIN_RT_STS		BIT(4)
++#define USBIN_ICL_CFG			0x370
++
++/* PMI632 ranges (smb5_pmi632_params) */
++#define PMI632_CURRENT_STEP_UA		50000
++#define PMI632_FV_MIN_UV		3600000
++#define PMI632_FV_STEP_UV		10000
++
++#define PMI632_POLL_MS			5000
++
++enum {
++	CHG_INHIBIT = 0,
++	CHG_TRICKLE,
++	CHG_PRE,
++	CHG_FULLON,
++	CHG_TAPER,
++	CHG_TERMINATE,
++	CHG_PAUSE,
++	CHG_DISABLE,
++};
++
++struct pmi632_chg {
++	struct device *dev;
++	struct regmap *regmap;
++	u32 base;
++	struct power_supply *psy;
++	struct delayed_work poll_work;
++	unsigned int last_online;
++	unsigned int last_state;
++};
++
++static int pmi632_read(struct pmi632_chg *chip, u16 reg, unsigned int *val)
++{
++	return regmap_read(chip->regmap, chip->base + reg, val);
++}
++
++static int pmi632_online(struct pmi632_chg *chip, int *online)
++{
++	unsigned int rt;
++	int ret;
++
++	ret = pmi632_read(chip, USBIN_INT_RT_STS, &rt);
++	if (ret)
++		return ret;
++
++	*online = !!(rt & USBIN_PLUGIN_RT_STS);
++	return 0;
++}
++
++static int pmi632_get_status(struct pmi632_chg *chip, int *val)
++{
++	unsigned int stat;
++	int online, ret;
++
++	ret = pmi632_online(chip, &online);
++	if (ret)
++		return ret;
++
++	if (!online) {
++		*val = POWER_SUPPLY_STATUS_DISCHARGING;
++		return 0;
++	}
++
++	ret = pmi632_read(chip, CHGR_STATUS_1, &stat);
++	if (ret)
++		return ret;
++
++	switch (stat & CHGR_STATUS_MASK) {
++	case CHG_TRICKLE:
++	case CHG_PRE:
++	case CHG_FULLON:
++	case CHG_TAPER:
++		*val = POWER_SUPPLY_STATUS_CHARGING;
++		break;
++	case CHG_TERMINATE:
++		*val = POWER_SUPPLY_STATUS_FULL;
++		break;
++	default:
++		*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
++		break;
++	}
++
++	return 0;
++}
++
++static int pmi632_get_charge_type(struct pmi632_chg *chip, int *val)
++{
++	unsigned int stat;
++	int ret;
++
++	ret = pmi632_read(chip, CHGR_STATUS_1, &stat);
++	if (ret)
++		return ret;
++
++	switch (stat & CHGR_STATUS_MASK) {
++	case CHG_TRICKLE:
++	case CHG_PRE:
++		*val = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
++		break;
++	case CHG_FULLON:
++		*val = POWER_SUPPLY_CHARGE_TYPE_FAST;
++		break;
++	case CHG_TAPER:
++		*val = POWER_SUPPLY_CHARGE_TYPE_STANDARD;
++		break;
++	default:
++		*val = POWER_SUPPLY_CHARGE_TYPE_NONE;
++		break;
++	}
++
++	return 0;
++}
++
++static int pmi632_get_usb_type(struct pmi632_chg *chip, int *val)
++{
++	unsigned int apsd;
++	int ret;
++
++	ret = pmi632_read(chip, USBIN_APSD_RESULT, &apsd);
++	if (ret)
++		return ret;
++
++	if (apsd & (APSD_DCP | APSD_QC_2P0 | APSD_QC_3P0))
++		*val = POWER_SUPPLY_USB_TYPE_DCP;
++	else if (apsd & APSD_CDP)
++		*val = POWER_SUPPLY_USB_TYPE_CDP;
++	else if (apsd & APSD_SDP)
++		*val = POWER_SUPPLY_USB_TYPE_SDP;
++	else
++		*val = POWER_SUPPLY_USB_TYPE_UNKNOWN;
++
++	return 0;
++}
++
++static int pmi632_get_health(struct pmi632_chg *chip, int *val)
++{
++	unsigned int st2, st7;
++	int ret;
++
++	ret = pmi632_read(chip, CHGR_STATUS_2, &st2);
++	if (ret)
++		return ret;
++	ret = pmi632_read(chip, CHGR_STATUS_7, &st7);
++	if (ret)
++		return ret;
++
++	if (st2 & CHGR_STATUS_2_BAT_OV)
++		*val = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
++	else if (st7 & CHGR_TEMP_TOO_HOT)
++		*val = POWER_SUPPLY_HEALTH_OVERHEAT;
++	else if (st7 & CHGR_TEMP_TOO_COLD)
++		*val = POWER_SUPPLY_HEALTH_COLD;
++	else
++		*val = POWER_SUPPLY_HEALTH_GOOD;
++
++	return 0;
++}
++
++static int pmi632_get_step(struct pmi632_chg *chip, u16 reg, int *val)
++{
++	unsigned int raw;
++	int ret;
++
++	ret = pmi632_read(chip, reg, &raw);
++	if (ret)
++		return ret;
++
++	*val = raw * PMI632_CURRENT_STEP_UA;
++	return 0;
++}
++
++static int pmi632_get_property(struct power_supply *psy,
++			       enum power_supply_property psp,
++			       union power_supply_propval *val)
++{
++	struct pmi632_chg *chip = power_supply_get_drvdata(psy);
++	unsigned int raw;
++	int ret;
++
++	switch (psp) {
++	case POWER_SUPPLY_PROP_ONLINE:
++		return pmi632_online(chip, &val->intval);
++	case POWER_SUPPLY_PROP_STATUS:
++		return pmi632_get_status(chip, &val->intval);
++	case POWER_SUPPLY_PROP_CHARGE_TYPE:
++		return pmi632_get_charge_type(chip, &val->intval);
++	case POWER_SUPPLY_PROP_USB_TYPE:
++		return pmi632_get_usb_type(chip, &val->intval);
++	case POWER_SUPPLY_PROP_HEALTH:
++		return pmi632_get_health(chip, &val->intval);
++	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
++		/* effective limit after AICL */
++		return pmi632_get_step(chip, DCDC_ICL_STATUS, &val->intval);
++	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
++		return pmi632_get_step(chip, CHGR_FCC_CFG, &val->intval);
++	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
++		ret = pmi632_read(chip, CHGR_FV_CFG, &raw);
++		if (ret)
++			return ret;
++		val->intval = PMI632_FV_MIN_UV + raw * PMI632_FV_STEP_UV;
++		return 0;
++	default:
++		return -EINVAL;
++	}
++}
++
++static const enum power_supply_property pmi632_props[] = {
++	POWER_SUPPLY_PROP_ONLINE,
++	POWER_SUPPLY_PROP_STATUS,
++	POWER_SUPPLY_PROP_CHARGE_TYPE,
++	POWER_SUPPLY_PROP_USB_TYPE,
++	POWER_SUPPLY_PROP_HEALTH,
++	POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT,
++	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
++	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
++};
++
++static const struct power_supply_desc pmi632_psy_desc = {
++	.name = "pmi632-charger",
++	.type = POWER_SUPPLY_TYPE_USB,
++	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
++		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
++		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
++		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
++	.properties = pmi632_props,
++	.num_properties = ARRAY_SIZE(pmi632_props),
++	.get_property = pmi632_get_property,
++};
++
++/* No interrupts yet: poll and notify userspace when plug or charge state change */
++static void pmi632_poll(struct work_struct *work)
++{
++	struct pmi632_chg *chip = container_of(to_delayed_work(work),
++					       struct pmi632_chg, poll_work);
++	unsigned int rt = 0, stat = 0;
++
++	pmi632_read(chip, USBIN_INT_RT_STS, &rt);
++	pmi632_read(chip, CHGR_STATUS_1, &stat);
++	rt &= USBIN_PLUGIN_RT_STS;
++	stat &= CHGR_STATUS_MASK;
++
++	if (rt != chip->last_online || stat != chip->last_state) {
++		chip->last_online = rt;
++		chip->last_state = stat;
++		power_supply_changed(chip->psy);
++	}
++
++	schedule_delayed_work(&chip->poll_work, msecs_to_jiffies(PMI632_POLL_MS));
++}
++
++static void pmi632_dump(struct pmi632_chg *chip)
++{
++	static const u16 regs[] = {
++		CHGR_STATUS_1, CHGR_STATUS_2, CHGR_STATUS_7, CHGR_FCC_CFG,
++		CHGR_FV_CFG, DCDC_ICL_MAX_STATUS, DCDC_ICL_STATUS,
++		DCDC_POWER_PATH_STATUS, USBIN_APSD_RESULT, USBIN_INT_RT_STS,
++		USBIN_ICL_CFG,
++	};
++	unsigned int val;
++	int i;
++
++	for (i = 0; i < ARRAY_SIZE(regs); i++) {
++		if (pmi632_read(chip, regs[i], &val))
++			continue;
++		dev_info(chip->dev, "reg 0x%04x = 0x%02x\n",
++			 chip->base + regs[i], val);
++	}
++}
++
++static int pmi632_probe(struct platform_device *pdev)
++{
++	struct power_supply_config cfg = {};
++	struct device *dev = &pdev->dev;
++	struct pmi632_chg *chip;
++	int ret;
++
++	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
++	if (!chip)
++		return -ENOMEM;
++
++	chip->dev = dev;
++	chip->regmap = dev_get_regmap(dev->parent, NULL);
++	if (!chip->regmap)
++		return dev_err_probe(dev, -ENODEV, "failed to locate the regmap\n");
++
++	ret = device_property_read_u32(dev, "reg", &chip->base);
++	if (ret)
++		return dev_err_probe(dev, ret, "missing reg\n");
++
++	pmi632_dump(chip);
++
++	cfg.drv_data = chip;
++	cfg.fwnode = dev_fwnode(dev);
++	chip->psy = devm_power_supply_register(dev, &pmi632_psy_desc, &cfg);
++	if (IS_ERR(chip->psy))
++		return dev_err_probe(dev, PTR_ERR(chip->psy),
++				     "failed to register power supply\n");
++
++	ret = devm_delayed_work_autocancel(dev, &chip->poll_work, pmi632_poll);
++	if (ret)
++		return ret;
++
++	schedule_delayed_work(&chip->poll_work, msecs_to_jiffies(PMI632_POLL_MS));
++
++	return 0;
++}
++
++static const struct of_device_id pmi632_match_table[] = {
++	{ .compatible = "qcom,pmi632-charger" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, pmi632_match_table);
++
++static struct platform_driver pmi632_charger_driver = {
++	.driver = {
++		.name = "qcom-pmi632-charger",
++		.of_match_table = pmi632_match_table,
++	},
++	.probe = pmi632_probe,
++};
++module_platform_driver(pmi632_charger_driver);
++
++MODULE_DESCRIPTION("Qualcomm PMI632 charger read-only status driver");
++MODULE_LICENSE("GPL");

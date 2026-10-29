@@ -3,13 +3,14 @@
 pkgname=device-lenovo-j606f
 pkgdesc="Lenovo Tab P11 (TB-J606F, HX83102P panel SKU)"
 pkgver=1
-pkgrel=4
+pkgrel=5
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
 options="!check !archcheck"
 depends="
 	android-tools-mkbootimg
+	bootmac
 	kmod
 	linux-nura-qcom-sm61x5
 	postmarketos-base
