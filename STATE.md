@@ -31,7 +31,7 @@
   ярлык `~/.local/bin/osk-toggle` + `org.j606f.osk-toggle.desktop` на панели;
 - датчики: `/usr/share/qcom/sm6115/LENOVO/J606F/` (dsp, sensors, socinfo — со своего устройства), hexagonrpcd 0.4.0-r50 (наш патч), drop-in'ы
   `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` с `-R …/J606F`; iio-sensor-proxy включён, датчики работают (`monitor-sensor`: свет, приближение, акселерометр);
-- `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (отключено, пока не было тача; теперь можно вернуть);
+- `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (отключено, пока не было тача; владелец решил так и оставить);
 - `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
 - `/etc/apk/repositories`: pmOS — `https://mirror.minlexx.ru/postmarketos/{extra-repos/systemd/main,main}`, Alpine — `http://mirror.yandex.ru/mirrors/alpine/edge/{main,community,testing}`
   (mirror.nura.eco из этой сети отдаёт ~500 Б/с; запасной вариант — официальное RWTH Aachen).
@@ -41,7 +41,7 @@
 2. Звук: разъём наушников и микрофон гарнитуры (PM4125/WCD937x, DTS + UCM); динамики AW88258 и микрофоны ES7210 — нет драйверов.
 3. Упаковать датчики: drop-in'ы hexagonrpcd и зависимость от hexagonrpcd r50 — в device-пакет; файлы прошивки — приватно.
 4. Зарядник, шаг 2: запись лимитов (ICL под сетевой адаптер, JEITA), только после проверки от адаптера.
-5. Тач: работает (патч 0006). Проверить перо (Lenovo Precision Pen), вернуть экран блокировки и режим экранной клавиатуры «только при касании» (теперь тач есть). suspend/resume.
+5. Тач: работает (патч 0006). Проверить перо (Lenovo Precision Pen). Экран блокировки и экранную клавиатуру владелец решил оставить как есть (29.10). suspend/resume.
 
 ## 4. Как обновлять без переустановки (проверено 29.10)
 Полная переустановка (`pmbootstrap install` + `fastboot flash super/boot_b`) сбрасывает локальные настройки и требует fastboot. Вместо неё:
