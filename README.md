@@ -69,6 +69,7 @@
 | Экранная клавиатура | ✅ | plasma-keyboard (EN/RU), значок на панели; см. [NOTES.md](NOTES.md) п. 39 |
 | Кнопки Power, Vol± | ✅ | Power гасит/включает экран (настройка PowerDevil) |
 | USB-сеть, SSH | ✅ | гаджет ECM/ACM |
+| USB OTG (хост) | ✅ | Type-C через FUSB302 + внешний 5 В буст (gpio38), патч 0008; USB 2.0, без PD. Проверено с USB-ресивером мыши |
 | Wi-Fi | ✅ | ath10k (WCN3990): подключение WPA2, DHCP, интернет |
 | Bluetooth | ✅ полностью | WCN3990 (btqca): поиск, сопряжение, HID-устройства (проверено с мышью); постоянный адрес задаёт bootmac |
 | Батарея | ✅ | fuel gauge mm8013 (патч 0005: правильный знак тока по ABI, связь с зарядником, Li-ion) — Plasma/UPower показывают заряд/разряд верно |
@@ -113,11 +114,12 @@ kernel/
     0005-…-mm8013-…patch      mm8013: знак current_now, power-supplies → зарядник, TECHNOLOGY=Li-ion
     0006-…-HX83102E-…patch    тачскрин Himax HX83102E (порт драйвера Lenovo) + узел в DTS
     0007-…-NT36523W-SKU.patch общая часть DTS (common.dtsi) + DTB ревизии NT36523W
-    config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E)
+    0008-…-USB-C-OTG…patch     USB-C OTG: FUSB302 (I2C0 0x22) + VBUS-буст по gpio38, dwc3 dual-role
+    config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E, TYPEC_FUSB302)
   himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0007 (pkgrel 107)
+  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0008 (pkgrel 108)
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
@@ -159,7 +161,7 @@ python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0007 (pkgrel 107)
+cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0008 (pkgrel 108)
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
@@ -223,7 +225,7 @@ fastboot --set-active=b && fastboot reboot
 - **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md), NOTES п. 41–42.
 - **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. NOTES п. 43.
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
-- **suspend**, клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, USB-хост, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- **suspend**, клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
 - **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура, drop-in'ы hexagonrpcd) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2).
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
   ```bash

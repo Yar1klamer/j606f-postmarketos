@@ -1,0 +1,117 @@
+From: Yar1klamer
+Subject: [PATCH] arm64: dts: qcom: sm6115p-lenovo-j606f: USB-C OTG via FUSB302
+
+The PMI632 Type-C block is strapped to micro-USB mode on this board
+(TYPEC_U_USB_CFG = 0x03); the CC lines go to an FUSB302B on I2C0 (0x22,
+INT_N gpio97). VBUS for sinks comes from an external 5 V boost enabled by
+gpio38 (stock dock_pogo usb_vbus), not from the PMI632 OTG boost. Wire the
+connector to dwc3 (dr_mode otg + role switch), HS only, no USB PD.
+Tested: a USB HID receiver enumerates, the port returns to sink/device without it.
+---
+diff -ruN a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi	2026-10-29 23:37:37
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi	2026-10-29 23:37:37
+@@ -11,6 +11,17 @@
+ #include "sm6115p-lenovo-j606f-abl-sink.dtsi"
+ 
+ / {
++	usb_otg_vbus: regulator-usb-otg-vbus {
++		compatible = "regulator-fixed";
++		regulator-name = "usb_otg_vbus";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		pinctrl-0 = <&usb_otg_vbus_en_default>;
++		pinctrl-names = "default";
++	};
++
+ 	aliases {
+ 		serial1 = &uart3;
+ 	};
+@@ -51,6 +62,23 @@
+ };
+ 
+ &tlmm {
++	/* stock dock_pogo usb_vbus: enable of the external 5 V OTG boost */
++	usb_otg_vbus_en_default: usb-otg-vbus-en-default-state {
++		pins = "gpio38";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		output-low;
++	};
++
++	/* stock fairchild_int_gpio */
++	fusb302_int_default: fusb302-int-default-state {
++		pins = "gpio97";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-pull-up;
++	};
++
+ 	/* WCN3990 BT UART (QUP SE3), pins from stock qupv3_se3_4uart */
+ 	bt_uart3_default: bt-uart3-default-state {
+ 		cts-pins {
+@@ -273,6 +301,61 @@
+  */
+ &usb {
+ 	qcom,select-utmi-as-pipe-clk;
++};
++
++/*
++ * USB-C OTG. On this board the PMI632 Type-C block is strapped to micro-USB mode
++ * (TYPEC_U_USB_CFG 0x1570 = 0x03, the stock qpnp-smb5 reads the same bit), the CC lines
++ * go to an FUSB302B (I2C0 0x22, Device ID 0x91, INT_N on gpio97, stock "qcom,fusb302").
++ * VBUS for sinks is NOT the PMI632 OTG boost: the stock fusb302 driver switches an
++ * external 5 V boost with gpio38 (dock_pogo "usb_vbus", pogo.c usb_vbus_ctl). TCPM turns
++ * it on only after it saw Rd on CC. HS only: the base dts has no QMP PHY. No USB PD.
++ */
++&i2c0 {
++	typec@22 {
++		compatible = "fcs,fusb302";
++		reg = <0x22>;
++		interrupts-extended = <&tlmm 97 IRQ_TYPE_LEVEL_LOW>;
++		pinctrl-0 = <&fusb302_int_default>;
++		pinctrl-names = "default";
++		vbus-supply = <&usb_otg_vbus>;
++
++		connector {
++			compatible = "usb-c-connector";
++			label = "USB-C";
++
++			power-role = "dual";
++			try-power-role = "sink";
++			data-role = "dual";
++			self-powered;
++
++			typec-power-opmode = "default";
++			pd-disable;
++
++			ports {
++				#address-cells = <1>;
++				#size-cells = <0>;
++
++				port@0 {
++					reg = <0>;
++
++					fusb302_hs_in: endpoint {
++						remote-endpoint = <&usb_dwc3_hs>;
++					};
++				};
++			};
++		};
++	};
++};
++
++&usb_dwc3 {
++	/* the base dts forces peripheral mode and drops the role switch */
++	dr_mode = "otg";
++	usb-role-switch;
++};
++
++&usb_dwc3_hs {
++	remote-endpoint = <&fusb302_hs_in>;
+ };
+ 
+ /* PMI632 SMB5 charger, read-only status driver for now */

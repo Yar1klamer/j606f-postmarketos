@@ -3,7 +3,7 @@ maintainer="Barnabas Czeman <barnabas.czeman@postmarketos.org>"
 _flavor="nura-qcom-sm61x5"
 pkgname=linux-$_flavor
 pkgver=7.2.3
-pkgrel=107
+pkgrel=108
 pkgdesc="Close to mainline linux kernel for Qualcomm Snapdragon SM61x5"
 arch="aarch64"
 _carch="arm64"
@@ -41,6 +41,7 @@ source="
 	0005-power-supply-mm8013-fix-current-sign-notify-report-Li-ion.patch
 	0006-Input-add-Himax-HX83102E-touchscreen-for-Lenovo-J606F.patch
 	0007-arm64-dts-qcom-sm6115p-lenovo-j606f-split-common-add-NT36523W-SKU.patch
+	0008-arm64-dts-qcom-sm6115p-lenovo-j606f-USB-C-OTG-via-FUSB302.patch
 "
 builddir="$srcdir/linux"
 
@@ -76,11 +77,12 @@ package() {
 }
 sha512sums="
 2a6393212c413cf3812c2293d074fc9b7f82dec01c740251fe390b0633484b247e95e886493cbec77e6ef9741aebe0a4134c2218672424b332ae119c22566f23  linux-nura-qcom-sm61x5-v7.2.3-r0.tar.gz
-e1e462d7c7bcb057512a195d5fd42a34302d91fe472bb7732d2d78efbda8b2f9437cba94de3e664f9f2680461461ac92915051a607d85bc24c79e085d7f8ed34  config-nura-qcom-sm61x5.aarch64
+d0a0aa31fc80dbb83f1d36cbc0ca6b55f3f7a8613ab39805b383c65bd0d59efc48e9563d4e90043667dbd95e9e612d1e68fc1ba266b243fc105bd5dedbaad461  config-nura-qcom-sm61x5.aarch64
 170085189456140a4751c4dfc1d1cc9029a1e14c3d242c9f476efee5b1253ebd349d974fbf9b97d01d11d6ad5318f7888bece4fcc62291af5a4382c99af47ad6  0001-drm-panel-himax-hx83102-add-Lenovo-J606F-BOE-HX83102P.patch
 d03008864ed14c0d5f3907abae7f3f9945d0b952d22fa48298e44f13d8475afb0afb186febf7d721c3253a25866d70df6efcb50cf6874b976ea00bb3fc18a0b6  0003-arm64-dts-qcom-sm6115p-lenovo-j606f-add-HX83102P-SKU.patch
 f7ec249b9c58d19d861082a4dc3b410921886c918dafeb3983c674f7f533a1aac916c55a13781aa4382dff65d664491e031d8edeb03e5a228462f5653e3f1a18  0004-power-supply-add-read-only-Qualcomm-PMI632-charger-driver.patch
 1c4aee9ac53392e88b39268091abc23a0c3028ef02e3c8b262cb606d0cc3adb2c51530c1728b8ddde83ca715bf2f4ac241ac40dac7a28df2509c52829ce142e5  0005-power-supply-mm8013-fix-current-sign-notify-report-Li-ion.patch
 53052759378bdb11ca80fb308b8f2967e400fb7305913b608e3aff7f00e15b4130477f13d73809e0481100a8eaf0a9b38187f7a1d8a6595eaff8bad7fd005f4a  0006-Input-add-Himax-HX83102E-touchscreen-for-Lenovo-J606F.patch
 8c9e5418b8c4fe39a2bf35aa4626f3eefd6ba7933d292a3711b5f3a5491bc85b0ade93a0a155c76cf330c159a3280653051d811e6974e2ba330fbc46594d98e0  0007-arm64-dts-qcom-sm6115p-lenovo-j606f-split-common-add-NT36523W-SKU.patch
+21805ae57a54d069b7f26ec24cb841ced8a789b416d093c9ce10213d69fcb853a792807fa02c6223f260888219f8a41282c37fe67a6fc495fdc5bb45647b23dc  0008-arm64-dts-qcom-sm6115p-lenovo-j606f-USB-C-OTG-via-FUSB302.patch
 "

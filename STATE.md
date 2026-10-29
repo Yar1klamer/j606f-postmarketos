@@ -6,7 +6,7 @@
 ## 1. Одной строкой
 **pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
 **rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — наша сборка linux-nura-qcom-sm61x5 7.2.3 **pkgrel 106** (патчи 0001, 0003, 0004, 0005, 0006; без HACK 0002).
-Автологин в Plasma, альбомная ориентация, Wi-Fi, Bluetooth (мышь), батарея и зарядник, датчики (свет, приближение, акселерометр), **тач** (HX83102E, порт драйвера Lenovo). Звука нет.
+Автологин в Plasma, альбомная ориентация, Wi-Fi, Bluetooth (мышь), батарея и зарядник, датчики (свет, приближение, акселерометр), **тач** (HX83102E, порт драйвера Lenovo), **USB OTG** (FUSB302). Звука нет.
 
 ## 2. Состояние устройства прямо сейчас
 | Что | Значение |
@@ -14,7 +14,7 @@
 | Что запущено | pmOS + Plasma Desktop (автологин user), обычная загрузка со слота b |
 | Активный слот | **b** (`slot-successful:b` = yes) |
 | boot_a | стоковый boot + Magisk; стоковый оригинал в приватном бэкапе |
-| boot_b | `/boot/boot.img` с самого планшета (ядро r106, device r5; device r6 собран в pmaports, на планшет не ставился), записан `dd` в `/dev/disk/by-partlabel/boot_b` |
+| boot_b | `/boot/boot.img` с самого планшета (ядро r106 + DTB с OTG из r108-дерева, device r5; fusb302.ko временно в `extra/` до установки r108), записан `dd` в `/dev/disk/by-partlabel/boot_b` |
 | dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | стоковые |
 | userdata (102 ГиБ) | **rootfs pmOS**: GPT (сектор 4096) pmOS_boot 480 МиБ + pmOS_root 102 ГиБ (перенесено поблочно из super с теми же UUID, 29.10) |
@@ -43,7 +43,7 @@
 4. Зарядник, шаг 2: запись лимитов (ICL под сетевой адаптер, JEITA), только после проверки от адаптера.
 5. Тач: работает (патч 0006). Проверить перо (Lenovo Precision Pen). Экран блокировки и экранную клавиатуру владелец решил оставить как есть (29.10). suspend/resume.
 6. Ревизия NT36523W (планшет друга): DTB и device `lenovo-j606f-nt36523w` готовы (ядро r107, патч 0007), инструкция `docs/notes/install_nt36523w.md`.
-   Ждём от друга `FIRMWARE/` (scripts/collect_firmware.sh) → собрать образ. Потом: тач Novatek NT36523 (порт драйвера Lenovo), USB OTG.
+   Ждём от друга `FIRMWARE/` (scripts/collect_firmware.sh) → собрать образ. Потом: тач Novatek NT36523 (порт драйвера Lenovo).
 
 ## 4. Как обновлять без переустановки (проверено 29.10)
 Полная переустановка (`pmbootstrap install` + `fastboot flash super/boot_b`) сбрасывает локальные настройки и требует fastboot. Вместо неё:
