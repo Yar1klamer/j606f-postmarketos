@@ -46,7 +46,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 Источники: raw/adb_20261028_232150/ (adb shell без root, uid=shell), raw/fastboot_20261028_232246/,
 затем root (Magisk, 28.10 вечер, raw/root_20261028/) и mainline (тесты 3–9). Разделы ниже до «Дополнено» записаны до root;
 уточнения и исправления в разделе «Дополнено 2026-10-29» в конце.
-> Сейчас (29.10): Android удалён (super = rootfs pmOS, userdata = ext4 j606f_work), активный слот **b** (boot_b = pmOS).
+> Сейчас (29.10, ночь): Android удалён; **userdata = rootfs pmOS** (GPT: pmOS_boot + pmOS_root), super — старая копия без GPT подразделов, активный слот **b** (boot_b = pmOS), dtbo_b стёрт.
 
 ## Идентификация (getprop)
 | Параметр | Значение |

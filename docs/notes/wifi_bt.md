@@ -23,9 +23,9 @@ getprop vendor.qcom.bluetooth.soc = **cherokee** (стек QTI называет 
 - В отладке rmtfs работал на КОПИЯХ modemst1/2, fsg, fsc в RAM (`rmtfs -v -o /var/rmtfs`, файлы modem_fs1/modem_fs2/modem_fsg/modem_fsc). В pmOS rmtfs по умолчанию пишет в реальные разделы modemst*; так и задумано (EFS), но это запись в modem-разделы, поэтому включать только с ведома пользователя (бэкап есть).
 - tqftpserv требует каталог /var/lib/tqftpserv.
 - ath10k: chip_id 0x150, board_id 0xff, fw WLAN.HL.3.2.4-00564; board data из linux-firmware-ath10k подошла («cal file»). MAC случайный.
-- iw scan: 4 BSS (2.4 + 5 ГГц), до −38 дБм. Подключение не проверено.
+- iw scan: 4 BSS (2.4 + 5 ГГц), до −38 дБм. ~~Подключение не проверено.~~ **В pmOS: подключение WPA2 (NetworkManager), DHCP, DNS, интернет работают** (29.10).
 ### Bluetooth — сканирование работает
 - DTS: uart3 + pinctrl GPIO8–11 (qup3), alias serial1 = &uart3 (без него «qcom_geni_serial … Invalid line -19»), qcom,wcn3990-bt с L9/L16/L17/L23.
 - Прошивки из стокового раздела bluetooth: qca/crbtfw21.tlv, qca/crnv21.bin. SOC Version 0x40020150, ROM 0x201.
 - Контроллер стартует «Unconfigured» (нет публичного адреса) → `btmgmt public-addr <BT_MAC>` (ro.odm.lenovo.btaddr). Для pmOS: local-bd-address в DT (пишет ABL? нет) или сервис, задающий адрес при старте.
-- btmgmt find -l: 21 уникальное LE-устройство. Сопряжение не проверено.
+- btmgmt find -l: 21 уникальное LE-устройство. ~~Сопряжение не проверено.~~ **В pmOS: сопряжение и HID (мышь Mi Mouse3C) работают**; адрес задаёт bootmac (device r5). Автопереподключение после перезагрузки не проверено.

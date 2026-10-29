@@ -58,3 +58,11 @@ Mainline покрывает загрузку, UFS, дисплей (для BOE-SK
   остаётся `lenovo,j606f`, model из нашего DTS. Решение: для pmOS на слоте b dtbo_b держать стёртым. abl-sink и HACK 0002 пока оставлены в ядре r101
   (безвредны, нужны, если dtbo вернётся); в следующей сборке ядра HACK 0002 убрать.
 - GPU-прошивка (a630_sqe, a610_zap) кладётся в initramfs через /usr/share/mkinitfs/files (device r4), потому что msm в modules-initfs.
+
+## 2026-10-29 (ночь) — корень в userdata, датчики, документация
+- **rootfs pmOS перенесён из super (12 ГиБ) в userdata (~100 ГиБ)** по просьбе владельца («вся система на userdata»): в super оставалось ~6 ГБ.
+  Перенос поблочный с теми же UUID, локальные настройки сохранены. GPT подразделов в super удалена (initramfs перебирает разделы по
+  `/proc/diskstats` и иначе выбирает super первым), дамп таблицы сохранён. device r6: `deviceinfo_flash_fastboot_partition_rootfs="userdata"`.
+- **Датчики через SSC**: свой патч hexagonrpcd (отдаёт `sns_reg_version`) как `temp/hexagonrpcd` 0.4.0-r50, а не правка раскладки на стороне ADSP;
+  drop-in'ы с `-R` для сервисов hexagonrpcd. Файлы SSC — со своего устройства, в репозиторий не входят.
+- Звук: начинать с разъёма наушников (PM4125/WCD937x, драйверы есть); динамики AW88258 — только по GPL-исходникам Awinic (риск повредить динамики).

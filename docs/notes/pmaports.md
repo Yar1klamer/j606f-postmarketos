@@ -1,8 +1,9 @@
 # Сборка образа pmOS (Nura) через pmbootstrap
 
-> **Статус 29.10:** схема проверена. Первая установка собрана pmbootstrap на самом планшете (бинарное ядро 7.2.3-r0 + модули/DTB в device-пакете),
-> установлена и грузится (STATE.md). Сейчас ядро с патчами (pkgrel 101) собирается на Ubuntu-хосте; device-пакет r3 уже без готовых модулей.
-> Локальные коммиты в src/pmaports-main: 9f25afd, 02cd3cd, f0ab532, c523e3a.
+> **Статус 29.10 (ночь):** ядро linux-nura-qcom-sm61x5 **7.2.3-r105** (патчи 0001, 0003, 0004, 0005; без HACK 0002), device-lenovo-j606f **r6**
+> (на планшете r5), firmware-lenovo-j606f r0, temp/hexagonrpcd 0.4.0-r50. Собираются на Ubuntu-хосте, ставятся обновлением через apk (STATE.md §4).
+> Локальные коммиты в src/pmaports-main: ядро c523e3a (r101), 06429e1 (r102), d97938f (r103), b2ad809 (r104), 7a93404 (r105);
+> device 4a3d060 (r4), 7b52c2d (r5), 9d0a730 (r6, rootfs → userdata); hexagonrpcd 7adbd16. История (до r101): 9f25afd, 02cd3cd, f0ab532.
 
 
 ## 1. Ядро: локальная доработка linux-nura-qcom-sm61x5 (7.2.3)
@@ -33,16 +34,16 @@ pmbootstrap export          # boot.img и rootfs-образ в /tmp/postmarketOS
 ## 4. Установка во внутреннюю память — РЕШЕНИЕ ПОЛЬЗОВАТЕЛЯ
 Вариант A (рекомендую): **слот b** под pmOS, Android на слоте a не трогаем.
 - `fastboot flash boot_b boot.img`; dtbo_b: пустой dtbo (mkdtboimg без записей) → ABL не наложит оверлей, тогда HACK 0002 и abl-sink не нужны (проверить!);
-- rootfs: userdata (110 ГиБ, данные не важны, но форматировать только с явного «да»). **Сделано иначе: rootfs в super, userdata под сборку;**
+- rootfs: userdata (110 ГиБ, данные не важны, но форматировать только с явного «да»). Сначала было иначе (rootfs в super, userdata под сборку), **с 29.10 (ночь) rootfs в userdata** (NOTES п. 43, device r6: `deviceinfo_flash_fastboot_partition_rootfs="userdata"`);
 - `fastboot set_active b`; откат: `fastboot set_active a`. pmOS должен помечать слот успешным (qbootctl), иначе ABL через ~7 попыток вернётся на a.
 Вариант B: слот a (заменить Android). Откат: BACKUP/.
 
 ## 5. Что ещё нужно в DTS/драйверах (по notes/*)
 - тач HX83102E SPI (zero-flash) — нет драйвера;
-- зарядка pmi632/smb1355 — нет драйвера;
-- MAC Wi-Fi/BT: ABL не передаёт, нужно из persist/userspace (сейчас Wi-Fi со случайным MAC, BT с адресом, заданным вручную);
+- зарядка pmi632: свой драйвер только на чтение (патч 0004), запись лимитов не сделана; smb1355 — нет драйвера;
+- MAC Wi-Fi/BT: ABL не передаёт; сейчас стабильные адреса из serialno даёт bootmac (device r5), заводские из persist не берём;
 - ~~медленные page flip в msm~~ — оказалось артефактом теста (modetest без stdin), реально 60 Гц (notes/display.md);
-- аудио (aw88xxx, es7210, wcd937x/pm4125) и датчики (SSC) — не начаты.
+- аудио (aw88258, es7210, wcd937x/pm4125) — не начато (notes/audio.md); датчики (SSC) — **работают** (notes/sensors.md), не упакованы.
 
 ## 6. Апстрим (P3)
 Перед любым MR прочитать AI policy: https://docs.postmarketos.org/policies-and-processes/development/ai-policy.html

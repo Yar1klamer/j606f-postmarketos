@@ -12,3 +12,7 @@
 - `i2cget -y 0 0x60` → 0x00, `i2cget -y 1 0x61` → 0x00: устройства ОТВЕЧАЮТ (ACK). Pogo-MCU внутри планшета живой даже без клавиатуры.
 - GPIO (mainline, debugfs): gpio38 (usb_vbus) in low; gpio41 (mcu_switch) in low pull-down; gpio48 (mcu_reset) in high; gpio66 (usb_charge_status) low; gpio67 (dock_status) low → клавиатура, вероятно, не пристыкована; gpio74 (charge_enable) low.
 - Следующий шаг: узлы `hid-over-i2c` (i2c0@0x60 irq tlmm 93, i2c1@0x61 irq tlmm 96, hid-descr-addr 0x1, post-power-on-delay-ms 100) + проверка с пристыкованной клавиатурой (нужен пользователь и сама клавиатура).
+
+## Статус в pmOS (29.10)
+- Power, Vol+, Vol− работают (громкость проверил владелец). Power гасит/включает экран: PowerDevil `PowerButtonAction=128` (NOTES п. 35).
+- Hall (SW_LID), pogo-клавиатура, вибромотор, RGB-светодиод, вспышка — в DTS не описаны, не проверялись.

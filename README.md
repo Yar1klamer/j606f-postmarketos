@@ -6,7 +6,7 @@
 
 > **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU (OpenGL ES и Vulkan),
 > Plasma (Wayland), Wi-Fi, **Bluetooth (полностью: сопряжение и устройства ввода)**, USB-сеть/SSH, кнопки, батарея и статус зарядки.
-> Тача и звука пока нет: управление Bluetooth-мышью/клавиатурой, текст — экранной клавиатурой. Подробности ниже и в [STATE.md](STATE.md).
+> Работают и датчики (свет, приближение, акселерометр). Тача и звука пока нет: управление Bluetooth-мышью/клавиатурой, текст — экранной клавиатурой. Подробности ниже и в [STATE.md](STATE.md).
 
 ![KDE Plasma Desktop на TB-J606F](docs/img/plasma_desktop.png)
 
@@ -57,7 +57,7 @@
 
 ## Что работает
 
-Проверено на mainline 7.2.3 через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
+Проверено в установленном pmOS (ядро 7.2.3-r105, Plasma Desktop), сначала — через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
 
 | Подсистема | Статус | Примечание |
 |---|---|---|
@@ -114,8 +114,9 @@ kernel/
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
   linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003, 0004, 0005 (pkgrel 105)
-  device-lenovo-j606f/     device-пакет (deviceinfo, modules-initfs, прошивка GPU в initramfs, bootmac)
+  device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
+pmaports/temp/hexagonrpcd/ hexagonrpcd 0.4.0-r50 с патчем: отдаёт ADSP файл sns_reg_version (нужно для датчиков SSC)
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,
                            сборка на самом планшете, прокси для USB-сети, установка
 STATE.md                   ← НАЧАТЬ ЗДЕСЬ: текущее состояние, пути, версии, следующий шаг
@@ -152,7 +153,8 @@ python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001–0003 (pkgrel 101)
+cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003, 0004, 0005 (pkgrel 105)
+cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
 ```
@@ -172,17 +174,25 @@ pmbootstrap export
 
 ## Установка
 
-Рекомендуемая схема: **слот b** под pmOS, слот a не трогаем.
+Рекомендуемая схема: **rootfs в userdata** (~100 ГиБ), boot.img в **boot_b**, dtbo_b стёрт, слот a не трогаем.
+**userdata стирается целиком** (данные Android пропадут).
 ```bash
-fastboot flash super lenovo-j606f.img      # rootfs (pmOS_boot + pmOS_root), образ sparse: только fastboot, не dd!
+fastboot flash userdata lenovo-j606f.img   # rootfs (pmOS_boot + pmOS_root), образ sparse: только fastboot, не dd!
 fastboot boot boot.img                     # проверка ядра без записи (fastboot boot — 1 раз за сессию bootloader)
 # если загрузилось: снова в fastboot (reboot bootloader из Linux или Vol− + Power), затем
-fastboot flash boot_b boot.img             # super и boot_b — из одного pmbootstrap install (UUID)
+fastboot flash boot_b boot.img             # userdata и boot_b — из одного pmbootstrap install (UUID)
 fastboot erase dtbo_b                      # ABL перестаёт накладывать стоковый оверлей
 fastboot --set-active=b && fastboot reboot
 ```
-Подробно, с откатом: [`docs/notes/install_plan.md`](docs/notes/install_plan.md), скрипт с проверкой разделов и sha256:
-[`scripts/device_install_pmos.sh`](scripts/device_install_pmos.sh).
+С device-пакетом r6 `pmbootstrap flasher flash_rootfs` сам пишет в userdata (`deviceinfo_flash_fastboot_partition_rootfs="userdata"`).
+- **Не держите pmOS-разметку сразу в двух разделах.** initramfs берёт первый раздел с двумя подразделами в порядке
+  `/proc/diskstats`, а super (sda14) идёт раньше userdata (sda15). На чистом устройстве в super лежат разделы Android, это не мешает.
+  Если раньше ставили pmOS в super, удалите там GPT (NOTES п. 43).
+- Этот порт сначала стоял в super и был перенесён в userdata поблочно (NOTES п. 43). Чистую установку сразу в userdata по командам выше
+  мы не проверяли: если корень не занял весь раздел, растяните его (`sfdisk`/`resize2fs`, как в п. 43).
+
+Подробно, с откатом: [`docs/notes/install_plan.md`](docs/notes/install_plan.md).
+[`scripts/device_install_pmos.sh`](scripts/device_install_pmos.sh) — старый скрипт установки в **super** из запущенного mainline (история).
 
 ## Откат на Android
 - Перед любой записью сделайте полный бэкап ([`scripts/backup_partitions.sh`](scripts/backup_partitions.sh)).
@@ -204,7 +214,8 @@ fastboot --set-active=b && fastboot reboot
 - **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md), NOTES п. 41–42.
 - **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. NOTES п. 43.
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
-- **suspend**, кнопки, клавиатура на pogo-пинах, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- **suspend**, клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, USB-хост, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура, drop-in'ы hexagonrpcd) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2).
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
   ```bash
   pmbootstrap config mirrors.alpine   http://mirror.yandex.ru/mirrors/alpine/
