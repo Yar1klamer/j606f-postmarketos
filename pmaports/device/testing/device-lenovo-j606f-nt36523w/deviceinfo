@@ -29,6 +29,10 @@ deviceinfo_flash_sparse="true"
 # rootfs lives in userdata (~100 GiB); super must not carry a pmOS GPT, the initramfs
 # probes partitions in /proc/diskstats order and would pick super (sda14) first
 deviceinfo_flash_fastboot_partition_rootfs="userdata"
+# boot-deploy writes boot.img to boot+<slot suffix from androidboot.slot_suffix> (boot_b) after every
+# kernel/initramfs update, so `apk upgrade` + reboot is enough. A broken kernel or a power cut during the
+# write leaves boot_b unbootable: recover with `fastboot flash boot_b <known good boot.img>`.
+deviceinfo_flash_kernel_on_update="true"
 # Values from the stock boot.img (TB-J606F_S120184_210520_ROW), see notes/boot.md
 deviceinfo_flash_offset_base="0x00000000"
 deviceinfo_flash_offset_kernel="0x00008000"

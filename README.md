@@ -130,7 +130,7 @@ kernel/
 pmaports/device/testing/
   linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0009 (pkgrel 109)
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
-  device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata; modules-initfs, прошивка GPU в initramfs, bootmac)
+  device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata, автозапись boot_b при обновлении; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
 pmaports/temp/hexagonrpcd/ hexagonrpcd 0.4.0-r50 с патчем: отдаёт ADSP файл sns_reg_version (нужно для датчиков SSC)
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,
@@ -227,16 +227,20 @@ echo "@j606f https://repo.yarnick.ru/j606f" | sudo tee -a /etc/apk/repositories
 sudo apk update
 # закрепить пакеты порта за этим репозиторием (иначе более новый апстримный linux-nura-qcom-sm61x5 без патчей j606f может их заменить)
 sudo apk add linux-nura-qcom-sm61x5@j606f device-lenovo-j606f@j606f device-lenovo-j606f-nonfree-firmware@j606f
+sudo reboot
 ```
 `hexagonrpcd@j606f` ставьте, только если настроены датчики (без drop-in'ов с `-R` ADSP падает в цикле, NOTES п. 42).
 
 Обновление:
 ```bash
-sudo apk update && sudo apk upgrade
-# ВАЖНО: apk пересобирает /boot/boot.img, но в раздел ядра сам пока НЕ пишет (deviceinfo_flash_kernel_on_update не задан):
-sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync && sudo reboot
+sudo apk update && sudo apk upgrade && sudo reboot
 ```
-Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r109 → `#110`).
+С **device-lenovo-j606f r7** включён `deviceinfo_flash_kernel_on_update`: после обновления ядра или initramfs boot-deploy сам пишет
+`boot.img` в `boot` + суффикс текущего слота (`boot_b`) — в выводе apk видно `Flashing boot.img to 'boot_b'`. Ручной `dd` больше не нужен
+(на device ≤ r6 — нужен: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
+Если новое ядро не загрузится или питание пропало во время записи — в fastboot (Vol− + Power) `fastboot flash boot_b <прошлый boot.img>`;
+перед обновлением ядра удобно сохранить копию: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
+Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r109 → `#110`), `apk list -I | grep device-lenovo` — r7 или новее.
 Если в сети локальный DNS-фильтр, а systemd-resolved пишет `DNSSEC validation failed: no-signature`, помогает
 `sudo resolvectl reset-server-features && sudo resolvectl flush-caches` (NOTES п. 50).
 

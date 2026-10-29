@@ -16,7 +16,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7). Нет: з�
 | Что запущено | pmOS + Plasma Desktop (автологин user), обычная загрузка со слота b |
 | Активный слот | **b** (`slot-successful:b` = yes) |
 | boot_a | стоковый boot + Magisk; стоковый оригинал в приватном бэкапе |
-| boot_b | ядро **r109** из пакета (uname `#110`), boot.img собран mkinitfs на планшете и записан `dd` |
+| boot_b | ядро **r109** (uname `#110`), boot.img записан boot-deploy автоматически (device r7); откатный образ — прошлый boot_b (r109 до r7) |
 | dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | стоковые |
 | userdata (102 ГиБ) | **rootfs pmOS**: GPT (сектор 4096) pmOS_boot 480 МиБ + pmOS_root 102 ГиБ (перенесено поблочно из super с теми же UUID, 29.10) |
@@ -43,7 +43,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7). Нет: з�
 ## 3. Следующий шаг
 1. Ядро **r109** стоит и опубликовано (тач, fusb302 из пакета, зарядка C-to-C, vkmark 540). OTG-хост на r109 проверен (ресивер мыши).
    У друга после apk upgrade OTG «не работает» — скорее всего не сделан `dd` boot.img в boot_b (ядро не сменилось). Проверить у него `uname -v`.
-2. Решение владельца: `deviceinfo_flash_kernel_on_update="true"` в device-lenovo-j606f (boot-deploy сам пишет boot_b после обновления; риск — битое ядро/обрыв питания → fastboot).
+2. ✅ Автозапись boot_b при обновлении (device r7, NOTES п. 51) — проверено на этом планшете и опубликовано.
 3. Сон: dwc3 HS-only теряет ep0 после CoreSoftReset (сон, смена роли host→device), ADSP падает при засыпании (проверить с остановленными hexagonrpcd/iio-sensor-proxy);
    вариант для dwc3 — перевести USB на «плоскую» привязку qcom,snps-dwc3. Автосон PowerDevil пока выключить.
 4. Офлайн-зарядка: свой хук initramfs (androidboot.mode=charger → экран с процентом, Power → загрузка) или `fastboot oem off-mode-charge 0`.
@@ -70,7 +70,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7). Нет: з�
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
 - Ядро: **linux-nura-qcom-sm61x5 7.2.3-r109** в pmaports, **r109** в репозитории и на планшете (codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0009`), uname `7.2.3-sm61x5`.
-- device-lenovo-j606f **r5** на планшете, **r6** в pmaports и репозитории (rootfs → userdata); cmdline с clk_ignore_unused, mm8013 modules-load, прошивка GPU в initramfs, bootmac; firmware-lenovo-j606f r1 (у каждого свой, не публикуется); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
+- device-lenovo-j606f **r7** на планшете, в pmaports и в репозитории (rootfs → userdata, автозапись boot_b); cmdline с clk_ignore_unused, mm8013 modules-load, прошивка GPU в initramfs, bootmac; firmware-lenovo-j606f r1 (у каждого свой, не публикуется); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
 
@@ -79,4 +79,4 @@ P0: [x] дисплей+подсветка · [x] стабильная загру
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
 [~] батарея и зарядка: индикация (mm8013), статус зарядника (read-only), зарядка от USB-A и от сетевой USB-C (FUSB302, 5 В); нет офлайн-зарядки и записи лимитов · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
 P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [ ] звук · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [~] USB OTG (FUSB302) · [ ] suspend (dwc3/ADSP) · [x] GPU-производительность (DDR votes, 0009).
-P2/P3: пакеты pmaports (ядро pkgrel 109, device r6, device-lenovo-j606f-nt36523w r0, firmware r1, hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.
+P2/P3: пакеты pmaports (ядро pkgrel 109, device r7, device-lenovo-j606f-nt36523w r1, firmware r1, hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.
