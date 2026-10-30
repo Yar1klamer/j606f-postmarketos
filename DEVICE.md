@@ -31,7 +31,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | USB | DWC3 4e00000, peripheral, HS | ✅ ECM/NCM/ACM; host/OTG проверены |
 | Батарея | MM8013 I2C0 0x55 (`mitsumi,mm8013`), 7500 мА·ч, 328 циклов | ✅ в отладке; в pmOS нужен modules-load |
 | Зарядка | PMI632 (smb5) + SMB1355 | ⚠️ заряжается на HW-дефолтах, драйвера нет |
-| Кнопки | Power/Vol− (PON pwrkey/resin), Vol+ (pm6125 gpio5) | input-устройства есть, нажатия не проверены |
+| Кнопки | Power/Vol− (PON pwrkey/resin), Vol+ (pm6125 gpio5) | input-устройства есть, нажатия  проверены |
 | CPU/thermal | qcom-cpufreq-hw (1.8/2.016 ГГц), tsens 16 зон, cooling-maps (наш DTS) | ✅ |
 | DSP | modem (MPSS), ADSP, CDSP (стоковые .mbn) | ✅ стартуют |
 | Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ❌ |
