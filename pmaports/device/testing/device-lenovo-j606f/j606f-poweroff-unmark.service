@@ -1,0 +1,12 @@
+[Unit]
+Description=Clear the J606F reboot mark on power off
+Documentation=file:///usr/share/mkinitfs/hooks/20-j606f-charger.sh
+DefaultDependencies=no
+Before=shutdown.target umount.target final.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/j606f/reboot-flag poweroff
+
+[Install]
+WantedBy=poweroff.target halt.target

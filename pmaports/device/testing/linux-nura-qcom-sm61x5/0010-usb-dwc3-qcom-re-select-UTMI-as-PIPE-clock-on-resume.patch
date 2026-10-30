@@ -1,0 +1,104 @@
+From: Yar1klamer
+Subject: [PATCH] usb: dwc3: qcom: re-select UTMI as PIPE clock on resume
+
+With qcom,select-utmi-as-pipe-clk (HS-only, no SS PHY) the glue sets
+PIPE_UTMI_CLK_SEL/PIPE3_PHYSTATUS_SW in QSCRATCH_GENERAL_CFG only at probe.
+The USB GDSC collapses during system suspend and the register resets
+(TB-J606F: 0x0d before, 0x04 after s2idle), so after resume the core has no
+PIPE clock: "dwc3: failed to enable ep0out", the gadget is dead and the next
+suspend fails with -11. Re-apply the selection in dwc3_qcom_resume().
+---
+diff -ruN a/drivers/usb/dwc3/dwc3-qcom-legacy.c b/drivers/usb/dwc3/dwc3-qcom-legacy.c
+--- a/drivers/usb/dwc3/dwc3-qcom-legacy.c	2026-10-30 10:46:28
++++ b/drivers/usb/dwc3/dwc3-qcom-legacy.c	2026-10-30 10:46:28
+@@ -87,6 +87,7 @@
+ 
+ 	enum usb_dr_mode	mode;
+ 	bool			is_suspended;
++	bool			select_utmi_clk;
+ 	bool			pm_suspended;
+ 	struct icc_path		*icc_path_ddr;
+ 	struct icc_path		*icc_path_apps;
+@@ -459,6 +460,8 @@
+ 	return 0;
+ }
+ 
++static void dwc3_qcom_select_utmi_clk(struct dwc3_qcom *qcom);
++
+ static int dwc3_qcom_resume(struct dwc3_qcom *qcom, bool wakeup)
+ {
+ 	int ret;
+@@ -483,6 +486,14 @@
+ 	if (ret)
+ 		dev_warn(qcom->dev, "failed to enable interconnect: %d\n", ret);
+ 
++	/*
++	 * The USB GDSC may have collapsed while suspended, which resets
++	 * QSCRATCH_GENERAL_CFG: without the UTMI clock selected again an
++	 * HS-only controller has no PIPE clock and ep0 can't be enabled.
++	 */
++	if (qcom->select_utmi_clk)
++		dwc3_qcom_select_utmi_clk(qcom);
++
+ 	/* Clear existing events from PHY related to L2 in/out */
+ 	for (i = 0; i < qcom->num_ports; i++) {
+ 		dwc3_qcom_setbits(qcom->qscratch_base,
+@@ -790,8 +801,10 @@
+ 	 */
+ 	ignore_pipe_clk = device_property_read_bool(dev,
+ 				"qcom,select-utmi-as-pipe-clk");
+-	if (ignore_pipe_clk)
++	if (ignore_pipe_clk) {
++		qcom->select_utmi_clk = true;
+ 		dwc3_qcom_select_utmi_clk(qcom);
++	}
+ 
+ 	ret = dwc3_qcom_of_register_core(pdev);
+ 	if (ret) {
+diff -ruN a/drivers/usb/dwc3/dwc3-qcom.c b/drivers/usb/dwc3/dwc3-qcom.c
+--- a/drivers/usb/dwc3/dwc3-qcom.c	2026-10-30 10:46:28
++++ b/drivers/usb/dwc3/dwc3-qcom.c	2026-10-30 10:46:28
+@@ -80,6 +80,7 @@
+ 
+ 	enum usb_dr_mode	mode;
+ 	bool			is_suspended;
++	bool			select_utmi_clk;
+ 	bool			pm_suspended;
+ 	struct icc_path		*icc_path_ddr;
+ 	struct icc_path		*icc_path_apps;
+@@ -369,6 +370,8 @@
+ 	return 0;
+ }
+ 
++static void dwc3_qcom_select_utmi_clk(struct dwc3_qcom *qcom);
++
+ static int dwc3_qcom_resume(struct dwc3_qcom *qcom, bool wakeup)
+ {
+ 	int ret;
+@@ -388,6 +391,14 @@
+ 	if (ret)
+ 		dev_warn(qcom->dev, "failed to enable interconnect: %d\n", ret);
+ 
++	/*
++	 * The USB GDSC may have collapsed while suspended, which resets
++	 * QSCRATCH_GENERAL_CFG: without the UTMI clock selected again an
++	 * HS-only controller has no PIPE clock and ep0 can't be enabled.
++	 */
++	if (qcom->select_utmi_clk)
++		dwc3_qcom_select_utmi_clk(qcom);
++
+ 	/* Clear existing events from PHY related to L2 in/out */
+ 	for (i = 0; i < qcom->num_ports; i++) {
+ 		dwc3_qcom_setbits(qcom->qscratch_base,
+@@ -680,8 +691,10 @@
+ 	 */
+ 	ignore_pipe_clk = device_property_read_bool(dev,
+ 				"qcom,select-utmi-as-pipe-clk");
+-	if (ignore_pipe_clk)
++	if (ignore_pipe_clk) {
++		qcom->select_utmi_clk = true;
+ 		dwc3_qcom_select_utmi_clk(qcom);
++	}
+ 
+ 	qcom->mode = usb_get_dr_mode(dev);
+ 

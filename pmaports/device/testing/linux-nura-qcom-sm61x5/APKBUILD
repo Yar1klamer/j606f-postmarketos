@@ -3,7 +3,7 @@ maintainer="Barnabas Czeman <barnabas.czeman@postmarketos.org>"
 _flavor="nura-qcom-sm61x5"
 pkgname=linux-$_flavor
 pkgver=7.2.3
-pkgrel=109
+pkgrel=115
 pkgdesc="Close to mainline linux kernel for Qualcomm Snapdragon SM61x5"
 arch="aarch64"
 _carch="arm64"
@@ -43,6 +43,8 @@ source="
 	0007-arm64-dts-qcom-sm6115p-lenovo-j606f-split-common-add-NT36523W-SKU.patch
 	0008-arm64-dts-qcom-sm6115p-lenovo-j606f-USB-C-OTG-via-FUSB302.patch
 	0009-arm64-dts-qcom-sm6115p-lenovo-j606f-GPU-DDR-bandwidth-votes.patch
+	0010-usb-dwc3-qcom-re-select-UTMI-as-PIPE-clock-on-resume.patch
+	0011-arm64-dts-qcom-sm6115-add-Venus-video-codec.patch
 "
 builddir="$srcdir/linux"
 
@@ -78,7 +80,7 @@ package() {
 }
 sha512sums="
 2a6393212c413cf3812c2293d074fc9b7f82dec01c740251fe390b0633484b247e95e886493cbec77e6ef9741aebe0a4134c2218672424b332ae119c22566f23  linux-nura-qcom-sm61x5-v7.2.3-r0.tar.gz
-d0a0aa31fc80dbb83f1d36cbc0ca6b55f3f7a8613ab39805b383c65bd0d59efc48e9563d4e90043667dbd95e9e612d1e68fc1ba266b243fc105bd5dedbaad461  config-nura-qcom-sm61x5.aarch64
+b8d2bbf35165d34cb5415eea864de88e707e011b67f3860c32e5c2d8cb1f302e9cbb9f850577be657c89159a08d86859d41310f24cdf275f210493d26b6fb359  config-nura-qcom-sm61x5.aarch64
 170085189456140a4751c4dfc1d1cc9029a1e14c3d242c9f476efee5b1253ebd349d974fbf9b97d01d11d6ad5318f7888bece4fcc62291af5a4382c99af47ad6  0001-drm-panel-himax-hx83102-add-Lenovo-J606F-BOE-HX83102P.patch
 d03008864ed14c0d5f3907abae7f3f9945d0b952d22fa48298e44f13d8475afb0afb186febf7d721c3253a25866d70df6efcb50cf6874b976ea00bb3fc18a0b6  0003-arm64-dts-qcom-sm6115p-lenovo-j606f-add-HX83102P-SKU.patch
 f7ec249b9c58d19d861082a4dc3b410921886c918dafeb3983c674f7f533a1aac916c55a13781aa4382dff65d664491e031d8edeb03e5a228462f5653e3f1a18  0004-power-supply-add-read-only-Qualcomm-PMI632-charger-driver.patch
@@ -87,4 +89,6 @@ f7ec249b9c58d19d861082a4dc3b410921886c918dafeb3983c674f7f533a1aac916c55a13781aa4
 8c9e5418b8c4fe39a2bf35aa4626f3eefd6ba7933d292a3711b5f3a5491bc85b0ade93a0a155c76cf330c159a3280653051d811e6974e2ba330fbc46594d98e0  0007-arm64-dts-qcom-sm6115p-lenovo-j606f-split-common-add-NT36523W-SKU.patch
 21805ae57a54d069b7f26ec24cb841ced8a789b416d093c9ce10213d69fcb853a792807fa02c6223f260888219f8a41282c37fe67a6fc495fdc5bb45647b23dc  0008-arm64-dts-qcom-sm6115p-lenovo-j606f-USB-C-OTG-via-FUSB302.patch
 233d7f2b5b54b2130d2b2bb80059909e3e1074b32c0e1305949f850737430804276d4bdb30599552b4c0070e3b70f70d1f0ea5f6431e31494e3f70f5fdc56665  0009-arm64-dts-qcom-sm6115p-lenovo-j606f-GPU-DDR-bandwidth-votes.patch
+440beef40f344f756d8e86adca13fc7b5b0a9592d6e9e2e5ed8daac22ec6c79edfe0b2d8bb0676097ab4637fcc0eb72fbe322e7dcea2bea549fbe78a8a88e262  0010-usb-dwc3-qcom-re-select-UTMI-as-PIPE-clock-on-resume.patch
+3c5cd01566d28a40d9bfec3ee43677b6903ce72a91a591c2dbdf64d065b577f88ce3919eb30525f7ead4d5b273c2e3ec4be6c8292c4bde59fc7279e82cd5b696  0011-arm64-dts-qcom-sm6115-add-Venus-video-codec.patch
 "

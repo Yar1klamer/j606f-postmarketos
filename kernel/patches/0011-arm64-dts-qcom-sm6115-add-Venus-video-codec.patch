@@ -1,0 +1,173 @@
+From: Yar1klamer
+Subject: [PATCH] arm64: dts: qcom: sm6115: add Venus video codec
+
+SM6115 uses the same Venus AR50 Lite block as QCM2290. The stock Lenovo
+DT confirms matching register base, IRQ, SMMU streams, firmware memory
+and content-protection ranges. Reuse the QCM2290 clock, bandwidth and
+memory layout, but accept the older v6.0.33 firmware shipped by Lenovo.
+Describe the codec in the SoC DTSI and enable it for Lenovo J606F with
+its per-device firmware path. Allow the Venus driver to switch vcodec0
+between hardware and software power-control modes. Apply the dummy EOS
+allocation required by this older AR50 Lite firmware.
+---
+--- a/drivers/clk/qcom/gcc-sm6115.c
++++ b/drivers/clk/qcom/gcc-sm6115.c
+@@ -3218,6 +3218,7 @@
+ 	.pd = {
+ 		.name = "gcc_vcodec0",
+ 	},
++	.flags = HW_CTRL_TRIGGER,
+ 	.pwrsts = PWRSTS_OFF_ON,
+ };
+ 
+--- a/drivers/media/platform/qcom/venus/vdec.c
++++ b/drivers/media/platform/qcom/venus/vdec.c
+@@ -577,6 +577,11 @@
+ 		else
+ 			fdata.device_addr = 0xdeadb000;
+ 
++		/* AR50 Lite firmware before 6.0.55 needs a dummy EOS allocation. */
++		if (IS_AR50_LITE(inst->core) &&
++		    is_fw_rev_or_older(inst->core, 6, 0, 53))
++			fdata.alloc_len = 1;
++
+ 		ret = hfi_session_process_buf(inst, &fdata);
+ 
+ 		if (!ret && inst->codec_state == VENUS_DEC_STATE_DECODING) {
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -1170,12 +1170,49 @@
+ 	.min_fw = &min_fw,
+ };
+ 
++static const struct firmware_version sm6115_min_fw = {
++	.major = 6, .minor = 0, .rev = 33,
++};
++
++static const struct venus_resources sm6115_res = {
++	.bw_tbl_dec = qcm2290_bw_table_dec,
++	.bw_tbl_dec_size = ARRAY_SIZE(qcm2290_bw_table_dec),
++	.bw_tbl_enc = qcm2290_bw_table_enc,
++	.bw_tbl_enc_size = ARRAY_SIZE(qcm2290_bw_table_enc),
++	.clks = { "core", "iface", "bus", "throttle" },
++	.clks_num = 4,
++	.vcodec0_clks = { "vcodec0_core", "vcodec0_bus" },
++	.vcodec_clks_num = 2,
++	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
++	.vcodec_pmdomains_num = 2,
++	.opp_pmdomain = (const char *[]) { "cx" },
++	.opp_pmdomain_num = 1,
++	.vcodec_num = 1,
++	.hfi_version = HFI_VERSION_4XX,
++	.vpu_version = VPU_VERSION_AR50_LITE,
++	.max_load = 352800,
++	.num_vpp_pipes = 1,
++	.vmem_id = VIDC_RESOURCE_NONE,
++	.vmem_size = 0,
++	.vmem_addr = 0,
++	.cp_start = 0,
++	.cp_size = 0x70800000,
++	.cp_nonpixel_start = 0x1000000,
++	.cp_nonpixel_size = 0x24800000,
++	.dma_mask = 0xe0000000 - 1,
++	.fwname = "qcom/venus-6.0/venus.mbn",
++	.dec_nodename = "video-decoder",
++	.enc_nodename = "video-encoder",
++	.min_fw = &sm6115_min_fw,
++};
++
+ static const struct of_device_id venus_dt_match[] = {
+ 	{ .compatible = "qcom,msm8916-venus", .data = &msm8916_res, },
+ 	{ .compatible = "qcom,msm8939-venus", .data = &msm8939_res, },
+ 	{ .compatible = "qcom,msm8996-venus", .data = &msm8996_res, },
+ 	{ .compatible = "qcom,msm8998-venus", .data = &msm8998_res, },
+ 	{ .compatible = "qcom,qcm2290-venus", .data = &qcm2290_res, },
++	{ .compatible = "qcom,sm6115-venus", .data = &sm6115_res, },
+ 	{ .compatible = "qcom,sc7180-venus", .data = &sc7180_res, },
+ 	{ .compatible = "qcom,sdm660-venus", .data = &sdm660_res, },
+ 	{ .compatible = "qcom,sdm845-venus", .data = &sdm845_res, },
+--- a/arch/arm64/boot/dts/qcom/sm6115.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115.dtsi
+@@ -2998,6 +2998,63 @@
+ 				     <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+ 		};
+ 
++		venus: video-codec@5a00000 {
++			compatible = "qcom,sm6115-venus", "qcom,qcm2290-venus";
++			reg = <0x0 0x05a00000 0x0 0xf0000>;
++			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
++
++			power-domains = <&gcc GCC_VENUS_GDSC>,
++					<&gcc GCC_VCODEC0_GDSC>,
++					<&rpmpd SM6115_VDDCX>;
++			power-domain-names = "venus", "vcodec0", "cx";
++			operating-points-v2 = <&venus_opp_table>;
++
++			clocks = <&gcc GCC_VIDEO_VENUS_CTL_CLK>,
++				 <&gcc GCC_VIDEO_AHB_CLK>,
++				 <&gcc GCC_VENUS_CTL_AXI_CLK>,
++				 <&gcc GCC_VIDEO_THROTTLE_CORE_CLK>,
++				 <&gcc GCC_VIDEO_VCODEC0_SYS_CLK>,
++				 <&gcc GCC_VCODEC0_AXI_CLK>;
++			clock-names = "core", "iface", "bus", "throttle",
++				      "vcodec0_core", "vcodec0_bus";
++
++			memory-region = <&pil_video_mem>;
++			iommus = <&apps_smmu 0x860 0x0>,
++				 <&apps_smmu 0x880 0x0>;
++
++			interconnects = <&mmnrt_virt MASTER_VIDEO_P0 RPM_ALWAYS_TAG
++					 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>,
++					<&bimc MASTER_AMPSS_M0 RPM_ACTIVE_TAG
++					 &config_noc SLAVE_VENUS_CFG RPM_ACTIVE_TAG>;
++			interconnect-names = "video-mem", "cpu-cfg";
++
++			status = "disabled";
++
++			venus_opp_table: opp-table {
++				compatible = "operating-points-v2";
++
++				opp-133333333 {
++					opp-hz = /bits/ 64 <133333333>;
++					required-opps = <&rpmpd_opp_low_svs>;
++				};
++
++				opp-240000000 {
++					opp-hz = /bits/ 64 <240000000>;
++					required-opps = <&rpmpd_opp_svs>;
++				};
++
++				opp-300000000 {
++					opp-hz = /bits/ 64 <300000000>;
++					required-opps = <&rpmpd_opp_svs_plus>;
++				};
++
++				opp-384000000 {
++					opp-hz = /bits/ 64 <384000000>;
++					required-opps = <&rpmpd_opp_nom>;
++				};
++			};
++		};
++
+ 		wifi: wifi@c800000 {
+ 			compatible = "qcom,wcn3990-wifi";
+ 			reg = <0x0 0x0c800000 0x0 0x800000>;
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+@@ -404,6 +404,16 @@
+ 	};
+ };
+ 
++/*
++ * Qualcomm Venus AR50 Lite video decoder/encoder. The stock SM6115 video node
++ * matches QCM2290: register base/IRQ, SMMU streams, firmware PIL memory and CP
++ * ranges. The firmware is per-device and must not be published.
++ */
++&venus {
++	firmware-name = "qcom/sm6115/LENOVO/J606F/venus.mbn";
++	status = "okay";
++};
++
+ /* PMI632 SMB5 charger, read-only status driver for now */
+ &spmi_bus {
+ 	pmic@2 {

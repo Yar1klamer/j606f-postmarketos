@@ -404,6 +404,16 @@
 	};
 };
 
+/*
+ * Qualcomm Venus AR50 Lite video decoder/encoder. The stock SM6115 video node
+ * matches QCM2290: register base/IRQ, SMMU streams, firmware PIL memory and CP
+ * ranges. The firmware is per-device and must not be published.
+ */
+&venus {
+	firmware-name = "qcom/sm6115/LENOVO/J606F/venus.mbn";
+	status = "okay";
+};
+
 /* PMI632 SMB5 charger, read-only status driver for now */
 &spmi_bus {
 	pmic@2 {

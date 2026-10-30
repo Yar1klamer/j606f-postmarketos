@@ -2,7 +2,7 @@
 # (BACKUP/firmware/*.tar, squashed with scripts/pil_squash.py). Do not publish the tarball.
 pkgname=firmware-lenovo-j606f
 pkgver=1
-pkgrel=1
+pkgrel=2
 pkgdesc="Firmware for Lenovo Tab P11 (TB-J606F)"
 url="https://nura.eco"
 arch="aarch64"
@@ -12,7 +12,7 @@ source="firmware-lenovo-j606f-$pkgver.tar"
 
 package() {
 	cd "$srcdir"
-	# qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,wlanmdsp}.mbn, qca/crbtfw21.tlv, qca/crnv21.bin,
+	# qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,venus,wlanmdsp}.mbn, qca/crbtfw21.tlv, qca/crnv21.bin,
 	# Himax_firmware.bin + Himax_mpfw.bin (HX83102E touch, zero-flash: /vendor/firmware of the stock)
 	find qcom qca Himax_firmware.bin Himax_mpfw.bin -type f | while read -r f; do
 		install -Dm644 "$f" "$pkgdir/lib/firmware/$f"
@@ -20,5 +20,5 @@ package() {
 }
 
 sha512sums="
-cbf120deda1b1b367e5fda654ea32a98ed97bb91b2de72c8472b142d4673d64b850acfa0a734c983c43296d2297726bade2650a41bd36877e463d75bef53e189  firmware-lenovo-j606f-1.tar
+3f3754265f3dbc523268b8a4c98504a0f6d0d886b71d8a5e63338cfa0a278e45ed077134ad42e02fbd8f0a8b5881dc7c9830e37b21133ea111b2463a49d4700f  firmware-lenovo-j606f-1.tar
 "

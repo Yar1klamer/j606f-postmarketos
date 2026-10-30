@@ -1,3 +1,6 @@
 tps65132-regulator
 panel-himax-hx83102
 msm
+mm8013
+qcom_pmi632_charger
+evdev

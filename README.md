@@ -7,7 +7,8 @@
 > **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU (OpenGL ES и Vulkan),
 > Plasma (Wayland), Wi-Fi, **Bluetooth (полностью: сопряжение и устройства ввода)**, USB-сеть/SSH, кнопки, батарея и статус зарядки.
 > Работают датчики (свет, приближение, акселерометр), **тачскрин** (порт GPL-драйвера Lenovo для HX83102E), **USB OTG** и зарядка от сетевой USB-C,
-> GPU после исправления голосования за память DDR (патч 0009) быстрее в 2.5–7 раз. Звука, сна и офлайн-зарядки пока нет.
+> GPU после исправления голосования за память DDR (патч 0009) быстрее в 2.5–7 раз. Работает **аппаратное H.264/HEVC-декодирование через Venus** (патч 0011).
+> Звука пока нет; сон и offline-зарядка находятся на стадии финальной проверки.
 > Обновления ставятся через **apk-репозиторий** (см. [ниже](#обновления-через-apk-репозиторий)). Подробности — в [STATE.md](STATE.md).
 
 **Автор порта и apk-репозитория — [@nnshould](https://t.me/nnshould) (Telegram).** Вопросы по репозиторию, установке и помощь — туда.
@@ -62,7 +63,7 @@
 
 ## Что работает
 
-Проверено в установленном pmOS (ядро 7.2.3 с патчами до 0009, Plasma Desktop), сначала — через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
+Проверено в установленном pmOS (ядро 7.2.3 с патчами до 0011, Plasma Desktop), сначала — через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
 
 | Подсистема | Статус | Примечание |
 |---|---|---|
@@ -70,6 +71,7 @@
 | UFS, разметка | ✅ | |
 | Дисплей HX83102P + подсветка | ✅ | свой драйвер панели (init из стокового DT), 60 Гц, DCS-яркость 0…4095 |
 | GPU Adreno 610 | ✅ | Mesa freedreno (GLES 3.2) и **Vulkan** через turnip (`mesa-vulkan-freedreno`). Патч 0009: GPU голосует за пропускную способность DDR (в sm6115.dtsi её не было) — glmark2-es2 277 → 694, vkmark 87 → 599 |
+| Видеодекодирование Venus | ✅ | **Аппаратные H.264 и HEVC 1080p** через `v4l2m2m-copy` (патч 0011, ядро r115 + per-device firmware r2); проверены полные файлы с корректным EOF |
 | Wayland, KDE Plasma Desktop | ✅ | weston и Plasma (kwin_wayland) на GPU, 60 Гц; автологин и ландшафт настраиваются вручную |
 | Экранная клавиатура | ✅ | plasma-keyboard (EN/RU), значок на панели; см. [NOTES.md](NOTES.md) п. 39 |
 | Кнопки Power, Vol± | ✅ | Power гасит/включает экран (настройка PowerDevil) |
@@ -87,8 +89,8 @@
 | Звук | ❌ | нет драйверов AW88258, ES7210 |
 | Датчики (акселерометр, свет, приближение) | ✅ | Qualcomm SSC на ADSP: hexagonrpcd (свой патч, `pmaports/temp/hexagonrpcd`) + libssc + iio-sensor-proxy; файлы SSC — со своего устройства. Матрица ориентации акселерометра ещё не подобрана |
 | Зарядник PMI632 | ⚠️ только статус | свой read-only драйвер (патч 0004): онлайн, статус, тип USB, лимиты; заряд на настройках загрузчика (4.40 В / 3 А). SMB1355 нет |
-| Сон (s2idle) | ❌ | засыпает, но: dwc3 после сна не поднимает ep0 (USB-сеть до перезагрузки), ADSP падает и будит через ~2 с. Автосон PowerDevil лучше выключить. [NOTES](NOTES.md) п. 48 |
-| Офлайн-зарядка | ❌ | загрузчик при зарядке выключенного планшета запускает систему полностью (androidboot.mode=charger в initramfs pmOS не обрабатывается) |
+| Сон (s2idle) | ⚠️ экспериментально | r110 исправил USB ep0, r111 успешно выполнил s2idle 37 с; ручной helper восстанавливает BT, но полная проверка ADSP/датчиков не завершена |
+| Офлайн-зарядка | ⚠️ частично | device r11: charger mode из PON reason + reboot mark, обычный reboot проверен; полный цикл poweroff/charger/unplug ещё не завершён |
 | Камеры, клавиатура на pogo-пинах | ❓ | не проверялось |
 
 ## Главная особенность: загрузчик Lenovo и dtbo
@@ -124,11 +126,13 @@ kernel/
     0007-…-NT36523W-SKU.patch общая часть DTS (common.dtsi) + DTB ревизии NT36523W
     0008-…-USB-C-OTG…patch     USB-C OTG: FUSB302 (I2C0 0x22) + VBUS-буст по gpio38, dwc3 dual-role
     0009-…-GPU-DDR-bandwidth…  голосование GPU за пропускную способность DDR (gfx-mem + opp-peak-kBps из стока)
+    0010-…-UTMI…resume.patch  восстановление USB UTMI clock после сна
+    0011-…-Venus-video-codec.patch  SM6115 Venus: DTS, vcodec0 HW_CTRL, стоковая firmware и EOS quirk
     config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E, TYPEC_FUSB302)
   himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0009 (pkgrel 109)
+  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0011 (pkgrel 115)
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata, автозапись boot_b при обновлении; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
@@ -162,7 +166,7 @@ python3 -I scripts/pil_squash.py modem.mbn image/modem.mdt
 python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 ```
 Из них собирается `firmware-lenovo-j606f-1.tar` (раскладка в APKBUILD пакета):
-`qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,wlanmdsp}.mbn`, `qca/{crbtfw21.tlv,crnv21.bin}`,
+`qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,venus,wlanmdsp}.mbn`, `qca/{crbtfw21.tlv,crnv21.bin}`,
 `Himax_firmware.bin` и `Himax_mpfw.bin` (тач, из `/vendor/firmware`).
 
 ### 2. pmaports
@@ -170,7 +174,7 @@ python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0009 (pkgrel 109)
+cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0011 (pkgrel 115)
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
@@ -240,7 +244,7 @@ sudo apk update && sudo apk upgrade && sudo reboot
 (на device ≤ r6 — нужен: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 Если новое ядро не загрузится или питание пропало во время записи — в fastboot (Vol− + Power) `fastboot flash boot_b <прошлый boot.img>`;
 перед обновлением ядра удобно сохранить копию: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r109 → `#110`), `apk list -I | grep device-lenovo` — r7 или новее.
+Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r115 → `#116`), `apk list -I | grep device-lenovo` — r11 или новее.
 Если в сети локальный DNS-фильтр, а systemd-resolved пишет `DNSSEC validation failed: no-signature`, помогает
 `sudo resolvectl reset-server-features && sudo resolvectl flush-caches` (NOTES п. 50).
 
@@ -267,7 +271,9 @@ firmware и всё с `license = proprietary`, строит индекс v2 (`ap
 - **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md), NOTES п. 41–42.
 - **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. NOTES п. 43.
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
-- **Сон** (dwc3/ADSP, п. 48), **офлайн-зарядка** (свой хук initramfs или `fastboot oem off-mode-charge 0`), клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- **Сон:** r110/r111 и ручной helper дают успешный s2idle, но требуется полная проверка ADSP/датчиков и упаковка. **Офлайн-зарядка:** device r11 реализует charger mode, осталось финальное тестирование unplug/poweroff.
+- **Venus:** аппаратное H.264/HEVC-декодирование работает (0011/r115), но VA-API/Firefox и энкодер пока не проверялись.
+- Клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
 - **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура, drop-in'ы hexagonrpcd) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2).
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
   ```bash

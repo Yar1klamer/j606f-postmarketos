@@ -1,0 +1,12 @@
+[Unit]
+Description=Mark a reboot for the J606F offline charging hook
+Documentation=file:///usr/share/mkinitfs/hooks/20-j606f-charger.sh
+DefaultDependencies=no
+Before=shutdown.target umount.target final.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/j606f/reboot-flag reboot
+
+[Install]
+WantedBy=reboot.target kexec.target

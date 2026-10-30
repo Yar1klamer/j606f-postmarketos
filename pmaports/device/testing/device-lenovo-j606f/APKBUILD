@@ -3,7 +3,7 @@
 pkgname=device-lenovo-j606f
 pkgdesc="Lenovo Tab P11 (TB-J606F, HX83102P panel SKU)"
 pkgver=1
-pkgrel=7
+pkgrel=11
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
@@ -22,6 +22,10 @@ source="
 	modules-initfs
 	j606f-modules-load.conf
 	30-gpu-firmware.files
+	j606f-charger.sh
+	j606f-reboot-flag.sh
+	j606f-reboot-mark.service
+	j606f-poweroff-unmark.service
 "
 
 build() {
@@ -32,6 +36,19 @@ package() {
 	devicepkg_package $startdir $pkgname
 
 	install -Dm644 "$srcdir"/j606f-modules-load.conf "$pkgdir"/usr/lib/modules-load.d/j606f.conf
+	# offline charging: initramfs hook for androidboot.mode=charger
+	install -Dm755 "$srcdir"/j606f-charger.sh "$pkgdir"/usr/share/mkinitfs/hooks/20-j606f-charger.sh
+	# marks reboots in the misc partition so the charger hook can tell them from a cold boot by the charger
+	install -Dm755 "$srcdir"/j606f-reboot-flag.sh "$pkgdir"/usr/lib/j606f/reboot-flag
+	install -Dm644 -t "$pkgdir"/usr/lib/systemd/system "$srcdir"/j606f-reboot-mark.service "$srcdir"/j606f-poweroff-unmark.service
+	for t in reboot kexec; do
+		mkdir -p "$pkgdir"/usr/lib/systemd/system/$t.target.wants
+		ln -s ../j606f-reboot-mark.service "$pkgdir"/usr/lib/systemd/system/$t.target.wants/
+	done
+	for t in poweroff halt; do
+		mkdir -p "$pkgdir"/usr/lib/systemd/system/$t.target.wants
+		ln -s ../j606f-poweroff-unmark.service "$pkgdir"/usr/lib/systemd/system/$t.target.wants/
+	done
 }
 
 nonfree_firmware() {
@@ -46,7 +63,11 @@ nonfree_firmware() {
 
 sha512sums="
 4c10427269526cecb7374c15be30b0d38cc114ac6386ac199ac7e018d223a0fab20b8e514941495b8e045ff1d8263844dcfeeb43bb4dea2992647f2c0d02619d  deviceinfo
-40b1c6bbe32fda4e02ad607f60c661f81229166a9822dd0a8755266f7c6c87131ad282c443e99f200e0388f56aa5f2df930d33ebab45a62f2b5cc20ad125e078  modules-initfs
+cbe0d1e4d71589e2ef6cfe32589c3abe50c33fe49db203c577108cdec3f7c88f7e9500da2dba3c15caecb7b38c5e6e67778ac3774a42b30dfd9f389cc73a1784  modules-initfs
 7f80465744962b7118a267c020cb0def18a7323fd2caf33c7527bc9c0133ebdf6f8fcc6778f812b4672169e71abdd66716d004f9d5478ab10cc8edbfc6a4be58  j606f-modules-load.conf
 9e3a863a8e641fab6d614b8fefd5ff96e8407240800430e0002f044869a73f7bfe7549164559509afdaeddbb69dee76ec3fb0978c86d0fc0c89b295663346c26  30-gpu-firmware.files
+3c0309115511cc1ad9ba8af10da14f58423f5abe98b78e3d9d8c48a3a3e9d8ff96ddf69665c57728272a72232f1d84387776337def6b514afb31d5f1a50a34aa  j606f-charger.sh
+4d2d1e6023d11c47de24cd54018716e5ca1f6310f97669d1e2379fc0999729a566a7347257578d9bd6cb277721704dfa1d6b3ba6b37c4c4b355a3d775cd2cab1  j606f-reboot-flag.sh
+b9123c3cf75ee21f46e9b4d06ac617bfdfc26c055f7cee3bfb2a5f54e242b1ea93163f87d2d94bcaf1f5f710ef64e069a02f4ba889d3ddfbe4940aa5e9e3ef2a  j606f-reboot-mark.service
+7e01eaf526a3887aa8ede3d1ae64a27eb1cb03a4869481350b9067849a45f0c5781a17f140f230eb90582115b2cc0d3bf42561bf1cebf1a1df1ff66189b11030  j606f-poweroff-unmark.service
 "
