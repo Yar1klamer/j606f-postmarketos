@@ -25,18 +25,18 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | Подсветка | DCS 0x51 12 бит (0…4095) → SGM37604A (en: pmi632 gpio6) | ✅ подтверждено визуально; DCS 0x52 (чтение) не поддерживается |
 | LCD bias | TPS65132 I2C1 0x3e, ±5.7 В, ENP tlmm 111, ENN tlmm 44 | ✅ |
 | GPU | Adreno 610, freedreno FD610 (Mesa 26.2.5), zap a610_zap.mbn | ✅ GLES 3.2, kmscube 59.99 fps, weston 60 fps |
-| Тач/стилус | Himax HX83102E zero-flash, SPI0 (QUP SE2 4a88000), irq tlmm 86, rst tlmm 54, FW Himax_firmware.bin | ❌ нет драйвера |
-| Wi-Fi | WCN3990 ath10k_snoc, chip_id 0x150, FW WLAN.HL.3.2.4-00564 (через MPSS + rmtfs + tqftpserv) | ✅ сканирование (2.4+5 ГГц); подключение не проверено |
+| Тач/стилус | Himax HX83102E zero-flash, SPI0 (QUP SE2 4a88000), irq tlmm 86, rst tlmm 54, FW Himax_firmware.bin | ✅ тач работает полноценно, однако стилус не можем проверить так как его нет |
+| Wi-Fi | WCN3990 ath10k_snoc, chip_id 0x150, FW WLAN.HL.3.2.4-00564 (через MPSS + rmtfs + tqftpserv) | ✅ сканирование (2.4+5 ГГц); подключение  проверено |
 | BT | WCN3990 (cherokee) на uart3 4a8c000, SOC 0x40020150, crbtfw21.tlv/crnv21.bin | ✅ сканирование (21 LE-устройство) |
-| USB | DWC3 4e00000, peripheral, HS | ✅ ECM/NCM/ACM; host/OTG не проверены |
+| USB | DWC3 4e00000, peripheral, HS | ✅ ECM/NCM/ACM; host/OTG проверены |
 | Батарея | MM8013 I2C0 0x55 (`mitsumi,mm8013`), 7500 мА·ч, 328 циклов | ✅ в отладке; в pmOS нужен modules-load |
 | Зарядка | PMI632 (smb5) + SMB1355 | ⚠️ заряжается на HW-дефолтах, драйвера нет |
-| Кнопки | Power/Vol− (PON pwrkey/resin), Vol+ (pm6125 gpio5) | input-устройства есть, нажатия не проверены |
+| Кнопки | Power/Vol− (PON pwrkey/resin), Vol+ (pm6125 gpio5) |✅ input-устройства есть, нажатия  проверены |
 | CPU/thermal | qcom-cpufreq-hw (1.8/2.016 ГГц), tsens 16 зон, cooling-maps (наш DTS) | ✅ |
 | DSP | modem (MPSS), ADSP, CDSP (стоковые .mbn) | ✅ стартуют |
 | Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ❌ |
 | Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ❌ hexagonrpcd падает |
-| SD | sdhc_2, cd tlmm 88 | ❓ карты не было |
+| SD | sdhc_2, cd tlmm 88 | ✅ подключается и монтируется |
 | Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ❓ клавиатуры нет |
 | Камеры, вибро, RGB LED, датчик Холла (tlmm 36) | — | ❓ не проверялось |
 
