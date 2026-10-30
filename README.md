@@ -157,15 +157,18 @@ docs/
 ```bash
 bash scripts/phase0_root.sh                 # сбор сведений
 bash scripts/backup_partitions.sh           # полный бэкап, sha256 сверяется
-# прошивки: /vendor/firmware_mnt (modem_a), /vendor/firmware, /vendor/bt_firmware
-python3 -I scripts/pil_squash.py adsp.mbn  image/adsp.mdt      # .mdt + .bNN → .mbn
-python3 -I scripts/pil_squash.py cdsp.mbn  image/cdsp.mdt
-python3 -I scripts/pil_squash.py modem.mbn image/modem.mdt
-python3 -I scripts/pil_squash.py a610_zap.mbn a610_zap.mdt
+bash scripts/collect_firmware.sh            # снять прошивки → FIRMWARE/<дата>/*.tar и сразу собрать тарбол
 ```
-Из них собирается `firmware-lenovo-j606f-1.tar` (раскладка в APKBUILD пакета):
+`collect_firmware.sh` (только чтение) снимает `/vendor/firmware_mnt`, `/vendor/firmware`, `/vendor/bt_firmware` и файлы датчиков,
+затем [`scripts/build_firmware_package.sh`](scripts/build_firmware_package.sh) склеивает `.mdt` + `.bNN` → `.mbn`
+([`pil_squash.py`](scripts/pil_squash.py)) и пишет `FIRMWARE/<дата>/firmware-lenovo-j606f-1.tar` с проверкой состава:
 `qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,venus,wlanmdsp}.mbn`, `qca/{crbtfw21.tlv,crnv21.bin}`,
-`Himax_firmware.bin` и `Himax_mpfw.bin` (тач, из `/vendor/firmware`).
+`Himax_firmware.bin` и `Himax_mpfw.bin` (тач). Уже снятые архивы можно упаковать отдельно:
+`bash scripts/build_firmware_package.sh FIRMWARE/<дата>`. `venus.mbn` нужен для аппаратного видео (ядро r115+).
+
+Прошивки у разных планшетов различаются — ставьте только тарбол со **своего** устройства и не публикуйте его.
+Если пакет ядра обновлён из apk-репозитория, а прошивка старая (без `venus.mbn`): соберите `firmware-lenovo-j606f` r2 из
+своего тарбола и поставьте `sudo apk add ./firmware-lenovo-j606f-1-r2.apk`, затем перезагрузка.
 
 ### 2. pmaports
 ```bash

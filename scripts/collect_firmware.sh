@@ -2,7 +2,8 @@
 # Снять со стокового Android (root Magisk, только чтение) всё, что нужно pmOS из прошивки Lenovo:
 #   /vendor/firmware_mnt (раздел modem: modem, adsp, cdsp, wlanmdsp, venus), /vendor/firmware (GPU zap, тач, усилители),
 #   /vendor/bt_firmware, /vendor/dsp (библиотеки ADSP для датчиков), /vendor/etc/sensors, /mnt/vendor/persist/sensors,
-#   плюс версии и cmdline (ревизия панели). Результат: FIRMWARE/<дата>/*.tar + SHA256SUMS.
+#   плюс версии и cmdline (ревизия панели). Результат: FIRMWARE/<дата>/*.tar + SHA256SUMS
+#   и собранный из них FIRMWARE/<дата>/firmware-lenovo-j606f-1.tar (scripts/build_firmware_package.sh).
 # Это проприетарные файлы ВАШЕГО устройства: не публикуйте их.
 # Запуск (adb в PATH или ADB=путь):  bash scripts/collect_firmware.sh
 set -eu
@@ -22,5 +23,7 @@ for spec in vendor_firmware_mnt:/vendor/firmware_mnt vendor_firmware:/vendor/fir
 	tar -tf "$OUT/$name.tar" > /dev/null || { echo "битый архив: $OUT/$name.tar"; exit 1; }
 done
 ( cd "$OUT" && shasum -a 256 ./* > SHA256SUMS 2>/dev/null || sha256sum ./* > SHA256SUMS )
+# Сразу собрать персональный тарбол для pmaports (firmware-lenovo-j606f-1.tar, включая Venus для H.264/HEVC).
+bash "$(dirname "$0")/build_firmware_package.sh" "$OUT"
 grep -o 'msm_drm.dsi_display0=[^ ]*' "$OUT/cmdline.txt" || true
 echo "готово: $OUT"
