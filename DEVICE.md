@@ -36,7 +36,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | DSP | modem (MPSS), ADSP, CDSP (стоковые .mbn) | ✅ стартуют |
 | Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ❌ |
 | Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ❌ hexagonrpcd падает |
-| SD | sdhc_2, cd tlmm 88 | ❓ карты не было |
+| SD | sdhc_2, cd tlmm 88 | ✅ подключается и монтируется |
 | Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ❓ клавиатуры нет |
 | Камеры, вибро, RGB LED, датчик Холла (tlmm 36) | — | ❓ не проверялось |
 
