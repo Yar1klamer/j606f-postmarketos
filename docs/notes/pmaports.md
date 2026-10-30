@@ -1,7 +1,7 @@
 # Сборка образа pmOS (Nura) через pmbootstrap
 
 > **Статус 29.10 (ночь):** ядро linux-nura-qcom-sm61x5 **7.2.3-r105** (патчи 0001, 0003, 0004, 0005; без HACK 0002), device-lenovo-j606f **r6**
-> (на планшете r5), firmware-lenovo-j606f r0, temp/hexagonrpcd 0.4.0-r50. Собираются на Ubuntu-хосте, ставятся обновлением через apk (STATE.md §4).
+> (на планшете r5), firmware-lenovo-j606f r0, temp/hexagonrpcd 0.4.0-r50. Собираются на хосте, ставятся обновлением через apk (STATE.md §4).
 > Локальные коммиты в src/pmaports-main: ядро c523e3a (r101), 06429e1 (r102), d97938f (r103), b2ad809 (r104), 7a93404 (r105);
 > device 4a3d060 (r4), 7b52c2d (r5), 9d0a730 (r6, rootfs → userdata); hexagonrpcd 7adbd16. История (до r101): 9f25afd, 02cd3cd, f0ab532.
 
@@ -34,7 +34,7 @@ pmbootstrap export          # boot.img и rootfs-образ в /tmp/postmarketOS
 ## 4. Установка во внутреннюю память — РЕШЕНИЕ ПОЛЬЗОВАТЕЛЯ
 Вариант A (рекомендую): **слот b** под pmOS, Android на слоте a не трогаем.
 - `fastboot flash boot_b boot.img`; dtbo_b: пустой dtbo (mkdtboimg без записей) → ABL не наложит оверлей, тогда HACK 0002 и abl-sink не нужны (проверить!);
-- rootfs: userdata (110 ГиБ, данные не важны, но форматировать только с явного «да»). Сначала было иначе (rootfs в super, userdata под сборку), **с 29.10 (ночь) rootfs в userdata** (NOTES п. 43, device r6: `deviceinfo_flash_fastboot_partition_rootfs="userdata"`);
+- rootfs: userdata (110 ГиБ, данные не важны, но форматировать только с явного «да»). Сначала было иначе (rootfs в super, userdata под сборку), **с 29.10 (ночь) rootfs в userdata** (заметки автора, device r6: `deviceinfo_flash_fastboot_partition_rootfs="userdata"`);
 - `fastboot set_active b`; откат: `fastboot set_active a`. pmOS должен помечать слот успешным (qbootctl), иначе ABL через ~7 попыток вернётся на a.
 Вариант B: слот a (заменить Android). Откат: BACKUP/.
 

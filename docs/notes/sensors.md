@@ -8,7 +8,7 @@
 
 В Linux нужно: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (SSC-путь, работает на других qcom-устройствах в pmOS). Нужны /vendor/dsp/* и sns-регистрация (/mnt/vendor/persist/sensors, есть в BACKUP/firmware/mnt_vendor_persist.tar). Сложно, P1.
 
-## Статус (2026-10-29, ночь): **работают** свет, приближение, акселерометр (подробно ниже и в NOTES п. 41–42)
+## Статус (2026-10-29, ночь): **работают** свет, приближение, акселерометр (подробно ниже и в заметках автора)
 
 ## Попытки SSC в mainline (2026-10-29), 1–3 не получились (история, LOG.md)
 - ADSP стартует со стоковым adsp.mbn; fastrpc.ko даёт /dev/fastrpc-adsp; hexagonrpcd 1.x и libssc (ssccli) из Alpine community.

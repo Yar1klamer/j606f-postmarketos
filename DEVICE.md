@@ -1,7 +1,7 @@
 # DEVICE — Lenovo Tab P11 TB-J606F (всё, что известно)
 
 > Серийный номер, MAC и GUID разделов вычищены (`<SERIAL>`, `<WIFI_MAC>`, `<BT_MAC>`, …). Источники: adb/getprop, root-дампы,
-> fastboot getvar, dmesg стока, DT стока (live.dtb), логи mainline. Хронология — [WORKLOG.md](WORKLOG.md).
+> fastboot getvar, dmesg стока, DT стока (live.dtb), логи mainline.
 
 ## Режимы загрузки и доступ
 | Режим | Как попасть | Примечание |

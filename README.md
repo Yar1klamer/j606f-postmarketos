@@ -63,7 +63,7 @@
 
 ## Что работает
 
-Проверено в установленном pmOS (ядро 7.2.3 с патчами до 0011, Plasma Desktop), сначала — через `fastboot boot`. Доказательства (команды и вывод) в [WORKLOG.md](WORKLOG.md).
+Проверено в установленном pmOS (ядро 7.2.3 с патчами до 0011, Plasma Desktop), сначала — через `fastboot boot`. Подробности по подсистемам — в [`docs/notes/`](docs/notes/).
 
 | Подсистема | Статус | Примечание |
 |---|---|---|
@@ -73,7 +73,7 @@
 | GPU Adreno 610 | ✅ | Mesa freedreno (GLES 3.2) и **Vulkan** через turnip (`mesa-vulkan-freedreno`). Патч 0009: GPU голосует за пропускную способность DDR (в sm6115.dtsi её не было) — glmark2-es2 277 → 694, vkmark 87 → 599 |
 | Видеодекодирование Venus | ✅ | **Аппаратные H.264 и HEVC 1080p** через `v4l2m2m-copy` (патч 0011, ядро r115 + per-device firmware r2); проверены полные файлы с корректным EOF |
 | Wayland, KDE Plasma Desktop | ✅ | weston и Plasma (kwin_wayland) на GPU, 60 Гц; автологин и ландшафт настраиваются вручную |
-| Экранная клавиатура | ✅ | plasma-keyboard (EN/RU), значок на панели; см. [NOTES.md](NOTES.md) п. 39 |
+| Экранная клавиатура | ✅ | plasma-keyboard (EN/RU), значок на панели; см. [заметки](docs/notes/input_keyboard.md) |
 | Кнопки Power, Vol± | ✅ | Power гасит/включает экран (настройка PowerDevil) |
 | USB-сеть, SSH | ✅ | гаджет ECM/ACM |
 | USB OTG (хост) | ✅ | Type-C через FUSB302 + внешний 5 В буст (gpio38), патч 0008; USB 2.0, без PD. Проверено с USB-ресивером мыши. После выхода из режима хоста USB-сеть к ПК не работает до перезагрузки (dwc3 «failed to enable ep0out») |
@@ -139,10 +139,8 @@ pmaports/device/testing/
 pmaports/temp/hexagonrpcd/ hexagonrpcd 0.4.0-r50 с патчем: отдаёт ADSP файл sns_reg_version (нужно для датчиков SSC)
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,
                            сборка на самом планшете, прокси для USB-сети, установка
-STATE.md                   ← НАЧАТЬ ЗДЕСЬ: текущее состояние, пути, версии, следующий шаг
-WORKLOG.md                 полная хронология (команды, вывод, ошибки, тупики)
+STATE.md                   ← НАЧАТЬ ЗДЕСЬ: текущее состояние, версии, следующий шаг
 DEVICE.md                  всё про планшет: железо, разделы, режимы загрузки, статус
-NOTES.md                   решения, грабли, команды, ссылки, TODO
 docs/
   DECISIONS.md             принятые решения и почему (подробно)
   COMMANDS.md              проверенные команды
@@ -181,7 +179,8 @@ pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого с
 ```
 > Пакет ядра здесь — апстримный `linux-nura-qcom-sm61x5` 7.2.3 с добавленными патчами из [`kernel/patches/`](kernel/patches/) и опциями
 > из `config-j606f.fragment`. Первая установка делалась иначе: бинарное ядро 7.2.3-r0 + модули/DTB, собранные отдельно
-> ([`scripts/device_build_inner.sh`](scripts/device_build_inner.sh)); этот путь описан в [WORKLOG.md](WORKLOG.md).
+> ([`scripts/device_build_inner.sh`](scripts/device_build_inner.sh));
+этот путь больше не используется.
 
 ### 3. pmbootstrap
 ```bash
@@ -211,9 +210,9 @@ fastboot --set-active=b && fastboot reboot
 С device-пакетом r6 `pmbootstrap flasher flash_rootfs` сам пишет в userdata (`deviceinfo_flash_fastboot_partition_rootfs="userdata"`).
 - **Не держите pmOS-разметку сразу в двух разделах.** initramfs берёт первый раздел с двумя подразделами в порядке
   `/proc/diskstats`, а super (sda14) идёт раньше userdata (sda15). На чистом устройстве в super лежат разделы Android, это не мешает.
-  Если раньше ставили pmOS в super, удалите там GPT (NOTES п. 43).
-- Этот порт сначала стоял в super и был перенесён в userdata поблочно (NOTES п. 43). Чистую установку сразу в userdata по командам выше
-  мы не проверяли: если корень не занял весь раздел, растяните его (`sfdisk`/`resize2fs`, как в п. 43).
+  Если раньше ставили pmOS в super, удалите там GPT ([install_plan](docs/notes/install_plan.md)).
+- Этот порт сначала стоял в super и был перенесён в userdata поблочно ([install_plan](docs/notes/install_plan.md)). Чистую установку сразу в userdata по командам выше
+  мы не проверяли: если корень не занял весь раздел, растяните его (`sfdisk`/`resize2fs`).
 
 Подробно, с откатом: [`docs/notes/install_plan.md`](docs/notes/install_plan.md).
 [`scripts/device_install_pmos.sh`](scripts/device_install_pmos.sh) — старый скрипт установки в **super** из запущенного mainline (история).
@@ -233,7 +232,7 @@ sudo apk update
 sudo apk add linux-nura-qcom-sm61x5@j606f device-lenovo-j606f@j606f device-lenovo-j606f-nonfree-firmware@j606f
 sudo reboot
 ```
-`hexagonrpcd@j606f` ставьте, только если настроены датчики (без drop-in'ов с `-R` ADSP падает в цикле, NOTES п. 42).
+`hexagonrpcd@j606f` ставьте, только если настроены датчики (без drop-in'ов с `-R` ADSP падает в цикле, см. [датчики](docs/notes/sensors.md)).
 
 Обновление:
 ```bash
@@ -245,11 +244,7 @@ sudo apk update && sudo apk upgrade && sudo reboot
 Если новое ядро не загрузится или питание пропало во время записи — в fastboot (Vol− + Power) `fastboot flash boot_b <прошлый boot.img>`;
 перед обновлением ядра удобно сохранить копию: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
 Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r115 → `#116`), `apk list -I | grep device-lenovo` — r11 или новее.
-Если в сети локальный DNS-фильтр, а systemd-resolved пишет `DNSSEC validation failed: no-signature`, помогает
-`sudo resolvectl reset-server-features && sudo resolvectl flush-caches` (NOTES п. 50).
-
-Публикация (для сопровождающего): [`scripts/publish_repo.sh`](scripts/publish_repo.sh) — берёт свежие целые пакеты, отсекает
-firmware и всё с `license = proprietary`, строит индекс v2 (`apk index` + `abuild-sign`; `apk mkndx` даёт формат adb) и заливает rsync.
+В репозиторий попадают только пакеты порта; firmware и всё с `license = proprietary` отсекаются при публикации.
 
 ## Откат на Android
 - Перед любой записью сделайте полный бэкап ([`scripts/backup_partitions.sh`](scripts/backup_partitions.sh)).
@@ -268,8 +263,8 @@ firmware и всё с `license = proprietary`, строит индекс v2 (`ap
 ## Известные проблемы и планы
 - **Тач:** работает (порт драйвера Lenovo из [adazem009/kernel_lenovo_tbj606](https://github.com/adazem009/kernel_lenovo_tbj606), патч 0006). Перо не проверено. [Заметки](docs/notes/touch.md).
 - **Звук:** разъём наушников (PM4125/WCD937x, драйверы в ядре есть); для динамиков AW88258 (ID 0x1852) и микрофонов ES7210 GPL-драйверы Lenovo есть в том же репозитории — нужен порт. [Заметки](docs/notes/audio.md).
-- **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md), NOTES п. 41–42.
-- **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. NOTES п. 43.
+- **Датчики:** работают; осталось подобрать `ACCEL_MOUNT_MATRIX` для автоповорота и упаковать файлы SSC. [Заметки](docs/notes/sensors.md).
+- **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. [install_plan](docs/notes/install_plan.md).
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
 - **Сон:** r110/r111 и ручной helper дают успешный s2idle, но требуется полная проверка ADSP/датчиков и упаковка. **Офлайн-зарядка:** device r11 реализует charger mode, осталось финальное тестирование unplug/poweroff.
 - **Venus:** аппаратное H.264/HEVC-декодирование работает (0011/r115), но VA-API/Firefox и энкодер пока не проверялись.

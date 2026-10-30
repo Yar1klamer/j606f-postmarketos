@@ -1,7 +1,7 @@
 # STATE — где мы остановились (2026-10-30, день)
 
-> Читать первым после потери контекста. Полная хронология: [WORKLOG.md](WORKLOG.md). Устройство: [DEVICE.md](DEVICE.md).
-> Решения, команды, грабли, TODO: [NOTES.md](NOTES.md). Подробные заметки по подсистемам: `docs/notes/*.md`.
+> Текущее состояние порта. Устройство: [DEVICE.md](DEVICE.md). Решения: [docs/DECISIONS.md](docs/DECISIONS.md).
+> Подробные заметки по подсистемам: `docs/notes/*.md`.
 
 ## 1. Одной строкой
 **pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
@@ -58,13 +58,13 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7) и **апп�
    `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync` и сверить sha256.
 4. `sudo systemctl reboot`. Откат — прошлый `boot.img` через `fastboot flash boot_b`.
 
-## 5. Сборка (Ubuntu-хост)
-- `~/j606f/{pmbootstrap, pmaports, pmb-work}`; `~/.config/pmbootstrap_v3.cfg`: device lenovo-j606f, **ui plasma-desktop**, jobs 4, ssh_keys.
+## 5. Сборка (pmbootstrap)
+- `pmbootstrap_v3.cfg`: device lenovo-j606f, **ui plasma-desktop**.
+- Зеркала:
   `pmbootstrap config mirrors.alpine http://mirror.yandex.ru/mirrors/alpine/`,
   `pmbootstrap config mirrors.pmaports https://mirror.minlexx.ru/postmarketos/`,
   `pmbootstrap config mirrors.systemd https://mirror.minlexx.ru/postmarketos/extra-repos/systemd/`.
-- Ядро собирается cross-native; повторная сборка с ccache ~12 мин, с нуля ~80 мин. Install с Plasma ~25 мин (медленный диск ВМ).
-- `pmb-work/cache_apk_*` принадлежат root: чистить через `sudo`.
+- Ядро собирается cross-native; повторная сборка с ccache ~12 мин, с нуля ~80 мин. Install с Plasma ~25 мин.
 
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
