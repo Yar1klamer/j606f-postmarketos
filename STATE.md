@@ -25,7 +25,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 | Android | **не загрузится** (super перезаписан) — с согласия владельца |
 | modem*/persist/fsg/abl/xbl | не трогали (rmtfs в pmOS пишет EFS в modemst1/2, fsg — штатно) |
 | Доступ | `ssh user@172.16.42.1` (USB) или по Wi-Fi; на планшете `sudo` без пароля для user и автологин (локальная настройка, **не в образе**) |
-| apk | репозиторий `https://repo.yarnick.ru/j606f` без метки — из device-пакета (`/usr/lib/apk/repositories.d`, ключ в `/usr/lib/apk/keys`), переход выполнен `repo-migrate`; на планшете и в apk-репозитории linux-lenovo-j606f r118 + device r18 (+ nt36523w r8); в apk-репозитории также общий набор прошивок firmware-lenovo-j606f 0.320208 (сток S320208); на нашем планшете — свой firmware 1-r3 (с `awinic/aw882xx_acf.bin`: vendor у нас стёрт) |
+| apk | репозиторий `https://repo.yarnick.ru/j606f` без метки — из device-пакета (`/usr/lib/apk/repositories.d`, ключ в `/usr/lib/apk/keys`), переход выполнен `repo-migrate`; на планшете и в apk-репозитории linux-lenovo-j606f r118 + device r20 (+ nt36523w r10); в apk-репозитории также общий набор прошивок firmware-lenovo-j606f 0.320208 (сток S320208); на нашем планшете — свой firmware 1-r3 (с `awinic/aw882xx_acf.bin`: vendor у нас стёрт) |
 
 Локальные настройки на планшете (пропадут при полной переустановке образа):
 - kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
@@ -69,7 +69,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
 - Ядро: **linux-lenovo-j606f 7.2.3-r118** в pmaports и на планшете (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0016`), uname `7.2.3-sm61x5 #119`.
-- device-lenovo-j606f **r18** на планшете и в pmaports (репозиторий порта и его ключ, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
+- device-lenovo-j606f **r20** на планшете и в pmaports (репозиторий порта и его ключ, `/etc/mpv/mpv.conf`, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
 
@@ -78,4 +78,4 @@ P0: [x] дисплей+подсветка · [x] стабильная загру
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
 [~] батарея и зарядка: индикация (mm8013), статус зарядника (read-only), зарядка от USB-A и от сетевой USB-C (FUSB302, 5 В); нет офлайн-зарядки и записи лимитов · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
 P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [~] звук (динамики ✅ r117; микрофоны и гарнитура — нет) · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [~] USB OTG (FUSB302) · [~] suspend (r110/r111 + ручной sleep helper, финальная проверка не завершена) · [x] GPU-производительность (DDR votes, 0009) · [x] аппаратное H.264/HEVC-декодирование (Venus, 0011/r115).
-P2/P3: пакеты pmaports (linux-lenovo-j606f r118, device r18, device-lenovo-j606f-nt36523w r8, firmware r2 + APKBUILD.shared, hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.
+P2/P3: пакеты pmaports (linux-lenovo-j606f r118, device r20, device-lenovo-j606f-nt36523w r10, firmware r2 + APKBUILD.shared, hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.

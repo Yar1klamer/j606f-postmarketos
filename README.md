@@ -72,7 +72,8 @@
 | UFS, разметка | ✅ | |
 | Дисплей HX83102P + подсветка | ✅ | свой драйвер панели (init из стокового DT), 60 Гц, DCS-яркость 0…4095 |
 | GPU Adreno 610 | ✅ | Mesa freedreno (GLES 3.2) и **Vulkan** через turnip (`mesa-vulkan-freedreno`). Патч 0009: GPU голосует за пропускную способность DDR (в sm6115.dtsi её не было) — glmark2-es2 277 → 694, vkmark 87 → 599 |
-| Видеодекодирование Venus | ✅ | **Аппаратные H.264 и HEVC 1080p** через `v4l2m2m-copy` (патч 0011, ядро r115 + per-device firmware r2); проверены полные файлы с корректным EOF |
+| Видеодекодирование Venus | ✅ | **Аппаратные H.264 и HEVC 1080p** через `v4l2m2m-copy` (патч 0011, ядро r115 + per-device firmware r2); проверены полные файлы с корректным EOF. Для просмотра в mpv программное декодирование плавнее (копирование кадров из Venus теряет кадры), см. ниже |
+| Видео в mpv | ✅ | device r20+ кладёт `/etc/mpv/mpv.conf`: `profile=fast` (масштабирование по умолчанию на 2000×1200 не успевает — без него теряется 50–75% кадров) и `hwdec=no`. 1080p H.264 30/60 fps — 0/3 пропуска из 360/720, HEVC — 0/28 |
 | Wayland, KDE Plasma Desktop | ✅ | weston и Plasma (kwin_wayland) на GPU, 60 Гц; автологин и ландшафт настраиваются вручную |
 | Экранная клавиатура | ✅ | plasma-keyboard (EN/RU), значок на панели; см. [заметки](docs/notes/input_keyboard.md) |
 | Кнопки Power, Vol± | ✅ | Power гасит/включает экран (настройка PowerDevil) |
@@ -296,7 +297,7 @@ sudo apk update && sudo apk upgrade && sudo reboot
 (на device ≤ r6 — нужен: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 Если новое ядро не загрузится или питание пропало во время записи — в fastboot (Vol− + Power) `fastboot flash boot_b <прошлый boot.img>`;
 перед обновлением ядра удобно сохранить копию: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r18 и linux-lenovo-j606f или новее.
+Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r20 и linux-lenovo-j606f r118 или новее.
 Звук: `pactl list short sinks` показывает `alsa_output.platform-sound.HiFi__Speaker__sink`.
 В репозиторий попадают пакеты порта и ровно один пакет прошивки — общий набор S320208, сверенный по sha256 при публикации.
 Любые другие firmware, в том числе личные сборки с бэкапов, и всё с `license = proprietary` отсекаются.
@@ -322,7 +323,8 @@ sudo apk update && sudo apk upgrade && sudo reboot
 - **Хранилище:** корень pmOS в userdata (~100 ГиБ), см. [install_plan](docs/notes/install_plan.md).
 - **Зарядник:** запись лимитов (ток от сетевого адаптера, JEITA), параллельный SMB1355 — после проверки read-only драйвера.
 - **Сон:** r110/r111 и ручной helper дают успешный s2idle, но требуется полная проверка ADSP/датчиков и упаковка. **Офлайн-зарядка:** device r11 реализует charger mode, осталось финальное тестирование unplug/poweroff.
-- **Venus:** аппаратное H.264/HEVC-декодирование работает (0011/r115), но VA-API/Firefox и энкодер пока не проверялись.
+- **Venus:** аппаратное H.264/HEVC-декодирование работает (0011/r115), но в mpv `hwdec=v4l2m2m-copy` теряет кадры на выводе (1080p30 ~180 из 360, 1080p60 ~550 из 720) — дорогое копирование кадров обратно; zero-copy (`v4l2m2m`) mpv здесь не поднимает. VA-API/Firefox и энкодер пока не проверялись.
+- **Vulkan и vsync:** Vulkan-приложения в режиме FIFO (vsync) получают 48 кадров/с вместо 60 (каждый 5-й vblank пропускается; Mesa 26.2 + KWin 6.8, протокол wp_fifo_v1); OpenGL — честные 60. Причина пока не найдена.
 - Клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
 - **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура, drop-in'ы hexagonrpcd) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2).
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
