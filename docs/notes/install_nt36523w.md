@@ -62,6 +62,17 @@ fastboot reboot
 Первый вход: USB-сеть `ssh user@172.16.42.1` (пароль из `pmbootstrap install`), сразу `passwd`.
 Android после этого не загрузится (userdata занят); вернуть сток: `fastboot --set-active=a` + сброс через recovery, либо LMSA.
 
-## 6. Если что-то не так
+## 6. Обновления через apk-репозиторий
+Ключ и репозиторий подключаются как в README («Обновления через apk-репозиторий»), но закреплять нужно **свой** device-пакет:
+```bash
+sudo apk add linux-nura-qcom-sm61x5@j606f device-lenovo-j606f-nt36523w@j606f device-lenovo-j606f-nt36523w-nonfree-firmware@j606f
+sudo reboot
+```
+Не ставьте `device-lenovo-j606f` (это пакет ревизии HX83102P): оба device-пакета кладут свой deviceinfo и DTB, ставить их вместе нельзя.
+Дальше обновление обычное: `sudo apk update && sudo apk upgrade && sudo reboot`.
+Если пакеты порта ставились без `@j606f` (вручную из файлов или из тестового набора), `apk upgrade` их молча не обновит —
+повторите команду выше, она вернёт метку.
+
+## 7. Если что-то не так
 - Чёрный экран, но USB-сеть есть — пришлите `dmesg` (`ssh user@172.16.42.1 sudo dmesg > dmesg.txt`).
 - Ни экрана, ни USB-сети через ~1 мин — `Vol− + Power` в fastboot, `fastboot --set-active=a`, и пришлите, что было на экране.

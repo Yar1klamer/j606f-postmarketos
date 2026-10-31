@@ -266,6 +266,9 @@ sudo apk update
 sudo apk add linux-nura-qcom-sm61x5@j606f device-lenovo-j606f@j606f device-lenovo-j606f-nonfree-firmware@j606f
 sudo reboot
 ```
+Ревизия **NT36523W**: вместо `device-lenovo-j606f` и его `-nonfree-firmware` — `device-lenovo-j606f-nt36523w@j606f device-lenovo-j606f-nt36523w-nonfree-firmware@j606f`
+(device-пакеты двух ревизий вместе не ставятся, см. [install_nt36523w](docs/notes/install_nt36523w.md)).
+Если пакеты порта когда-то ставились без `@j606f` (из файлов или тестового набора), `apk upgrade` их молча не обновит — повторите `apk add …@j606f`.
 `hexagonrpcd@j606f` ставьте, только если настроены датчики (без drop-in'ов с `-R` ADSP падает в цикле, см. [датчики](docs/notes/sensors.md)).
 
 Обновление:
