@@ -8,7 +8,7 @@
 > Plasma (Wayland), Wi-Fi, **Bluetooth (полностью: сопряжение и устройства ввода)**, USB-сеть/SSH, кнопки, батарея и статус зарядки.
 > Работают датчики (свет, приближение, акселерометр), **тачскрин** (порт GPL-драйвера Lenovo для HX83102E), **USB OTG** и зарядка от сетевой USB-C,
 > GPU после исправления голосования за память DDR (патч 0009) быстрее в 2.5–7 раз. Работает **аппаратное H.264/HEVC-декодирование через Venus** (патч 0011).
-> **Работают динамики** (4× AW88258, стерео, ядро r117 + device r17); микрофонов и гарнитуры через USB-C пока нет.
+> **Работают динамики** (4× AW88258, стерео, с ядра r117 + device r17); микрофонов и гарнитуры через USB-C пока нет.
 > Сон и offline-зарядка находятся на стадии финальной проверки.
 > Обновления ставятся через **apk-репозиторий** (см. [ниже](#обновления-через-apk-репозиторий)). Подробности — в [STATE.md](STATE.md).
 
@@ -118,7 +118,7 @@ ABL этого планшета **всегда** накладывает овер
 
 ```
 kernel/
-  patches/                 патчи к linux-nura-qcom-sm61x5 7.2.3
+  patches/                 патчи к linux-nura-qcom-sm61x5 7.2.3 (пакет linux-lenovo-j606f)
     0001-…-HX83102P.patch   панель BOE/Himax HX83102P в panel-himax-hx83102.c
     0002-HACK-…patch        qcom,bengalp для ubwc_config/pd_mapper (только если dtbo не стёрт; в пакет не входит)
     0003-…-HX83102P-SKU.patch  DTS ревизии HX83102P + abl-sink.dtsi + Makefile
@@ -130,11 +130,16 @@ kernel/
     0009-…-GPU-DDR-bandwidth…  голосование GPU за пропускную способность DDR (gfx-mem + opp-peak-kBps из стока)
     0010-…-UTMI…resume.patch  восстановление USB UTMI clock после сна
     0011-…-Venus-video-codec.patch  SM6115 Venus: DTS, vcodec0 HW_CTRL, стоковая firmware и EOS quirk
+    0012-…-LPASS-devices.patch  SM6115 LPASS: макросы RX/TX/VA, SoundWire, LPI pinctrl
+    0013-…-AW88258-…patch     драйвер усилителей Awinic AW88258 (динамики)
+    0014-…-primary-TDM-…patch  sm8250: воспроизведение на PRIMARY_TDM_RX_0 (4 усилителя, стерео)
+    0015-…-soundwire-…patch   soundwire-qcom: восстановление после clock stop без устройств
+    0016-…-j606f-add-audio.patch  DTS звука J606F (audio.dtsi)
     config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E, TYPEC_FUSB302)
   himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0011 (pkgrel 115)
+  linux-lenovo-j606f/      пакет ядра: linux-nura-qcom-sm61x5 7.2.3 + патчи 0001, 0003–0016 (pkgrel 118); своё имя, чтобы апстримный пакет его не заменил
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata, автозапись boot_b при обновлении; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD — свой тарбол; APKBUILD.shared — общий набор S320208 из apk-репозитория)
@@ -202,7 +207,7 @@ Super не трогается при установке в userdata. Если о
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0011 (pkgrel 115)
+cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0016
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 # прошивка: либо свой тарбол
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
@@ -210,7 +215,7 @@ pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого с
 # либо общий набор S320208 (тарбол скачается из https://repo.yarnick.ru/j606f/distfiles/, sha512 в APKBUILD)
 cp <pmaports>/device/testing/firmware-lenovo-j606f/APKBUILD.shared <pmaports>/device/testing/firmware-lenovo-j606f/APKBUILD
 ```
-> Пакет ядра здесь — апстримный `linux-nura-qcom-sm61x5` 7.2.3 с добавленными патчами из [`kernel/patches/`](kernel/patches/) и опциями
+> Пакет ядра здесь (`linux-lenovo-j606f`) — апстримный `linux-nura-qcom-sm61x5` 7.2.3 с добавленными патчами из [`kernel/patches/`](kernel/patches/) и опциями
 > из `config-j606f.fragment`. Первая установка делалась иначе: бинарное ядро 7.2.3-r0 + модули/DTB, собранные отдельно
 > ([`scripts/device_build_inner.sh`](scripts/device_build_inner.sh));
 этот путь больше не используется.
@@ -257,19 +262,28 @@ fastboot --set-active=b && fastboot reboot
 Там же лежит общий набор прошивок стока S320208: `firmware-lenovo-j606f-0.320208` (Android 11; исходный тарбол — в `j606f/distfiles/`).
 Он нужен тем, у кого нет своего бэкапа. Личная сборка (`1-rN`) всегда новее, apk её не заменит.
 
-Подключение (один раз):
+**С device-lenovo-j606f r18 настраивать ничего не нужно:** device-пакет сам кладёт адрес репозитория
+(`/usr/lib/apk/repositories.d/j606f.list`) и его ключ (`/usr/lib/apk/keys/`), apk 3 читает их наравне с `/etc/apk`.
+Образ, собранный из этого pmaports, обновляется обычным `apk upgrade` с первой загрузки.
+Метка `@j606f` больше не нужна: ядро порта называется `linux-lenovo-j606f`, и ни один пакет из обычных репозиториев его не заменит.
+
+Переход для установок с device ≤ r17 (один раз; ключ из прошлых инструкций у вас уже есть, иначе — первая строка):
 ```bash
-sudo wget -O /etc/apk/keys/pmos@local-6ae27901.rsa.pub https://repo.yarnick.ru/pmos@local-6ae27901.rsa.pub
-echo "@j606f https://repo.yarnick.ru/j606f" | sudo tee -a /etc/apk/repositories
+[ -f /etc/apk/keys/pmos@local-6ae27901.rsa.pub ] || sudo wget -O /etc/apk/keys/pmos@local-6ae27901.rsa.pub https://repo.yarnick.ru/pmos@local-6ae27901.rsa.pub
+echo "https://repo.yarnick.ru/j606f" | sudo tee -a /etc/apk/repositories
 sudo apk update
-# закрепить пакеты порта за этим репозиторием (иначе более новый апстримный linux-nura-qcom-sm61x5 без патчей j606f может их заменить)
-sudo apk add linux-nura-qcom-sm61x5@j606f device-lenovo-j606f@j606f device-lenovo-j606f-nonfree-firmware@j606f
+sudo apk add linux-lenovo-j606f device-lenovo-j606f device-lenovo-j606f-nonfree-firmware
+sudo /usr/lib/j606f/repo-migrate
 sudo reboot
 ```
-Ревизия **NT36523W**: вместо `device-lenovo-j606f` и его `-nonfree-firmware` — `device-lenovo-j606f-nt36523w@j606f device-lenovo-j606f-nt36523w-nonfree-firmware@j606f`
+`repo-migrate` убирает из `/etc/apk/repositories` старую строку `@j606f …` (и временную строку выше: адрес теперь в device-пакете),
+а из `/etc/apk/world` — `linux-nura-qcom-sm61x5`, метки `@j606f` и закрепления версий пакетов порта; затем `apk upgrade`
+удаляет старый пакет ядра (его файлы уже принадлежат `linux-lenovo-j606f`). Копии исходных файлов — `*.before-j606f-<время>` рядом.
+Ревизия **NT36523W**: вместо `device-lenovo-j606f` и его `-nonfree-firmware` — `device-lenovo-j606f-nt36523w device-lenovo-j606f-nt36523w-nonfree-firmware`
 (device-пакеты двух ревизий вместе не ставятся, см. [install_nt36523w](docs/notes/install_nt36523w.md)).
-Если пакеты порта когда-то ставились без `@j606f` (из файлов или тестового набора), `apk upgrade` их молча не обновит — повторите `apk add …@j606f`.
-`hexagonrpcd@j606f` ставьте, только если настроены датчики (без drop-in'ов с `-R` ADSP падает в цикле, см. [датчики](docs/notes/sensors.md)).
+`hexagonrpcd` ставьте, только если настроены датчики (без drop-in'ов с `-R` ADSP падает в цикле, см. [датчики](docs/notes/sensors.md)).
+Он сохранил апстримное имя: наша сборка 0.4.0-r50 (патч `sns_reg_version`) выше Alpine 0.4.0-r3, но если в Alpine выйдет 0.4.1,
+apk поставит её и патч пропадёт (датчики, не загрузка) — пока патч не принят в hexagonrpc, после такого обновления проверяйте датчики.
 
 Обновление:
 ```bash
@@ -282,7 +296,7 @@ sudo apk update && sudo apk upgrade && sudo reboot
 (на device ≤ r6 — нужен: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 Если новое ядро не загрузится или питание пропало во время записи — в fastboot (Vol− + Power) `fastboot flash boot_b <прошлый boot.img>`;
 перед обновлением ядра удобно сохранить копию: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r117 → `#118`), `apk list -I | grep device-lenovo` — r17 или новее.
+Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r18 и linux-lenovo-j606f или новее.
 Звук: `pactl list short sinks` показывает `alsa_output.platform-sound.HiFi__Speaker__sink`.
 В репозиторий попадают пакеты порта и ровно один пакет прошивки — общий набор S320208, сверенный по sha256 при публикации.
 Любые другие firmware, в том числе личные сборки с бэкапов, и всё с `license = proprietary` отсекаются.

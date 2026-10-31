@@ -3,7 +3,7 @@
 pkgname=device-lenovo-j606f
 pkgdesc="Lenovo Tab P11 (TB-J606F, HX83102P panel SKU)"
 pkgver=1
-pkgrel=17
+pkgrel=18
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
@@ -13,7 +13,7 @@ depends="
 	bootmac
 	device-mapper
 	kmod
-	linux-nura-qcom-sm61x5
+	linux-lenovo-j606f
 	make-dynpart-mappings
 	pil-squasher
 	postmarketos-base
@@ -37,6 +37,9 @@ source="
 	Lenovo-TB-J606F.conf
 	HiFi.conf
 	j606f-audio-modprobe.conf
+	j606f-repo.list
+	pmos@local-6ae27901.rsa.pub
+	j606f-repo-migrate.sh
 "
 
 build() {
@@ -69,6 +72,11 @@ package() {
 	install -Dm644 "$srcdir"/Lenovo-TB-J606F.conf "$pkgdir"/usr/share/alsa/ucm2/conf.d/sm4250/Lenovo-TB-J606F.conf
 	install -Dm644 "$srcdir"/HiFi.conf "$pkgdir"/usr/share/alsa/ucm2/Lenovo/TB-J606F/HiFi.conf
 	install -Dm644 "$srcdir"/j606f-audio-modprobe.conf "$pkgdir"/usr/lib/modprobe.d/j606f-audio.conf
+	# port repository without a tag, so plain `apk upgrade` updates it (apk 3 reads /usr/lib/apk/{repositories.d,keys})
+	install -Dm644 "$srcdir"/j606f-repo.list "$pkgdir"/usr/lib/apk/repositories.d/j606f.list
+	install -Dm644 "$srcdir"/pmos@local-6ae27901.rsa.pub "$pkgdir"/usr/lib/apk/keys/pmos@local-6ae27901.rsa.pub
+	# one-time switch of installs that used the "@j606f" repository line
+	install -Dm755 "$srcdir"/j606f-repo-migrate.sh "$pkgdir"/usr/lib/j606f/repo-migrate
 }
 
 nonfree_firmware() {
@@ -95,4 +103,7 @@ c0ea8de98daa6861179ab506eeb575db5b1a75f5e1030fc1757e303741ed1cf87c1f48f25099fb20
 ee2e74b75ac9707643b9947010ec9962c76369674e5bf2d69e1655ec4d39605384546e4bae51e55fdfa6b96b3f97a136c10126ddaa8469fb3e9f63fbc4759cfd  Lenovo-TB-J606F.conf
 918a5e686d2f88125b8c5a031233b760ebdce7a8107091e94e6c6b330fbf690c019b24de91f720fc10ed7aa200af47df33e76c4a4a3d1ed34b9835a5fa3a8d98  HiFi.conf
 0717f37b2842959ed56c3fb54c2f2b63bbf991251c4a0262dbc8ce0f828add2a9d32eac4ea8103927d6506472d48557ddd3515c27b6fb1dd116d58ca7256fee2  j606f-audio-modprobe.conf
+2d12009bd707f0b128436b27b52cf7c85cbe78e3343e31cb3dfa2c2fd5888d8cb099ffbd806498576566f70458e97ffff5173f76b4a4193db05504612d9bf2a9  j606f-repo.list
+10d82f63a609d5159628984f62987296200f6967a897fa4352c9baec0ed8f234efa422818f6ce4b7a500437f56ddf73a49019197dc63c7645ae535a69f03c999  pmos@local-6ae27901.rsa.pub
+b387858df93beb3091f20b9089274e802b65265b9189ba24932c3adaab1e5644e8076f83556d8730fdc1a5ab3e4ff493e06da5ee242c83bf574fe8452eb5a270  j606f-repo-migrate.sh
 "
