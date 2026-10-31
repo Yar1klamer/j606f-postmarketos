@@ -167,8 +167,17 @@ bash scripts/collect_firmware.sh            # снять прошивки → FI
 `bash scripts/build_firmware_package.sh FIRMWARE/<дата>`. `venus.mbn` нужен для аппаратного видео (ядро r115+).
 
 Прошивки у разных планшетов различаются — ставьте только тарбол со **своего** устройства и не публикуйте его.
-Если пакет ядра обновлён из apk-репозитория, а прошивка старая (без `venus.mbn`): соберите `firmware-lenovo-j606f` r2 из
-своего тарбола и поставьте `sudo apk add ./firmware-lenovo-j606f-1-r2.apk`, затем перезагрузка.
+
+**Недостающая прошивка берётся с самого планшета** (device-lenovo-j606f r12+, `/usr/lib/j606f/firmware-extract`). При установке или
+обновлении пакета и при каждой загрузке добавляются только файлы, которых ещё нет (установленный `firmware-lenovo-j606f` всегда
+главнее). Разделы монтируются только для чтения, в них ничего не пишется:
+- `modem_a/b` (NON-HLOS, остаётся от стока): `adsp`, `cdsp`, `modem`, `venus` (`.mdt` + `.bNN` → `.mbn` через `pil-squasher`), `wlanmdsp`;
+- `bluetooth_a/b`: `qca/crbtfw21.tlv`, `qca/crnv21.bin`;
+- `vendor_a/b` внутри super (`make-dynpart-mappings`, ext4 `ro,noload`): GPU `a610_zap` и тач `Himax_*.bin`.
+
+Super не трогается при установке в userdata, но если он перезаписан (ранние установки этого порта), GPU и тач берутся только из
+тарбола. Что взято с планшета — в `/var/lib/j606f/firmware-extract.list`. Поэтому для Venus на ядре r115 достаточно
+`sudo apk update && sudo apk upgrade && sudo reboot`: `venus.mbn` появится из своего раздела modem.
 
 ### 2. pmaports
 ```bash
@@ -241,6 +250,7 @@ sudo reboot
 ```bash
 sudo apk update && sudo apk upgrade && sudo reboot
 ```
+С **device-lenovo-j606f r12** недостающая прошивка (в т. ч. `venus.mbn` для видео) берётся из разделов самого планшета, см. выше.
 С **device-lenovo-j606f r7** включён `deviceinfo_flash_kernel_on_update`: после обновления ядра или initramfs boot-deploy сам пишет
 `boot.img` в `boot` + суффикс текущего слота (`boot_b`) — в выводе apk видно `Flashing boot.img to 'boot_b'`. Ручной `dd` больше не нужен
 (на device ≤ r6 — нужен: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).

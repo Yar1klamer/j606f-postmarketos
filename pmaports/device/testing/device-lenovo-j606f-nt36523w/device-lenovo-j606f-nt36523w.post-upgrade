@@ -1,0 +1,4 @@
+#!/bin/sh
+# take the Lenovo firmware that is not installed yet from this tablet's stock partitions
+/usr/lib/j606f/firmware-extract || true
+exit 0

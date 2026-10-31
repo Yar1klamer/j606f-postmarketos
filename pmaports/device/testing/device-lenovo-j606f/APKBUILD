@@ -3,7 +3,7 @@
 pkgname=device-lenovo-j606f
 pkgdesc="Lenovo Tab P11 (TB-J606F, HX83102P panel SKU)"
 pkgver=1
-pkgrel=11
+pkgrel=12
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
@@ -11,11 +11,16 @@ options="!check !archcheck"
 depends="
 	android-tools-mkbootimg
 	bootmac
+	device-mapper
 	kmod
 	linux-nura-qcom-sm61x5
+	make-dynpart-mappings
+	pil-squasher
 	postmarketos-base
+	util-linux-misc
 "
 makedepends="devicepkg-dev"
+install="$pkgname.post-install $pkgname.post-upgrade"
 subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
 source="
 	deviceinfo
@@ -26,6 +31,8 @@ source="
 	j606f-reboot-flag.sh
 	j606f-reboot-mark.service
 	j606f-poweroff-unmark.service
+	j606f-firmware-extract.sh
+	j606f-firmware-extract.service
 "
 
 build() {
@@ -49,6 +56,11 @@ package() {
 		mkdir -p "$pkgdir"/usr/lib/systemd/system/$t.target.wants
 		ln -s ../j606f-poweroff-unmark.service "$pkgdir"/usr/lib/systemd/system/$t.target.wants/
 	done
+	# Lenovo firmware that no package provides is taken from the tablet's own modem/bluetooth/super partitions
+	install -Dm755 "$srcdir"/j606f-firmware-extract.sh "$pkgdir"/usr/lib/j606f/firmware-extract
+	install -Dm644 "$srcdir"/j606f-firmware-extract.service "$pkgdir"/usr/lib/systemd/system/j606f-firmware-extract.service
+	mkdir -p "$pkgdir"/usr/lib/systemd/system/multi-user.target.wants
+	ln -s ../j606f-firmware-extract.service "$pkgdir"/usr/lib/systemd/system/multi-user.target.wants/
 }
 
 nonfree_firmware() {
@@ -70,4 +82,6 @@ cbe0d1e4d71589e2ef6cfe32589c3abe50c33fe49db203c577108cdec3f7c88f7e9500da2dba3c15
 4d2d1e6023d11c47de24cd54018716e5ca1f6310f97669d1e2379fc0999729a566a7347257578d9bd6cb277721704dfa1d6b3ba6b37c4c4b355a3d775cd2cab1  j606f-reboot-flag.sh
 b9123c3cf75ee21f46e9b4d06ac617bfdfc26c055f7cee3bfb2a5f54e242b1ea93163f87d2d94bcaf1f5f710ef64e069a02f4ba889d3ddfbe4940aa5e9e3ef2a  j606f-reboot-mark.service
 7e01eaf526a3887aa8ede3d1ae64a27eb1cb03a4869481350b9067849a45f0c5781a17f140f230eb90582115b2cc0d3bf42561bf1cebf1a1df1ff66189b11030  j606f-poweroff-unmark.service
+309e5f13c42a0e20b71574862523e84d489bfaede72ec09c9bf3f2f4575fba622abbb4973a82c610f0dc65fb2d00b30816b1f6083acd9276a7c696be8473cc12  j606f-firmware-extract.sh
+c0ea8de98daa6861179ab506eeb575db5b1a75f5e1030fc1757e303741ed1cf87c1f48f25099fb20ab7087c61a3697fe712c32265787de666eb77a244fdd3197  j606f-firmware-extract.service
 "

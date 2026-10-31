@@ -1,0 +1,12 @@
+[Unit]
+Description=Take missing J606F firmware from the tablet's own stock partitions
+Documentation=file:///usr/lib/j606f/firmware-extract
+# partitions are found through sysfs as well, no need to wait for udev-settle
+After=systemd-udev-trigger.service local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/j606f/firmware-extract --boot
+
+[Install]
+WantedBy=multi-user.target
