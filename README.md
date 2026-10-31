@@ -135,7 +135,7 @@ pmaports/device/testing/
   linux-nura-qcom-sm61x5/  пакет ядра 7.2.3 с патчами 0001, 0003–0011 (pkgrel 115)
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata, автозапись boot_b при обновлении; modules-initfs, прошивка GPU в initramfs, bootmac)
-  firmware-lenovo-j606f/   firmware-пакет (APKBUILD; блобы вы извлекаете со своего устройства)
+  firmware-lenovo-j606f/   firmware-пакет (APKBUILD — свой тарбол; APKBUILD.shared — общий набор S320208 из apk-репозитория)
 pmaports/temp/hexagonrpcd/ hexagonrpcd 0.4.0-r50 с патчем: отдаёт ADSP файл sns_reg_version (нужно для датчиков SSC)
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,
                            сборка на самом планшете, прокси для USB-сети, установка
@@ -148,11 +148,17 @@ docs/
 ```
 
 > **Чего здесь нет и не будет:** дампов разделов, прошивок Lenovo, серийных номеров, MAC-адресов, ключей и паролей.
-> Прошивки извлекаются с **вашего** устройства (см. ниже).
+> Прошивки берутся с **вашего** устройства или из общего набора стока в apk-репозитории (см. ниже), но не из git.
 
 ## Сборка
 
-### 1. Прошивки со своего устройства
+### 1. Прошивки
+Проще всего ничего не делать: `device-lenovo-j606f-nonfree-firmware` тянет `firmware-lenovo-j606f` из
+[apk-репозитория](#обновления-через-apk-репозиторий). Это **общий набор стока S320208** (Android 11) с версией `0.320208`.
+DSP-прошивку **вашего** планшета device-пакет (r16+) берёт из его собственных разделов и кладёт перед этим набором (см. ниже).
+Свой бэкап нужен, только если хочется полностью свою прошивку. Пакет из него (`pkgver 1`) всегда главнее общего набора.
+
+#### Свой бэкап
 Нужен root (Magisk) в стоковом Android:
 ```bash
 bash scripts/phase0_root.sh                 # сбор сведений
@@ -168,16 +174,25 @@ bash scripts/collect_firmware.sh            # снять прошивки → FI
 
 Прошивки у разных планшетов различаются — ставьте только тарбол со **своего** устройства и не публикуйте его.
 
-**Недостающая прошивка берётся с самого планшета** (device-lenovo-j606f r12+, `/usr/lib/j606f/firmware-extract`). При установке или
-обновлении пакета и при каждой загрузке добавляются только файлы, которых ещё нет (установленный `firmware-lenovo-j606f` всегда
-главнее). Разделы монтируются только для чтения, в них ничего не пишется:
+#### Прошивка с самого планшета
+Её берёт `/usr/lib/j606f/firmware-extract` из device-lenovo-j606f (r12+; в r16 — нынешняя схема). Он запускается при установке и
+обновлении device-пакета, apk-триггером при любой смене пакета прошивки и при каждой загрузке. Разделы монтируются только для
+чтения, в них ничего не пишется:
 - `modem_a/b` (NON-HLOS, остаётся от стока): `adsp`, `cdsp`, `modem`, `venus` (`.mdt` + `.bNN` → `.mbn` через `pil-squasher`), `wlanmdsp`;
 - `bluetooth_a/b`: `qca/crbtfw21.tlv`, `qca/crnv21.bin`;
 - `vendor_a/b` внутри super (`make-dynpart-mappings`, ext4 `ro,noload`): GPU `a610_zap` и тач `Himax_*.bin`.
 
-Super не трогается при установке в userdata, но если он перезаписан (ранние установки этого порта), GPU и тач берутся только из
-тарбола. Что взято с планшета — в `/var/lib/j606f/firmware-extract.list`. Поэтому для Venus на ядре r115 достаточно
-`sudo apk update && sudo apk upgrade && sudo reboot`: `venus.mbn` появится из своего раздела modem.
+Если стоит общий набор (метка `/usr/share/j606f/firmware-shared`), файлы из `modem` и `bluetooth` идут в `/lib/firmware/updates`.
+Ядро и tqftpserv ищут там раньше, поэтому DSP работают на прошивке своего стока. Это важно: с ADSP от другой версии Android
+падают датчики. Проверено на планшете со стоком Android 10 (S120184) и установленным набором S320208: загрузились свои
+ADSP/CDSP/WLAN/Venus, датчики работают. GPU и тач из vendor кладутся в `/lib/firmware`, только если их нет ни в одном пакете:
+версии из набора работают на обоих стоках. С личным пакетом (`pkgver 1`) копии из `updates` удаляются, работает пакет как есть.
+
+Super не трогается при установке в userdata. Если он перезаписан (ранние установки этого порта), GPU и тач берутся из пакета.
+Что взято с планшета, записано в `/var/lib/j606f/firmware-extract.list`.
+
+Свежий образ: на первой загрузке DSP стартуют с общим набором, а своя прошивка копируется в `updates` уже по ходу.
+Поэтому после первой загрузки перезагрузите планшет ещё раз (в журнале: `running DSPs use the new firmware after the next reboot`).
 
 ### 2. pmaports
 ```bash
@@ -186,8 +201,11 @@ cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
 cp -r pmaports/device/testing/linux-nura-qcom-sm61x5 <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0011 (pkgrel 115)
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
+# прошивка: либо свой тарбол
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
+# либо общий набор S320208 (тарбол скачается из https://repo.yarnick.ru/j606f/distfiles/, sha512 в APKBUILD)
+cp <pmaports>/device/testing/firmware-lenovo-j606f/APKBUILD.shared <pmaports>/device/testing/firmware-lenovo-j606f/APKBUILD
 ```
 > Пакет ядра здесь — апстримный `linux-nura-qcom-sm61x5` 7.2.3 с добавленными патчами из [`kernel/patches/`](kernel/patches/) и опциями
 > из `config-j606f.fragment`. Первая установка делалась иначе: бинарное ядро 7.2.3-r0 + модули/DTB, собранные отдельно
@@ -232,8 +250,9 @@ fastboot --set-active=b && fastboot reboot
 ## Обновления через apk-репозиторий
 
 Собранные пакеты порта (ядро, device-пакеты, hexagonrpcd) лежат в подписанном apk-репозитории
-**https://repo.yarnick.ru/j606f** (ключ `pmos@local-6ae27901`). Репозиторий ведёт [@nnshould](https://t.me/nnshould) (Telegram) — по вопросам о нём писать туда. Прошивок Lenovo (`firmware-lenovo-j606f`) там нет и не будет —
-это блобы конкретного устройства, их каждый собирает сам.
+**https://repo.yarnick.ru/j606f** (ключ `pmos@local-6ae27901`). Репозиторий ведёт [@nnshould](https://t.me/nnshould) (Telegram) — по вопросам о нём писать туда.
+Там же лежит общий набор прошивок стока S320208: `firmware-lenovo-j606f-0.320208` (Android 11; исходный тарбол — в `j606f/distfiles/`).
+Он нужен тем, у кого нет своего бэкапа. Личная сборка (`1-rN`) всегда новее, apk её не заменит.
 
 Подключение (один раз):
 ```bash
@@ -250,14 +269,16 @@ sudo reboot
 ```bash
 sudo apk update && sudo apk upgrade && sudo reboot
 ```
-С **device-lenovo-j606f r12** недостающая прошивка (в т. ч. `venus.mbn` для видео) берётся из разделов самого планшета, см. выше.
+С **device-lenovo-j606f r16** DSP-прошивка своего стока (в т. ч. `venus.mbn` для видео) берётся из разделов самого планшета и
+стоит перед общим набором, см. [Прошивки](#1-прошивки). Если общий набор ставится этим же обновлением, хватает одной перезагрузки.
 С **device-lenovo-j606f r7** включён `deviceinfo_flash_kernel_on_update`: после обновления ядра или initramfs boot-deploy сам пишет
 `boot.img` в `boot` + суффикс текущего слота (`boot_b`) — в выводе apk видно `Flashing boot.img to 'boot_b'`. Ручной `dd` больше не нужен
 (на device ≤ r6 — нужен: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 Если новое ядро не загрузится или питание пропало во время записи — в fastboot (Vol− + Power) `fastboot flash boot_b <прошлый boot.img>`;
 перед обновлением ядра удобно сохранить копию: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r115 → `#116`), `apk list -I | grep device-lenovo` — r11 или новее.
-В репозиторий попадают только пакеты порта; firmware и всё с `license = proprietary` отсекаются при публикации.
+Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r115 → `#116`), `apk list -I | grep device-lenovo` — r16 или новее.
+В репозиторий попадают пакеты порта и ровно один пакет прошивки — общий набор S320208, сверенный по sha256 при публикации.
+Любые другие firmware, в том числе личные сборки с бэкапов, и всё с `license = proprietary` отсекаются.
 
 ## Откат на Android
 - Перед любой записью сделайте полный бэкап ([`scripts/backup_partitions.sh`](scripts/backup_partitions.sh)).
@@ -303,7 +324,8 @@ sudo apk update && sudo apk upgrade && sudo reboot
 Лицензии:
 - патчи ядра и DTS: **GPL-2.0** (DTS: GPL-2.0+ OR BSD-3-Clause, как в исходниках);
 - скрипты и документация этого репозитория: **MIT** ([LICENSE](LICENSE));
-- прошивки Lenovo/Qualcomm проприетарные и **в репозиторий не входят**.
+- прошивки Lenovo/Qualcomm проприетарные и **в git-репозиторий не входят**; общий набор стока S320208 раздаётся только
+  apk-репозиторием в виде стоковых образов (только `.mdt` + `.bNN` склеены в `.mbn`).
 
 > ⚠️ Вы делаете всё на свой страх и риск. Разблокировка загрузчика и прошивка могут привести к потере данных
 > или неработоспособности устройства. Никогда не трогайте `modem*`, `persist`, `fsg`, `xbl`, `abl` без бэкапа.

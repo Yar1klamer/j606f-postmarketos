@@ -1,0 +1,29 @@
+# Lenovo stock firmware for the Tab P11 (TB-J606F) from stock build S320208 (Android 11):
+# qcom/sm6115/LENOVO/J606F/{a610_zap,adsp,cdsp,modem,venus,wlanmdsp}.mbn (.mdt + .bNN squashed), qca/crbtfw21.tlv,
+# qca/crnv21.bin, Himax_firmware.bin + Himax_mpfw.bin (touch). Tested on an Android 11 unit and on an Android 10 one
+# (bootloader/TZ of S120184): everything works except the sensors there — the ADSP image has to match the sensor
+# configuration from the same stock. The version stays below 1, so a firmware-lenovo-j606f built from the tablet's
+# own stock (pkgver 1, scripts/build_firmware_package.sh) always wins. The marker in /usr/share/j606f tells
+# device-lenovo-j606f (r14+) to put the tablet's own DSP firmware from its modem partition in /lib/firmware/updates.
+pkgname=firmware-lenovo-j606f
+pkgver=0.320208
+pkgrel=1
+pkgdesc="Firmware for Lenovo Tab P11 (TB-J606F), Lenovo stock S320208"
+url="https://repo.yarnick.ru/j606f/"
+arch="aarch64"
+license="proprietary"
+options="!check !strip !archcheck !tracedeps pmb:cross-native"
+source="firmware-lenovo-j606f-$pkgver.tar::https://repo.yarnick.ru/j606f/distfiles/firmware-lenovo-j606f-$pkgver.tar"
+
+package() {
+	cd "$srcdir"
+	find qcom qca Himax_firmware.bin Himax_mpfw.bin -type f | while read -r f; do
+		install -Dm644 "$f" "$pkgdir/lib/firmware/$f"
+	done
+	mkdir -p "$pkgdir"/usr/share/j606f
+	echo "S320208" > "$pkgdir"/usr/share/j606f/firmware-shared
+}
+
+sha512sums="
+744bfb0168f2d7feec6f2f5bc1463b8337cdb1a26d0002bab24908495d91da2ffc1b6078b6f93d48d9597b299d76a7b614b3050d8bd690e36db3eca06ecbda2a  firmware-lenovo-j606f-$pkgver.tar
+"

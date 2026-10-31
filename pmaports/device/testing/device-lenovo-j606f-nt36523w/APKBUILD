@@ -5,7 +5,7 @@
 pkgname=device-lenovo-j606f-nt36523w
 pkgdesc="Lenovo Tab P11 (TB-J606F, NT36523W panel SKU)"
 pkgver=1
-pkgrel=2
+pkgrel=6
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
@@ -23,6 +23,7 @@ depends="
 "
 makedepends="devicepkg-dev"
 install="$pkgname.post-install $pkgname.post-upgrade"
+triggers="$pkgname.trigger=/lib/firmware/qcom/sm6115/LENOVO/J606F:/usr/lib/firmware/qcom/sm6115/LENOVO/J606F"
 subpackages="$pkgname-nonfree-firmware:nonfree_firmware"
 source="
 	deviceinfo
@@ -63,6 +64,6 @@ b834870d791740c2fdfc1e620bc4f647e794a87bab228aefeca02ba991e43e79b92009a8fd4d669c
 d1557e7dab8933129b82c4a6c370f9e341b3ac37178e6b045873bd7c620e6b7fcc5be8dfa0d5e6707e6927476331adf6bb168f80281973a17c2c4c4cdc3bae26  modules-initfs
 7f80465744962b7118a267c020cb0def18a7323fd2caf33c7527bc9c0133ebdf6f8fcc6778f812b4672169e71abdd66716d004f9d5478ab10cc8edbfc6a4be58  j606f-modules-load.conf
 9e3a863a8e641fab6d614b8fefd5ff96e8407240800430e0002f044869a73f7bfe7549164559509afdaeddbb69dee76ec3fb0978c86d0fc0c89b295663346c26  30-gpu-firmware.files
-309e5f13c42a0e20b71574862523e84d489bfaede72ec09c9bf3f2f4575fba622abbb4973a82c610f0dc65fb2d00b30816b1f6083acd9276a7c696be8473cc12  j606f-firmware-extract.sh
+ce4fb3d81795a3e312ae74323caa67960933c6edcf649efa57ce0f9f8bed962337a67dca0ddba37b32e8e586726e354b73c0aa71da0e72537e52f3a6a9eb5ee1  j606f-firmware-extract.sh
 c0ea8de98daa6861179ab506eeb575db5b1a75f5e1030fc1757e303741ed1cf87c1f48f25099fb20ab7087c61a3697fe712c32265787de666eb77a244fdd3197  j606f-firmware-extract.service
 "

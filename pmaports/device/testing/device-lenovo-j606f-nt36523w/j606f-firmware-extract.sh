@@ -1,17 +1,24 @@
 #!/bin/sh
-# Lenovo Tab P11 (TB-J606F): take the missing Lenovo firmware from this tablet's own stock partitions,
-# so nothing proprietary has to be shipped in packages. Only files that are not installed yet are added
-# (a firmware-lenovo-j606f package, if present, always wins); nothing is ever written to the partitions:
+# Lenovo Tab P11 (TB-J606F): take the Lenovo firmware from this tablet's own stock partitions.
+# Nothing is ever written to the partitions; only files that are still missing are added:
 #   modem_a/b (vfat, NON-HLOS)  image/{adsp,cdsp,modem,venus}.mdt+.bNN -> .mbn, image/wlanmdsp.mbn
 #   bluetooth_a/b (vfat)        image/crbtfw21.tlv, image/crnv21.bin
+#     -> /lib/firmware/updates, which the kernel and tqftpserv search before /lib/firmware: the DSP images
+#        have to match this tablet's stock (the sensors crash with an ADSP from another Android version),
+#        so they win over the shared S320208 set of the repository's firmware-lenovo-j606f 0.320208.
+#        A firmware-lenovo-j606f built from this tablet's own backup (pkgver 1) is used as it is.
+#        An apk trigger runs this again whenever a package changes the firmware directory.
 #   super -> vendor_a/b (ext4)  firmware/a610_zap.mdt+.bNN -> .mbn (GPU), firmware/Himax_*.bin (touch)
+#     -> /lib/firmware, only if no package has them (the GPU firmware also goes into the initramfs,
+#        and these files work with any stock version).
 # vendor lives in super, which a pmOS install into userdata leaves alone; if super was overwritten,
-# the GPU and touch firmware can only come from a backup (scripts/build_firmware_package.sh).
+# the GPU and touch firmware come from the firmware package.
 #   firmware-extract          add what is missing (apk post-install/post-upgrade; reboot afterwards)
 #   firmware-extract --boot   the same at boot, then start the DSPs and Venus that missed their firmware
 # For testing: J606F_FIRMWARE_ROOT=<dir> writes there instead of /lib/firmware.
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 FW=${J606F_FIRMWARE_ROOT:-/lib/firmware}
+UPD=$FW/updates
 QC=$FW/qcom/sm6115/LENOVO/J606F
 LIST=${J606F_FIRMWARE_ROOT:-/var/lib/j606f}/firmware-extract.list
 BOOT=0
@@ -33,8 +40,29 @@ missing() {
 	return 1
 }
 
-MODEM_FILES="$QC/adsp.mbn $QC/cdsp.mbn $QC/modem.mbn $QC/venus.mbn $QC/wlanmdsp.mbn"
-BT_FILES="$FW/qca/crbtfw21.tlv $FW/qca/crnv21.bin"
+# the DSP images in /lib/firmware are this tablet's own (firmware-lenovo-j606f built from its backup),
+# unless the repository's shared set put its marker there; then this tablet's own go to updates
+BASE=$FW
+if [ -e /usr/share/j606f/firmware-shared ] || [ ! -s "$QC/adsp.mbn" ] || [ -n "${J606F_FIRMWARE_ROOT:-}" ]; then
+	BASE=$UPD
+fi
+OWN=$BASE/qcom/sm6115/LENOVO/J606F
+
+# back on firmware from this tablet's own backup: drop the copies made in front of a shared set,
+# they would hide that package's later updates
+if [ "$BASE" = "$FW" ] && grep -q "^$UPD/" "$LIST" 2>/dev/null; then
+	: > "$LIST.new"
+	while read -r f; do
+		case "$f" in
+		"$UPD"/*) rm -f "$f" && log "removed $f (firmware-lenovo-j606f has this tablet's own)" ;;
+		*) echo "$f" >> "$LIST.new" ;;
+		esac
+	done < "$LIST"
+	mv "$LIST.new" "$LIST"
+fi
+
+MODEM_FILES="$OWN/adsp.mbn $OWN/cdsp.mbn $OWN/modem.mbn $OWN/venus.mbn $OWN/wlanmdsp.mbn"
+BT_FILES="$BASE/qca/crbtfw21.tlv $BASE/qca/crnv21.bin"
 VENDOR_FILES="$QC/a610_zap.mbn $FW/Himax_firmware.bin $FW/Himax_mpfw.bin"
 missing $MODEM_FILES $BT_FILES $VENDOR_FILES || exit 0
 
@@ -99,9 +127,9 @@ for s in _a _b; do
 	dev=$(part "modem$s") || continue
 	mount_ro "$dev" vfat || continue
 	for n in adsp cdsp modem venus; do
-		squash "$MNT/image" "$n" "$QC/$n.mbn" "modem$s"
+		squash "$MNT/image" "$n" "$OWN/$n.mbn" "modem$s"
 	done
-	add "$MNT/image/wlanmdsp.mbn" "$QC/wlanmdsp.mbn" "modem$s"
+	add "$MNT/image/wlanmdsp.mbn" "$OWN/wlanmdsp.mbn" "modem$s"
 	umount "$MNT"
 done
 
@@ -109,8 +137,8 @@ for s in _a _b; do
 	missing $BT_FILES || break
 	dev=$(part "bluetooth$s") || continue
 	mount_ro "$dev" vfat || continue
-	add "$MNT/image/crbtfw21.tlv" "$FW/qca/crbtfw21.tlv" "bluetooth$s"
-	add "$MNT/image/crnv21.bin" "$FW/qca/crnv21.bin" "bluetooth$s"
+	add "$MNT/image/crbtfw21.tlv" "$BASE/qca/crbtfw21.tlv" "bluetooth$s"
+	add "$MNT/image/crnv21.bin" "$BASE/qca/crnv21.bin" "bluetooth$s"
 	umount "$MNT"
 done
 
@@ -147,10 +175,19 @@ if [ $BOOT = 0 ]; then
 	exit 0
 fi
 
-# at boot: the DSPs and Venus already gave up for lack of firmware, start them again
+# at boot: the DSPs and Venus already gave up for lack of firmware, start them again; the ones that
+# came up with the firmware package's images switch to this tablet's own after the next boot
+RUNNING=0
 for r in /sys/class/remoteproc/remoteproc*; do
-	[ "$(cat "$r/state" 2>/dev/null)" = offline ] && echo start > "$r/state" 2>/dev/null
+	case "$(cat "$r/state" 2>/dev/null)" in
+	offline) echo start > "$r/state" 2>/dev/null ;;
+	running) RUNNING=1 ;;
+	esac
 done
+case "$ADDED" in
+*adsp* | *cdsp* | *modem* | *wlanmdsp*)
+	[ $RUNNING = 0 ] || log "running DSPs use the new firmware after the next reboot" ;;
+esac
 V=/sys/bus/platform/drivers/qcom-venus
 if [ -d "$V" ] && [ ! -e "$V/5a00000.video-codec" ]; then
 	echo 5a00000.video-codec > "$V/bind" 2>/dev/null
