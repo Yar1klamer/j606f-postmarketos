@@ -3,7 +3,7 @@
 pkgname=device-lenovo-j606f
 pkgdesc="Lenovo Tab P11 (TB-J606F, HX83102P panel SKU)"
 pkgver=1
-pkgrel=16
+pkgrel=17
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
@@ -34,6 +34,9 @@ source="
 	j606f-poweroff-unmark.service
 	j606f-firmware-extract.sh
 	j606f-firmware-extract.service
+	Lenovo-TB-J606F.conf
+	HiFi.conf
+	j606f-audio-modprobe.conf
 "
 
 build() {
@@ -62,6 +65,10 @@ package() {
 	install -Dm644 "$srcdir"/j606f-firmware-extract.service "$pkgdir"/usr/lib/systemd/system/j606f-firmware-extract.service
 	mkdir -p "$pkgdir"/usr/lib/systemd/system/multi-user.target.wants
 	ln -s ../j606f-firmware-extract.service "$pkgdir"/usr/lib/systemd/system/multi-user.target.wants/
+	# ALSA UCM: speakers (card "Lenovo-TB-J606F" of the sm4250 machine driver)
+	install -Dm644 "$srcdir"/Lenovo-TB-J606F.conf "$pkgdir"/usr/share/alsa/ucm2/conf.d/sm4250/Lenovo-TB-J606F.conf
+	install -Dm644 "$srcdir"/HiFi.conf "$pkgdir"/usr/share/alsa/ucm2/Lenovo/TB-J606F/HiFi.conf
+	install -Dm644 "$srcdir"/j606f-audio-modprobe.conf "$pkgdir"/usr/lib/modprobe.d/j606f-audio.conf
 }
 
 nonfree_firmware() {
@@ -83,6 +90,9 @@ cbe0d1e4d71589e2ef6cfe32589c3abe50c33fe49db203c577108cdec3f7c88f7e9500da2dba3c15
 4d2d1e6023d11c47de24cd54018716e5ca1f6310f97669d1e2379fc0999729a566a7347257578d9bd6cb277721704dfa1d6b3ba6b37c4c4b355a3d775cd2cab1  j606f-reboot-flag.sh
 b9123c3cf75ee21f46e9b4d06ac617bfdfc26c055f7cee3bfb2a5f54e242b1ea93163f87d2d94bcaf1f5f710ef64e069a02f4ba889d3ddfbe4940aa5e9e3ef2a  j606f-reboot-mark.service
 7e01eaf526a3887aa8ede3d1ae64a27eb1cb03a4869481350b9067849a45f0c5781a17f140f230eb90582115b2cc0d3bf42561bf1cebf1a1df1ff66189b11030  j606f-poweroff-unmark.service
-ce4fb3d81795a3e312ae74323caa67960933c6edcf649efa57ce0f9f8bed962337a67dca0ddba37b32e8e586726e354b73c0aa71da0e72537e52f3a6a9eb5ee1  j606f-firmware-extract.sh
+a86dc31af7d0332a989b91930adeef2d7384ee2731b45dfa01afb57909532b958e989dc8305dec816d36797967957850f4ff8bddcbd2bb061dae4f728573ed08  j606f-firmware-extract.sh
 c0ea8de98daa6861179ab506eeb575db5b1a75f5e1030fc1757e303741ed1cf87c1f48f25099fb20ab7087c61a3697fe712c32265787de666eb77a244fdd3197  j606f-firmware-extract.service
+ee2e74b75ac9707643b9947010ec9962c76369674e5bf2d69e1655ec4d39605384546e4bae51e55fdfa6b96b3f97a136c10126ddaa8469fb3e9f63fbc4759cfd  Lenovo-TB-J606F.conf
+918a5e686d2f88125b8c5a031233b760ebdce7a8107091e94e6c6b330fbf690c019b24de91f720fc10ed7aa200af47df33e76c4a4a3d1ed34b9835a5fa3a8d98  HiFi.conf
+0717f37b2842959ed56c3fb54c2f2b63bbf991251c4a0262dbc8ce0f828add2a9d32eac4ea8103927d6506472d48557ddd3515c27b6fb1dd116d58ca7256fee2  j606f-audio-modprobe.conf
 "

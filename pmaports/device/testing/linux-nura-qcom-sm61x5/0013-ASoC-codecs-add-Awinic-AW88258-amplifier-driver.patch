@@ -1,0 +1,720 @@
+From: Yar1klamer
+Subject: [PATCH] ASoC: codecs: add Awinic AW88258 amplifier driver
+
+The AW88258 is a smart K class speaker amplifier with I2C control and
+an I2S/TDM input, used four times in the Lenovo TB-J606F. The register
+setup comes from the vendor aw882xx_acf.bin (the music profile of the
+matching device section), the driver handles power sequencing, volume
+with fades and the vendor monitor (boost peak current and attenuation
+from battery voltage and chip temperature). Without the DSP speaker
+protection of the stock firmware the volume is capped at -6 dB.
+---
+--- /dev/null
++++ b/sound/soc/codecs/aw88258.c
+@@ -0,0 +1,671 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Awinic AW88258 smart K class amplifier (I2C control, I2S/TDM audio).
++ *
++ * Register layout and the power-up/down sequences follow the Awinic aw882xx
++ * driver shipped in the Lenovo TB-J606F kernel (GPL-2.0+, Awinic 2020). The
++ * chip configuration comes from the vendor "acf" file (old format, file id
++ * 0x0a15f908): one device section per amplifier, each with register profiles.
++ * Only the "music" profile is used. The vendor speaker protection runs as an
++ * ADSP module and is not available here, so the volume is capped at -6 dB and
++ * the vendor battery/temperature monitor (boost current limit and gain back-off,
++ * tables from the stock aw882xx_monitor.bin) runs in the driver.
++ */
++
++#include <linux/bitfield.h>
++#include <linux/delay.h>
++#include <linux/firmware.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/regmap.h>
++#include <linux/unaligned.h>
++#include <linux/workqueue.h>
++#include <sound/pcm_params.h>
++#include <sound/soc.h>
++#include <sound/tlv.h>
++
++#define AW88258_ID_REG		0x00
++#define AW88258_SYSST_REG	0x01
++#define AW88258_SYSINT_REG	0x02
++#define AW88258_SYSINTM_REG	0x03
++#define AW88258_SYSCTRL_REG	0x04
++#define AW88258_SYSCTRL2_REG	0x05
++#define AW88258_I2SCTRL_REG	0x06
++#define AW88258_I2SCFG1_REG	0x07
++#define AW88258_HAGCCFG4_REG	0x0c
++#define AW88258_VBAT_REG	0x12
++#define AW88258_TEMP_REG	0x13
++#define AW88258_VTMCTRL3_REG	0x56
++#define AW88258_EFRH_REG	0x78
++#define AW88258_EFRM1_REG	0x7a
++#define AW88258_MAX_REG		0x7f
++
++#define AW88258_CHIP_ID		0x1852
++
++/* SYSST */
++#define AW88258_PLLS		BIT(0)
++#define AW88258_CLKS		BIT(4)
++#define AW88258_SYSST_OK	(AW88258_PLLS | AW88258_CLKS)
++/* SYSCTRL */
++#define AW88258_PWDN		BIT(0)
++/* SYSCTRL2 */
++#define AW88258_HMUTE		BIT(4)
++#define AW88258_BST_IPEAK	GENMASK(3, 0)
++/* I2SCTRL: which of the two received channels is played, 1: left, 2: right */
++#define AW88258_CHSEL		GENMASK(11, 10)
++#define AW88258_CHSEL_LEFT	1
++#define AW88258_CHSEL_RIGHT	2
++/* I2SCFG1: TDM slots the receiver takes its left/right pair from */
++#define AW88258_RX_SLOTVLD	GENMASK(11, 8)
++/* SYSINTM default: all interrupts masked */
++#define AW88258_SYSINTM_DEFAULT	0xefbf
++/* HAGCCFG4[15:8]: volume, [7:4] in -6 dB steps, [3:0] in -0.5 dB steps */
++#define AW88258_VOL_MASK	GENMASK(15, 8)
++/* eFuse V/I sense slope corrections, 10-bit signed */
++#define AW88258_EF_GESLP_MASK	0x03ff
++#define AW88258_EF_GESLP_SIGN	0x0200
++
++/* volume in 0.5 dB steps of attenuation */
++#define AW88258_VOL_STEP_6DB	12
++#define AW88258_VOL_MUTE	180	/* -90 dB */
++#define AW88258_VOL_FADE_STEP	12
++#define AW88258_VOL_MIN_ATT	12	/* cap: -6 dB, there is no speaker protection */
++#define AW88258_VOL_CTL_MAX	(AW88258_VOL_MUTE - AW88258_VOL_MIN_ATT)
++
++/* VBAT: 10 bit, full scale 6025 mV; TEMP: 10 bit signed, degrees C */
++#define AW88258_VBAT_RANGE_MV	6025
++#define AW88258_TEMP_SIGN	BIT(9)
++#define AW88258_MONITOR_MS	5000
++
++#define AW88258_SYSST_RETRIES	10
++
++/* acf (old format) */
++#define AW_ACF_ID		0x0a15f908
++#define AW_ACF_HDR_SIZE		0x50
++#define AW_ACF_SHDR_SIZE	24
++#define AW_ACF_SEC_DEVICE	1
++#define AW_ACF_SEC_REG		4
++#define AW_ACF_PROFILE_MUSIC	0
++
++/*
++ * Stock monitor tables (aw882xx_monitor.bin, 5 s period): within a range the
++ * boost peak current code and the gain back-off (HAGCCFG4 volume code) apply;
++ * between ranges the last state is kept.
++ */
++struct aw88258_mon_entry {
++	s16 min, max;
++	u8 ipeak, gain;
++};
++
++static const struct aw88258_mon_entry aw88258_mon_vbat[] = {	/* mV */
++	{ 4000, 4500, 8, 0 },
++	{ 3800, 3900, 6, 1 },
++	{ 3600, 3700, 5, 2 },
++	{    0, 3500, 4, 3 },
++};
++
++static const struct aw88258_mon_entry aw88258_mon_temp[] = {	/* degrees C */
++	{    7, 200, 8, 0 },
++	{    2,   5, 6, 6 },
++	{   -2,   0, 5, 9 },
++	{ -100,  -5, 4, 16 },
++};
++
++struct aw88258 {
++	struct device *dev;
++	struct regmap *regmap;
++	struct gpio_desc *reset;
++	struct mutex lock;
++	u32 channel;
++	const char *fw_name;
++	u8 *prof;		/* register profile: { u16 reg, u16 val } little endian */
++	size_t prof_len;
++	unsigned int att;	/* playback attenuation, 0.5 dB steps */
++	unsigned int sysintm;
++	unsigned int ipeak;	/* boost peak current code from the profile */
++	u32 rx_slots;		/* override of I2SCFG1 RX_SLOTVLD, 0: keep the profile */
++	unsigned int chsel;	/* override of I2SCTRL CHSEL, 0: keep the profile */
++	bool powered;
++	struct delayed_work monitor;
++	int mon_vbat, mon_temp;	/* table index, -1: not decided yet */
++	unsigned int mon_att;	/* back-off from the monitor */
++};
++
++static const struct regmap_config aw88258_regmap = {
++	.reg_bits = 8,
++	.val_bits = 16,
++	.max_register = AW88258_MAX_REG,
++	.val_format_endian = REGMAP_ENDIAN_BIG,
++	.cache_type = REGCACHE_NONE,
++};
++
++static void aw88258_set_att(struct aw88258 *aw, unsigned int att)
++{
++	unsigned int val;
++
++	att = min(att, (unsigned int)AW88258_VOL_MUTE);
++	val = ((att / AW88258_VOL_STEP_6DB) << 4) | (att % AW88258_VOL_STEP_6DB);
++	regmap_update_bits(aw->regmap, AW88258_HAGCCFG4_REG, AW88258_VOL_MASK,
++			   val << 8);
++}
++
++static unsigned int aw88258_get_att(struct aw88258 *aw)
++{
++	unsigned int val;
++
++	if (regmap_read(aw->regmap, AW88258_HAGCCFG4_REG, &val))
++		return AW88258_VOL_MUTE;
++	val >>= 8;
++	return (val >> 4) * AW88258_VOL_STEP_6DB + (val & 0xf);
++}
++
++static unsigned int aw88258_play_att(struct aw88258 *aw)
++{
++	return max(aw->att, aw->mon_att);
++}
++
++static void aw88258_fade(struct aw88258 *aw, bool in)
++{
++	int att, target = in ? aw88258_play_att(aw) : AW88258_VOL_MUTE;
++
++	att = aw88258_get_att(aw);
++	while (att != target) {
++		if (in)
++			att = max(att - AW88258_VOL_FADE_STEP, target);
++		else
++			att = min(att + AW88258_VOL_FADE_STEP, target);
++		aw88258_set_att(aw, att);
++		usleep_range(in ? 100 : 500, in ? 200 : 600);
++	}
++}
++
++static void aw88258_clear_int(struct aw88258 *aw)
++{
++	unsigned int val;
++
++	/* status is clear-on-read; read twice like the vendor driver */
++	regmap_read(aw->regmap, AW88258_SYSINT_REG, &val);
++	regmap_read(aw->regmap, AW88258_SYSINT_REG, &val);
++}
++
++static s16 aw88258_efuse_slope(struct aw88258 *aw, unsigned int reg)
++{
++	unsigned int val;
++	u16 v;
++
++	if (regmap_read(aw->regmap, reg, &val))
++		return 0;
++	v = val & AW88258_EF_GESLP_MASK;
++	if (v & AW88258_EF_GESLP_SIGN)
++		v |= ~AW88258_EF_GESLP_MASK;
++	return (s16)v;
++}
++
++/* V/I sense calibration from the eFuse, as the vendor driver does after the profile */
++static void aw88258_set_vcalb(struct aw88258 *aw)
++{
++	int icalk = 1000 + aw88258_efuse_slope(aw, AW88258_EFRM1_REG);
++	int vcalk = 1000 + aw88258_efuse_slope(aw, AW88258_EFRH_REG);
++
++	if (vcalk <= 0)
++		return;
++	regmap_write(aw->regmap, AW88258_VTMCTRL3_REG, (1 << 13) * icalk / vcalk);
++}
++
++/* write the profile, keeping the chip powered down and muted */
++static int aw88258_load_profile(struct aw88258 *aw)
++{
++	size_t i;
++	int ret;
++
++	for (i = 0; i + 4 <= aw->prof_len; i += 4) {
++		unsigned int reg = get_unaligned_le16(aw->prof + i);
++		unsigned int val = get_unaligned_le16(aw->prof + i + 2);
++
++		if (reg > AW88258_MAX_REG)
++			continue;
++		switch (reg) {
++		case AW88258_SYSINTM_REG:
++			aw->sysintm = val;
++			val = AW88258_SYSINTM_DEFAULT;
++			break;
++		case AW88258_SYSCTRL_REG:
++			val |= AW88258_PWDN;
++			break;
++		case AW88258_SYSCTRL2_REG:
++			aw->ipeak = val & AW88258_BST_IPEAK;
++			val |= AW88258_HMUTE;
++			break;
++		case AW88258_I2SCTRL_REG:
++			if (aw->chsel)
++				val = (val & ~AW88258_CHSEL) |
++				      FIELD_PREP(AW88258_CHSEL, aw->chsel);
++			break;
++		case AW88258_I2SCFG1_REG:
++			if (aw->rx_slots)
++				val = (val & ~AW88258_RX_SLOTVLD) |
++				      FIELD_PREP(AW88258_RX_SLOTVLD, aw->rx_slots);
++			break;
++		case AW88258_HAGCCFG4_REG:
++			val = (val & ~AW88258_VOL_MASK) | 0xf000;	/* -90 dB */
++			break;
++		}
++		ret = regmap_write(aw->regmap, reg, val);
++		if (ret)
++			return ret;
++	}
++	aw88258_set_vcalb(aw);
++	aw88258_set_att(aw, AW88258_VOL_MUTE);
++	return 0;
++}
++
++static int aw88258_mon_lookup(const struct aw88258_mon_entry *t, int n, int v, int prev)
++{
++	int i, below = -1;
++
++	for (i = 0; i < n; i++) {
++		if (v >= t[i].min && v <= t[i].max)
++			return i;
++		/* the range just below is the more cautious neighbour */
++		if (t[i].max < v && (below < 0 || t[i].max > t[below].max))
++			below = i;
++	}
++	if (prev >= 0)
++		return prev;
++	return below >= 0 ? below : n - 1;
++}
++
++static void aw88258_monitor_work(struct work_struct *work)
++{
++	struct aw88258 *aw = container_of(work, struct aw88258, monitor.work);
++	const struct aw88258_mon_entry *ev, *et;
++	unsigned int vbat, temp, ipeak, gain, att;
++	int t;
++
++	mutex_lock(&aw->lock);
++	if (!aw->powered)
++		goto out;
++	if (regmap_read(aw->regmap, AW88258_VBAT_REG, &vbat) ||
++	    regmap_read(aw->regmap, AW88258_TEMP_REG, &temp))
++		goto resched;
++
++	vbat = (vbat & 0x3ff) * AW88258_VBAT_RANGE_MV / 1023;
++	t = temp & 0x3ff;
++	if (t & AW88258_TEMP_SIGN)
++		t -= 0x400;
++
++	aw->mon_vbat = aw88258_mon_lookup(aw88258_mon_vbat, ARRAY_SIZE(aw88258_mon_vbat),
++					  vbat, aw->mon_vbat);
++	aw->mon_temp = aw88258_mon_lookup(aw88258_mon_temp, ARRAY_SIZE(aw88258_mon_temp),
++					  t, aw->mon_temp);
++	ev = &aw88258_mon_vbat[aw->mon_vbat];
++	et = &aw88258_mon_temp[aw->mon_temp];
++
++	ipeak = min3((unsigned int)ev->ipeak, (unsigned int)et->ipeak, aw->ipeak);
++	gain = max(ev->gain, et->gain);
++	att = (gain >> 4) * AW88258_VOL_STEP_6DB + (gain & 0xf);
++
++	regmap_update_bits(aw->regmap, AW88258_SYSCTRL2_REG, AW88258_BST_IPEAK, ipeak);
++	if (att != aw->mon_att) {
++		dev_info(aw->dev, "VBAT %u mV, %d C: gain -%u.%u dB, ipeak %u\n",
++			 vbat, t, att / 2, att % 2 ? 5 : 0, ipeak);
++		aw->mon_att = att;
++		aw88258_set_att(aw, aw88258_play_att(aw));
++	}
++resched:
++	schedule_delayed_work(&aw->monitor, msecs_to_jiffies(AW88258_MONITOR_MS));
++out:
++	mutex_unlock(&aw->lock);
++}
++
++static void aw88258_power_down(struct aw88258 *aw)
++{
++	if (!aw->powered)
++		return;
++	aw->powered = false;
++	aw88258_fade(aw, false);
++	regmap_update_bits(aw->regmap, AW88258_SYSCTRL2_REG, AW88258_HMUTE, AW88258_HMUTE);
++	regmap_update_bits(aw->regmap, AW88258_SYSCTRL_REG, AW88258_PWDN, AW88258_PWDN);
++	aw88258_clear_int(aw);
++	regmap_write(aw->regmap, AW88258_SYSINTM_REG, AW88258_SYSINTM_DEFAULT);
++}
++
++static int aw88258_power_up(struct aw88258 *aw)
++{
++	unsigned int st = 0;
++	int i;
++
++	if (aw->powered)
++		return 0;
++	if (!aw->prof)
++		return -ENODEV;
++
++	regmap_update_bits(aw->regmap, AW88258_SYSCTRL_REG, AW88258_PWDN, 0);
++	aw88258_clear_int(aw);
++	regmap_write(aw->regmap, AW88258_SYSINTM_REG, aw->sysintm);
++
++	/* the PLL locks to BCLK, which the DSP starts in prepare */
++	for (i = 0; i < AW88258_SYSST_RETRIES; i++) {
++		regmap_read(aw->regmap, AW88258_SYSST_REG, &st);
++		if ((st & AW88258_SYSST_OK) == AW88258_SYSST_OK)
++			break;
++		usleep_range(2000, 2500);
++	}
++	if (i == AW88258_SYSST_RETRIES) {
++		dev_err(aw->dev, "no clock/PLL lock, SYSST 0x%04x\n", st);
++		aw88258_clear_int(aw);
++		regmap_write(aw->regmap, AW88258_SYSINTM_REG, AW88258_SYSINTM_DEFAULT);
++		regmap_update_bits(aw->regmap, AW88258_SYSCTRL_REG, AW88258_PWDN, AW88258_PWDN);
++		return -EIO;
++	}
++
++	regmap_update_bits(aw->regmap, AW88258_SYSCTRL2_REG, AW88258_HMUTE, 0);
++	aw->powered = true;
++	aw88258_fade(aw, true);
++	schedule_delayed_work(&aw->monitor, 0);
++	return 0;
++}
++
++static int aw88258_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
++{
++	struct aw88258 *aw = snd_soc_component_get_drvdata(dai->component);
++	int ret = 0;
++
++	if (mute)
++		cancel_delayed_work_sync(&aw->monitor);
++	mutex_lock(&aw->lock);
++	if (mute)
++		aw88258_power_down(aw);
++	else
++		ret = aw88258_power_up(aw);
++	mutex_unlock(&aw->lock);
++	return ret;
++}
++
++static int aw88258_hw_params(struct snd_pcm_substream *substream,
++			     struct snd_pcm_hw_params *params,
++			     struct snd_soc_dai *dai)
++{
++	/* the profile fixes the interface: 48 kHz, 4 x 32-bit TDM slots */
++	if (params_rate(params) != 48000) {
++		dev_err(dai->dev, "unsupported rate %u\n", params_rate(params));
++		return -EINVAL;
++	}
++	return 0;
++}
++
++static int aw88258_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
++{
++	return 0;
++}
++
++static int aw88258_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
++				unsigned int rx_mask, int slots, int slot_width)
++{
++	return 0;
++}
++
++static const struct snd_soc_dai_ops aw88258_dai_ops = {
++	.hw_params = aw88258_hw_params,
++	.set_fmt = aw88258_set_fmt,
++	.set_tdm_slot = aw88258_set_tdm_slot,
++	.mute_stream = aw88258_mute_stream,
++	.no_capture_mute = 1,
++};
++
++static struct snd_soc_dai_driver aw88258_dai = {
++	.name = "aw88258-aif",
++	.playback = {
++		.stream_name = "Speaker Playback",
++		.channels_min = 1,
++		.channels_max = 8,
++		.rates = SNDRV_PCM_RATE_48000,
++		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
++			   SNDRV_PCM_FMTBIT_S32_LE,
++	},
++	.ops = &aw88258_dai_ops,
++};
++
++static const DECLARE_TLV_DB_SCALE(aw88258_vol_tlv, -9000, 50, 1);
++
++static int aw88258_vol_info(struct snd_kcontrol *kc, struct snd_ctl_elem_info *uinfo)
++{
++	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
++	uinfo->count = 1;
++	uinfo->value.integer.min = 0;
++	uinfo->value.integer.max = AW88258_VOL_CTL_MAX;
++	return 0;
++}
++
++static int aw88258_vol_get(struct snd_kcontrol *kc, struct snd_ctl_elem_value *uc)
++{
++	struct aw88258 *aw = snd_soc_component_get_drvdata(snd_kcontrol_chip(kc));
++
++	uc->value.integer.value[0] = AW88258_VOL_MUTE - aw->att;
++	return 0;
++}
++
++static int aw88258_vol_put(struct snd_kcontrol *kc, struct snd_ctl_elem_value *uc)
++{
++	struct aw88258 *aw = snd_soc_component_get_drvdata(snd_kcontrol_chip(kc));
++	long v = uc->value.integer.value[0];
++	int changed;
++
++	if (v < 0 || v > AW88258_VOL_CTL_MAX)
++		return -EINVAL;
++	mutex_lock(&aw->lock);
++	changed = aw->att != AW88258_VOL_MUTE - v;
++	aw->att = AW88258_VOL_MUTE - v;
++	if (aw->powered)
++		aw88258_set_att(aw, aw88258_play_att(aw));
++	mutex_unlock(&aw->lock);
++	return changed;
++}
++
++static const struct snd_kcontrol_new aw88258_controls[] = {
++	{
++		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
++		.name = "Volume",
++		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
++		.tlv.p = aw88258_vol_tlv,
++		.info = aw88258_vol_info,
++		.get = aw88258_vol_get,
++		.put = aw88258_vol_put,
++	},
++};
++
++static const struct snd_soc_dapm_widget aw88258_widgets[] = {
++	SND_SOC_DAPM_OUTPUT("SPK"),
++};
++
++static const struct snd_soc_dapm_route aw88258_routes[] = {
++	{ "SPK", NULL, "Speaker Playback" },
++};
++
++/* find the music register profile of device section <channel> */
++static int aw88258_parse_acf(struct aw88258 *aw, const struct firmware *fw)
++{
++	const u8 *d = fw->data;
++	size_t len = fw->size;
++	u32 nsec, shoff, i, j;
++
++	if (len < AW_ACF_HDR_SIZE || get_unaligned_le32(d) != AW_ACF_ID) {
++		dev_err(aw->dev, "%s: not an acf file\n", aw->fw_name);
++		return -EINVAL;
++	}
++	nsec = get_unaligned_le32(d + 0x38);
++	shoff = get_unaligned_le32(d + 0x3c);
++	if (shoff > len || nsec > (len - shoff) / AW_ACF_SHDR_SIZE)
++		return -EINVAL;
++
++	for (i = 0; i < nsec; i++) {
++		const u8 *sh = d + shoff + i * AW_ACF_SHDR_SIZE;
++		u32 off = get_unaligned_le32(sh + 4);
++		u32 nprof = get_unaligned_le32(sh + 16);
++
++		if (get_unaligned_le32(sh) != AW_ACF_SEC_DEVICE ||
++		    get_unaligned_le32(sh + 12) != aw->channel)
++			continue;
++		if (off > len || nprof > (len - off) / AW_ACF_SHDR_SIZE)
++			return -EINVAL;
++
++		for (j = 0; j < nprof; j++) {
++			const u8 *ph = d + off + j * AW_ACF_SHDR_SIZE;
++			u32 poff = get_unaligned_le32(ph + 4);
++			u32 psize = get_unaligned_le32(ph + 8);
++
++			if (get_unaligned_le32(ph) != AW_ACF_SEC_REG ||
++			    get_unaligned_le32(ph + 12) != AW_ACF_PROFILE_MUSIC)
++				continue;
++			if (poff > len - off || psize > len - off - poff || psize % 4)
++				return -EINVAL;
++			aw->prof = devm_kmemdup(aw->dev, d + off + poff, psize, GFP_KERNEL);
++			if (!aw->prof)
++				return -ENOMEM;
++			aw->prof_len = psize;
++			return 0;
++		}
++	}
++	dev_err(aw->dev, "%s: no music profile for device %u\n", aw->fw_name, aw->channel);
++	return -ENOENT;
++}
++
++static int aw88258_component_probe(struct snd_soc_component *component)
++{
++	struct aw88258 *aw = snd_soc_component_get_drvdata(component);
++	const struct firmware *fw;
++	int ret;
++
++	/*
++	 * The file is taken from the tablet's vendor partition at boot and may not be there
++	 * yet: defer, the card is tried again once it shows up and an amplifier is bound again.
++	 */
++	ret = firmware_request_nowarn(&fw, aw->fw_name, aw->dev);
++	if (ret == -ENOENT)
++		return dev_err_probe(aw->dev, -EPROBE_DEFER, "waiting for %s\n", aw->fw_name);
++	if (ret)
++		return dev_err_probe(aw->dev, ret, "failed to load %s\n", aw->fw_name);
++	ret = aw88258_parse_acf(aw, fw);
++	release_firmware(fw);
++	if (ret)
++		return ret;
++
++	mutex_lock(&aw->lock);
++	ret = aw88258_load_profile(aw);
++	mutex_unlock(&aw->lock);
++	if (ret)
++		return dev_err_probe(aw->dev, ret, "failed to write the profile\n");
++
++	dev_info(aw->dev, "device %u: %zu registers from %s\n", aw->channel,
++		 aw->prof_len / 4, aw->fw_name);
++	return 0;
++}
++
++static void aw88258_component_remove(struct snd_soc_component *component)
++{
++	struct aw88258 *aw = snd_soc_component_get_drvdata(component);
++
++	cancel_delayed_work_sync(&aw->monitor);
++	mutex_lock(&aw->lock);
++	aw88258_power_down(aw);
++	mutex_unlock(&aw->lock);
++}
++
++static const struct snd_soc_component_driver aw88258_component = {
++	.probe = aw88258_component_probe,
++	.remove = aw88258_component_remove,
++	.controls = aw88258_controls,
++	.num_controls = ARRAY_SIZE(aw88258_controls),
++	.dapm_widgets = aw88258_widgets,
++	.num_dapm_widgets = ARRAY_SIZE(aw88258_widgets),
++	.dapm_routes = aw88258_routes,
++	.num_dapm_routes = ARRAY_SIZE(aw88258_routes),
++	.endianness = 1,
++};
++
++static const char * const aw88258_rx_channels[] = { "left", "right" };
++
++static int aw88258_i2c_probe(struct i2c_client *i2c)
++{
++	struct device *dev = &i2c->dev;
++	struct aw88258 *aw;
++	unsigned int id;
++	int ret;
++
++	aw = devm_kzalloc(dev, sizeof(*aw), GFP_KERNEL);
++	if (!aw)
++		return -ENOMEM;
++	aw->dev = dev;
++	aw->att = AW88258_VOL_MIN_ATT;
++	aw->sysintm = AW88258_SYSINTM_DEFAULT;
++	aw->mon_vbat = -1;
++	aw->mon_temp = -1;
++	mutex_init(&aw->lock);
++	INIT_DELAYED_WORK(&aw->monitor, aw88258_monitor_work);
++	i2c_set_clientdata(i2c, aw);
++
++	ret = device_property_read_u32(dev, "awinic,channel", &aw->channel);
++	if (ret)
++		return dev_err_probe(dev, ret, "missing awinic,channel\n");
++	aw->fw_name = "awinic/aw882xx_acf.bin";
++	device_property_read_string(dev, "firmware-name", &aw->fw_name);
++	device_property_read_u32(dev, "awinic,rx-slot-mask", &aw->rx_slots);
++	if (aw->rx_slots & ~0xfU)
++		return dev_err_probe(dev, -EINVAL, "bad awinic,rx-slot-mask\n");
++	ret = device_property_match_property_string(dev, "awinic,rx-channel",
++						     aw88258_rx_channels,
++						     ARRAY_SIZE(aw88258_rx_channels));
++	if (ret >= 0)
++		aw->chsel = ret ? AW88258_CHSEL_RIGHT : AW88258_CHSEL_LEFT;
++	else if (ret != -EINVAL)
++		return dev_err_probe(dev, ret, "bad awinic,rx-channel\n");
++
++	aw->regmap = devm_regmap_init_i2c(i2c, &aw88258_regmap);
++	if (IS_ERR(aw->regmap))
++		return PTR_ERR(aw->regmap);
++
++	/* one reset line for all amplifiers; nothing is configured before the card binds */
++	aw->reset = devm_gpiod_get_optional(dev, "reset",
++					    GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
++	if (IS_ERR(aw->reset))
++		return dev_err_probe(dev, PTR_ERR(aw->reset), "failed to get reset gpio\n");
++	if (aw->reset) {
++		usleep_range(1000, 1500);
++		gpiod_set_value_cansleep(aw->reset, 0);
++		usleep_range(2000, 2500);
++	}
++
++	ret = regmap_read(aw->regmap, AW88258_ID_REG, &id);
++	if (ret)
++		return dev_err_probe(dev, ret, "failed to read chip id\n");
++	if (id != AW88258_CHIP_ID)
++		return dev_err_probe(dev, -ENODEV, "unknown chip id 0x%04x\n", id);
++
++	return devm_snd_soc_register_component(dev, &aw88258_component, &aw88258_dai, 1);
++}
++
++static const struct of_device_id aw88258_of_match[] = {
++	{ .compatible = "awinic,aw88258" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, aw88258_of_match);
++
++static const struct i2c_device_id aw88258_i2c_id[] = {
++	{ "aw88258" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, aw88258_i2c_id);
++
++static struct i2c_driver aw88258_i2c_driver = {
++	.driver = {
++		.name = "aw88258",
++		.of_match_table = aw88258_of_match,
++	},
++	.probe = aw88258_i2c_probe,
++	.id_table = aw88258_i2c_id,
++};
++module_i2c_driver(aw88258_i2c_driver);
++
++MODULE_DESCRIPTION("Awinic AW88258 amplifier driver");
++MODULE_LICENSE("GPL");
+--- a/sound/soc/codecs/Kconfig
++++ b/sound/soc/codecs/Kconfig
+@@ -726,6 +726,14 @@
+ 	  sound quality, which is a new high efficiency, low
+ 	  noise, constant large volume, 6th Smart K audio amplifier.
+ 
++config SND_SOC_AW88258
++	tristate "Soc Audio for awinic aw88258"
++	depends on I2C
++	select REGMAP_I2C
++	help
++	  Awinic AW88258 smart K class amplifier with I2C control and
++	  I2S/TDM audio input, configured from the vendor acf file.
++
+ config SND_SOC_AW88399
+ 	tristate "Soc Audio for awinic aw88399"
+ 	depends on I2C
+--- a/sound/soc/codecs/Makefile
++++ b/sound/soc/codecs/Makefile
+@@ -54,6 +54,7 @@
+ snd-soc-aw88395-y := aw88395/aw88395.o
+ snd-soc-aw88166-y := aw88166.o
+ snd-soc-aw88261-y := aw88261.o
++snd-soc-aw88258-y := aw88258.o
+ snd-soc-aw88399-y := aw88399.o
+ snd-soc-bd28623-y := bd28623.o
+ snd-soc-bt-sco-y := bt-sco.o
+@@ -495,6 +496,7 @@
+ obj-$(CONFIG_SND_SOC_AW88395)	+=snd-soc-aw88395.o
+ obj-$(CONFIG_SND_SOC_AW88166)	+=snd-soc-aw88166.o
+ obj-$(CONFIG_SND_SOC_AW88261)	+=snd-soc-aw88261.o
++obj-$(CONFIG_SND_SOC_AW88258)	+=snd-soc-aw88258.o
+ obj-$(CONFIG_SND_SOC_AW88399)	+= snd-soc-aw88399.o
+ obj-$(CONFIG_SND_SOC_BD28623)	+= snd-soc-bd28623.o
+ obj-$(CONFIG_SND_SOC_BT_SCO)	+= snd-soc-bt-sco.o

@@ -9,6 +9,8 @@
 #include "pmi632.dtsi"
 /* Lenovo ABL applies the stock dtbo unconditionally unless dtbo is erased, see the dtsi */
 #include "sm6115p-lenovo-j606f-abl-sink.dtsi"
+/* headphone jack: LPASS macros, SoundWire, WCD937x */
+#include "sm6115p-lenovo-j606f-audio.dtsi"
 
 / {
 	usb_otg_vbus: regulator-usb-otg-vbus {

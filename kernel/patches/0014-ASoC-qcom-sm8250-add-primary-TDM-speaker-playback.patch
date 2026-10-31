@@ -1,0 +1,42 @@
+From: Yar1klamer
+Subject: [PATCH] ASoC: qcom: sm8250: add primary TDM speaker playback
+
+Lenovo TB-J606F drives its four AW88258 speaker amplifiers from the
+primary TDM port: a frame of four 32-bit slots at 48 kHz with the bit
+clock from the DSP. Stereo goes to slots 0 and 1; each amplifier picks
+its left or right channel from there.
+
+---
+ sound/soc/qcom/sm8250.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+--- a/sound/soc/qcom/sm8250.c
++++ b/sound/soc/qcom/sm8250.c
+@@ -17,6 +17,11 @@
+ #include "sdw.h"
+ 
+ #define MI2S_BCLK_RATE		1536000
++#define TDM_SLOTS		4
++#define TDM_SLOT_WIDTH		32
++#define TDM_BCLK_RATE		(48000 * TDM_SLOTS * TDM_SLOT_WIDTH)
++
++static const unsigned int tdm_slot_offset[] = { 0, 4 };
+ 
+ struct sm8250_snd_data {
+ 	bool stream_prepared[AFE_PORT_MAX];
+@@ -112,6 +117,15 @@
+ 		snd_soc_dai_set_fmt(cpu_dai, fmt);
+ 		snd_soc_dai_set_fmt(codec_dai, codec_dai_fmt);
+ 		break;
++	case PRIMARY_TDM_RX_0:
++		snd_soc_dai_set_sysclk(cpu_dai, Q6AFE_LPASS_CLK_ID_PRI_TDM_IBIT,
++				       TDM_BCLK_RATE, SNDRV_PCM_STREAM_PLAYBACK);
++		snd_soc_dai_set_tdm_slot(cpu_dai, 0, GENMASK(1, 0),
++					 TDM_SLOTS, TDM_SLOT_WIDTH);
++		snd_soc_dai_set_channel_map(cpu_dai, 0, NULL,
++					    ARRAY_SIZE(tdm_slot_offset),
++					    tdm_slot_offset);
++		break;
+ 	default:
+ 		break;
+ 	}

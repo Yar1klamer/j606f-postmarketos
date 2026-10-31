@@ -8,11 +8,12 @@
 #        so they win over the shared S320208 set of the repository's firmware-lenovo-j606f 0.320208.
 #        A firmware-lenovo-j606f built from this tablet's own backup (pkgver 1) is used as it is.
 #        An apk trigger runs this again whenever a package changes the firmware directory.
-#   super -> vendor_a/b (ext4)  firmware/a610_zap.mdt+.bNN -> .mbn (GPU), firmware/Himax_*.bin (touch)
+#   super -> vendor_a/b (ext4)  firmware/a610_zap.mdt+.bNN -> .mbn (GPU), firmware/Himax_*.bin (touch),
+#                               firmware/awinic/aw882xx_acf.bin (speaker amplifier settings)
 #     -> /lib/firmware, only if no package has them (the GPU firmware also goes into the initramfs,
 #        and these files work with any stock version).
 # vendor lives in super, which a pmOS install into userdata leaves alone; if super was overwritten,
-# the GPU and touch firmware come from the firmware package.
+# the GPU and touch firmware come from the firmware package (the speakers need its awinic file too).
 #   firmware-extract          add what is missing (apk post-install/post-upgrade; reboot afterwards)
 #   firmware-extract --boot   the same at boot, then start the DSPs and Venus that missed their firmware
 # For testing: J606F_FIRMWARE_ROOT=<dir> writes there instead of /lib/firmware.
@@ -63,7 +64,8 @@ fi
 
 MODEM_FILES="$OWN/adsp.mbn $OWN/cdsp.mbn $OWN/modem.mbn $OWN/venus.mbn $OWN/wlanmdsp.mbn"
 BT_FILES="$BASE/qca/crbtfw21.tlv $BASE/qca/crnv21.bin"
-VENDOR_FILES="$QC/a610_zap.mbn $FW/Himax_firmware.bin $FW/Himax_mpfw.bin"
+ACF=$FW/awinic/aw882xx_acf.bin
+VENDOR_FILES="$QC/a610_zap.mbn $FW/Himax_firmware.bin $FW/Himax_mpfw.bin $ACF"
 missing $MODEM_FILES $BT_FILES $VENDOR_FILES || exit 0
 
 part() {
@@ -161,6 +163,9 @@ if missing $VENDOR_FILES && super=$(part super) && command -v make-dynpart-mappi
 		squash "$MNT/firmware" a610_zap "$QC/a610_zap.mbn" "vendor$s"
 		add "$MNT/firmware/Himax_firmware.bin" "$FW/Himax_firmware.bin" "vendor$s"
 		add "$MNT/firmware/Himax_mpfw.bin" "$FW/Himax_mpfw.bin" "vendor$s"
+		# the old Awinic container (first bytes 08 f9 15 0a) is the only format the driver reads
+		[ "$(od -An -tx1 -N4 "$MNT/firmware/awinic/aw882xx_acf.bin" 2>/dev/null | tr -d ' \n')" = "08f9150a" ] &&
+			add "$MNT/firmware/awinic/aw882xx_acf.bin" "$ACF" "vendor$s"
 		umount "$MNT"
 	done
 fi
@@ -192,6 +197,21 @@ V=/sys/bus/platform/drivers/qcom-venus
 if [ -d "$V" ] && [ ! -e "$V/5a00000.video-codec" ]; then
 	echo 5a00000.video-codec > "$V/bind" 2>/dev/null
 fi
+# the speaker amplifiers read their settings when the sound card comes up, which waits for the file:
+# binding one amplifier again makes the kernel retry the card
+case "$ADDED" in
+*aw882xx_acf*)
+	if ! grep -q "Lenovo-TB-J606F" /proc/asound/cards 2>/dev/null; then
+		for d in /sys/bus/i2c/drivers/aw88258/*-00*; do
+			[ -e "$d" ] || continue
+			n=$(basename "$d")
+			echo "$n" > /sys/bus/i2c/drivers/aw88258/unbind 2>/dev/null
+			echo "$n" > /sys/bus/i2c/drivers/aw88258/bind 2>/dev/null
+			break
+		done
+		log "speaker settings in place, sound card tried again"
+	fi ;;
+esac
 # the GPU firmware is taken from the initramfs, the touch firmware at probe: both need a new boot
 case "$ADDED" in
 *a610_zap*|*Himax*)

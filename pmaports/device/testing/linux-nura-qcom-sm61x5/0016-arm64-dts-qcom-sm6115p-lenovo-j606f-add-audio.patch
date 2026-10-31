@@ -1,0 +1,305 @@
+From: Yar1klamer
+Subject: [PATCH] arm64: dts: qcom: sm6115p-lenovo-j606f: add audio
+
+Sound card with the four AW88258 speaker amplifiers on the primary TDM
+port (stereo, left and right pairs) and the WCD937x codec on SoundWire
+for the USB-C headset path, from the stock device tree.
+---
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-audio.dtsi
+@@ -0,0 +1,284 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Lenovo Tab P11 (TB-J606F) audio. Headset path through the LPASS RX/TX macros, SoundWire and
++ * the WCD937x codec, taken from the stock DT (bolero-cdc, wcd937x-codec, bengal-asoc-snd):
++ * WCD937x reset on GPIO92, VDD_RXTX/VDD_PX from L9A and VDD_BUCK from L14A (1.8 V),
++ * micbias 1.8 V, HPHL switch normally closed. On this tablet the WCD937x output goes to the
++ * USB-C port through an FSA4480 switch (no 3.5 mm jack), which is not described yet.
++ *
++ * Speakers: four AW88258 amplifiers on I2C0 0x34-0x37 with one reset line (GPIO42), fed from
++ * the primary TDM port on LPASS LPI GPIO6-9: four 32-bit slots at 48 kHz, DSP clock master,
++ * short inverted frame sync (stock qcom,msm-dai-tdm-pri-rx). awinic,channel selects the
++ * device section in the vendor aw882xx_acf.bin. Stereo is carried in slots 0/1; the profile
++ * puts the top amplifiers on slots 2/3, so they are moved to 0/1 (awinic,rx-slot-mask), and
++ * their profile channels are the wrong way round for this layout (awinic,rx-channel).
++ * In landscape with the camera on top: 0x34 bottom left, 0x35 bottom right, 0x36 top right,
++ * 0x37 top left (each amplifier played alone, 2026-10-31).
++ */
++
++#include <dt-bindings/gpio/gpio.h>
++#include <dt-bindings/sound/qcom,q6afe.h>
++#include <dt-bindings/sound/qcom,q6asm.h>
++
++/ {
++	vph_pwr: regulator-vph-pwr {
++		compatible = "regulator-fixed";
++		regulator-name = "vph_pwr";
++		regulator-min-microvolt = <3700000>;
++		regulator-max-microvolt = <3700000>;
++		regulator-always-on;
++		regulator-boot-on;
++	};
++
++	wcd937x: codec {
++		compatible = "qcom,wcd9370-codec";
++		pinctrl-0 = <&wcd_reset_n>;
++		pinctrl-names = "default";
++		reset-gpios = <&tlmm 92 GPIO_ACTIVE_LOW>;
++		vdd-buck-supply = <&pm6125_l14>;
++		vdd-rxtx-supply = <&pm6125_l9>;
++		vdd-px-supply = <&pm6125_l9>;
++		vdd-mic-bias-supply = <&vph_pwr>;
++		qcom,micbias1-microvolt = <1800000>;
++		qcom,micbias2-microvolt = <1800000>;
++		qcom,micbias3-microvolt = <1800000>;
++		qcom,micbias4-microvolt = <1800000>;
++		qcom,hphl-jack-type-normally-closed;
++		qcom,mbhc-buttons-vthreshold-microvolt = <75000 150000 237000 500000 500000 500000 500000 500000>;
++		qcom,rx-device = <&wcd937x_rx>;
++		qcom,tx-device = <&wcd937x_tx>;
++		#sound-dai-cells = <1>;
++	};
++
++	sound {
++		compatible = "qcom,qrb4210-rb2-sndcard";
++		model = "Lenovo-TB-J606F";
++		pinctrl-0 = <&lpass_tdm1_active>;
++		pinctrl-names = "default";
++		audio-routing = "IN1_HPHL", "HPHL_OUT",
++				"IN2_HPHR", "HPHR_OUT",
++				"AMIC2", "MIC BIAS2",
++				"TX SWR_INPUT1", "ADC2_OUTPUT";
++
++		mm1-dai-link {
++			link-name = "MultiMedia1";
++
++			cpu {
++				sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA1>;
++			};
++		};
++
++		mm2-dai-link {
++			link-name = "MultiMedia2";
++
++			cpu {
++				sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA2>;
++			};
++		};
++
++		mm3-dai-link {
++			link-name = "MultiMedia3";
++
++			cpu {
++				sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA3>;
++			};
++		};
++
++		hph-dai-link {
++			link-name = "Headphones Playback";
++
++			codec {
++				sound-dai = <&wcd937x 0>, <&swr1 0>, <&rxmacro 0>;
++			};
++
++			cpu {
++				sound-dai = <&q6afedai RX_CODEC_DMA_RX_0>;
++			};
++
++			platform {
++				sound-dai = <&q6routing>;
++			};
++		};
++
++		speaker-dai-link {
++			link-name = "Speaker Playback";
++
++			codec {
++				sound-dai = <&speaker_amp0>, <&speaker_amp1>,
++					    <&speaker_amp2>, <&speaker_amp3>;
++			};
++
++			cpu {
++				sound-dai = <&q6afedai PRIMARY_TDM_RX_0>;
++			};
++
++			platform {
++				sound-dai = <&q6routing>;
++			};
++		};
++
++		headset-mic-dai-link {
++			link-name = "Headset Mic Capture";
++
++			codec {
++				sound-dai = <&wcd937x 1>, <&swr0 0>, <&txmacro 0>;
++			};
++
++			cpu {
++				sound-dai = <&q6afedai TX_CODEC_DMA_TX_3>;
++			};
++
++			platform {
++				sound-dai = <&q6routing>;
++			};
++		};
++	};
++};
++
++&i2c0 {
++	speaker_amp0: amplifier@34 {
++		compatible = "awinic,aw88258";
++		reg = <0x34>;
++		reset-gpios = <&tlmm 42 GPIO_ACTIVE_LOW>;
++		awinic,channel = <0>;
++		sound-name-prefix = "SpkBL";
++		#sound-dai-cells = <0>;
++	};
++
++	speaker_amp1: amplifier@35 {
++		compatible = "awinic,aw88258";
++		reg = <0x35>;
++		reset-gpios = <&tlmm 42 GPIO_ACTIVE_LOW>;
++		awinic,channel = <1>;
++		sound-name-prefix = "SpkBR";
++		#sound-dai-cells = <0>;
++	};
++
++	speaker_amp2: amplifier@36 {
++		compatible = "awinic,aw88258";
++		reg = <0x36>;
++		reset-gpios = <&tlmm 42 GPIO_ACTIVE_LOW>;
++		awinic,channel = <2>;
++		awinic,rx-slot-mask = <0x3>;
++		awinic,rx-channel = "right";
++		sound-name-prefix = "SpkTR";
++		#sound-dai-cells = <0>;
++	};
++
++	speaker_amp3: amplifier@37 {
++		compatible = "awinic,aw88258";
++		reg = <0x37>;
++		reset-gpios = <&tlmm 42 GPIO_ACTIVE_LOW>;
++		awinic,channel = <3>;
++		awinic,rx-slot-mask = <0x3>;
++		awinic,rx-channel = "left";
++		sound-name-prefix = "SpkTL";
++		#sound-dai-cells = <0>;
++	};
++};
++
++&lpass_tlmm {
++	lpass_tdm1_active: lpass-tdm1-active-state {
++		sck-pins {
++			pins = "gpio6";
++			function = "i2s1_clk";
++			drive-strength = <8>;
++			bias-disable;
++		};
++
++		ws-pins {
++			pins = "gpio7";
++			function = "i2s1_ws";
++			drive-strength = <8>;
++			bias-disable;
++		};
++
++		data-pins {
++			pins = "gpio8", "gpio9";
++			function = "i2s1_data";
++			drive-strength = <8>;
++			bias-disable;
++		};
++	};
++
++	lpass_tx_swr_active: lpass-tx-swr-active-state {
++		clk-pins {
++			pins = "gpio0";
++			function = "swr_tx_clk";
++			drive-strength = <10>;
++			slew-rate = <3>;
++			bias-disable;
++		};
++
++		data-pins {
++			pins = "gpio1", "gpio2";
++			function = "swr_tx_data";
++			drive-strength = <10>;
++			slew-rate = <3>;
++			bias-bus-hold;
++		};
++	};
++
++	lpass_rx_swr_active: lpass-rx-swr-active-state {
++		clk-pins {
++			pins = "gpio3";
++			function = "swr_rx_clk";
++			drive-strength = <10>;
++			slew-rate = <3>;
++			bias-disable;
++		};
++
++		data-pins {
++			pins = "gpio4", "gpio5";
++			function = "swr_rx_data";
++			drive-strength = <10>;
++			slew-rate = <3>;
++			bias-bus-hold;
++		};
++	};
++};
++
++&q6afedai {
++	dai@18 {
++		reg = <PRIMARY_TDM_RX_0>;
++		qcom,tdm-sync-mode = <0>;
++		qcom,tdm-sync-src = <1>;
++		qcom,tdm-data-out = <0>;
++		qcom,tdm-invert-sync = <1>;
++		qcom,tdm-data-delay = <0>;
++		qcom,tdm-data-align = <0>;
++	};
++};
++
++&swr0 {
++	pinctrl-0 = <&lpass_tx_swr_active>;
++	pinctrl-names = "default";
++	status = "okay";
++
++	wcd937x_tx: codec@0,3 {
++		compatible = "sdw20217010a00";
++		reg = <0 3>;
++		qcom,tx-port-mapping = <1 1 2 3>;
++	};
++};
++
++&swr1 {
++	pinctrl-0 = <&lpass_rx_swr_active>;
++	pinctrl-names = "default";
++	status = "okay";
++
++	wcd937x_rx: codec@0,4 {
++		compatible = "sdw20217010a00";
++		reg = <0 4>;
++		qcom,rx-port-mapping = <1 2 3 4 5>;
++	};
++};
++
++&tlmm {
++	wcd_reset_n: wcd-reset-n-state {
++		pins = "gpio92";
++		function = "gpio";
++		drive-strength = <16>;
++		output-high;
++	};
++};
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+@@ -9,6 +9,8 @@
+ #include "pmi632.dtsi"
+ /* Lenovo ABL applies the stock dtbo unconditionally unless dtbo is erased, see the dtsi */
+ #include "sm6115p-lenovo-j606f-abl-sink.dtsi"
++/* audio: LPASS macros, SoundWire, WCD937x, AW88258 speaker amplifiers */
++#include "sm6115p-lenovo-j606f-audio.dtsi"
+ 
+ / {
+ 	usb_otg_vbus: regulator-usb-otg-vbus {

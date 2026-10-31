@@ -1,0 +1,81 @@
+From: Yar1klamer
+Subject: [PATCH] soundwire: qcom: recover from clock stop without devices
+
+When the controller suspends while no device is attached yet (the codec
+is still held in reset), the clock stop is done without any slave and
+on resume the link never restarts frame generation: every later
+transfer times out and the codec stays unattached until a reboot.
+
+If frames do not come back after a clock stop, reinitialise the link
+like the clock_stop_not_supported path does.
+---
+--- a/drivers/soundwire/qcom.c
++++ b/drivers/soundwire/qcom.c
+@@ -1701,6 +1701,25 @@
+ 	clk_disable_unprepare(ctrl->hclk);
+ }
+ 
++static void swrm_reinit_link(struct qcom_swrm_ctrl *ctrl)
++{
++	reinit_completion(&ctrl->enumeration);
++	ctrl->reg_write(ctrl, SWRM_COMP_SW_RESET, 0x01);
++	usleep_range(100, 105);
++
++	qcom_swrm_init(ctrl);
++
++	usleep_range(100, 105);
++	if (!swrm_wait_for_frame_gen_enabled(ctrl))
++		dev_err(ctrl->dev, "link failed to connect\n");
++
++	/* wait for hw enumeration to complete */
++	wait_for_completion_timeout(&ctrl->enumeration,
++				    msecs_to_jiffies(TIMEOUT_MS));
++	qcom_swrm_get_device_status(ctrl);
++	sdw_handle_slave_status(&ctrl->bus, ctrl->status);
++}
++
+ static int __maybe_unused swrm_runtime_resume(struct device *dev)
+ {
+ 	struct qcom_swrm_ctrl *ctrl = dev_get_drvdata(dev);
+@@ -1714,21 +1733,7 @@
+ 	clk_prepare_enable(ctrl->hclk);
+ 
+ 	if (ctrl->clock_stop_not_supported) {
+-		reinit_completion(&ctrl->enumeration);
+-		ctrl->reg_write(ctrl, SWRM_COMP_SW_RESET, 0x01);
+-		usleep_range(100, 105);
+-
+-		qcom_swrm_init(ctrl);
+-
+-		usleep_range(100, 105);
+-		if (!swrm_wait_for_frame_gen_enabled(ctrl))
+-			dev_err(ctrl->dev, "link failed to connect\n");
+-
+-		/* wait for hw enumeration to complete */
+-		wait_for_completion_timeout(&ctrl->enumeration,
+-					    msecs_to_jiffies(TIMEOUT_MS));
+-		qcom_swrm_get_device_status(ctrl);
+-		sdw_handle_slave_status(&ctrl->bus, ctrl->status);
++		swrm_reinit_link(ctrl);
+ 	} else {
+ 		reset_control_reset(ctrl->audio_cgcr);
+ 
+@@ -1755,8 +1760,16 @@
+ 				ctrl->intr_mask);
+ 
+ 		usleep_range(100, 105);
+-		if (!swrm_wait_for_frame_gen_enabled(ctrl))
+-			dev_err(ctrl->dev, "link failed to connect\n");
++		if (!swrm_wait_for_frame_gen_enabled(ctrl)) {
++			/*
++			 * A bus that stopped its clock with no device attached
++			 * (the codec was still in reset) does not restart frame
++			 * generation here; bring it up like at probe instead.
++			 */
++			dev_dbg(ctrl->dev, "no frames after clock stop, reinitialising\n");
++			swrm_reinit_link(ctrl);
++			return 0;
++		}
+ 
+ 		ret = sdw_bus_exit_clk_stop(&ctrl->bus);
+ 		if (ret < 0)

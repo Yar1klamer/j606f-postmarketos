@@ -51,6 +51,17 @@ for name in Himax_firmware.bin Himax_mpfw.bin; do
 	[ -s "$WORK/$name" ] || { echo "нет $name" >&2; exit 1; }
 	cp "$WORK/$name" "$WORK/package/$name"
 done
+# настройки усилителей динамиков AW88258 (/vendor/firmware/awinic), старый формат acf: 08 f9 15 0a
+EXTRA=""
+if [ -s "$WORK/awinic/aw882xx_acf.bin" ]; then
+	[ "$(od -An -tx1 -N4 "$WORK/awinic/aw882xx_acf.bin" | tr -d ' \n')" = "08f9150a" ] ||
+		{ echo "awinic/aw882xx_acf.bin неизвестного формата" >&2; exit 1; }
+	mkdir -p "$WORK/package/awinic"
+	cp "$WORK/awinic/aw882xx_acf.bin" "$WORK/package/awinic/aw882xx_acf.bin"
+	EXTRA=awinic
+else
+	echo "предупреждение: нет awinic/aw882xx_acf.bin, динамики возьмут его только с vendor" >&2
+fi
 
 mkdir -p "$(dirname -- "$OUT")"
 # владелец root, без macOS-метаданных (._*, xattr) и имени пользователя сборщика
@@ -60,7 +71,7 @@ else
 	TAR_OWNER="--uid 0 --gid 0 --uname root --gname root"
 fi
 # shellcheck disable=SC2086
-COPYFILE_DISABLE=1 tar $TAR_OWNER -cf "$OUT" -C "$WORK/package" qcom qca Himax_firmware.bin Himax_mpfw.bin
+COPYFILE_DISABLE=1 tar $TAR_OWNER -cf "$OUT" -C "$WORK/package" qcom qca Himax_firmware.bin Himax_mpfw.bin $EXTRA
 for path in \
 	qcom/sm6115/LENOVO/J606F/a610_zap.mbn \
 	qcom/sm6115/LENOVO/J606F/adsp.mbn \
