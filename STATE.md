@@ -37,12 +37,12 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
   `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` с `-R …/J606F`; iio-sensor-proxy включён, датчики работают (`monitor-sensor`: свет, приближение, акселерометр);
 - `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (отключено, пока не было тача; владелец решил так и оставить);
 - `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
-- mpv (`~/.config/mpv/mpv.conf`: profile=fast, `hwdec=v4l2m2m-copy` — аппаратный Venus H.264/HEVC), glmark2, vkmark;
+- mpv (настройки из device r20: `/etc/mpv/mpv.conf` — profile=fast, hwdec=no; свой `~/.config/mpv/mpv.conf` убран), glmark2, vkmark;
 - `/etc/apk/repositories`: pmOS — `https://mirror.minlexx.ru/postmarketos/{extra-repos/systemd/main,main}`, Alpine — `http://mirror.yandex.ru/mirrors/alpine/edge/{main,community,testing}`
   (mirror.nura.eco из этой сети отдаёт ~500 Б/с; запасной вариант — официальное RWTH Aachen).
 
 ## 3. Следующий шаг
-1. ✅ **Venus работает**: ядро r115 + firmware r2, аппаратные H.264 и HEVC 1080p проверены через `v4l2m2m-copy` с корректным EOF. Сохранить патчи/APK и опубликовать исходники после review.
+1. ✅ **Venus работает**: ядро r115 + firmware r2, аппаратные H.264 и HEVC 1080p проверены через `v4l2m2m-copy` с корректным EOF. Опубликовано (патч 0011 в репозитории, пакеты в apk-репозитории); в mpv по умолчанию программное декодирование (r20).
 2. Сон: r110 исправил USB ep0, r111 дал успешный s2idle; ручной `j606f-sleep` восстанавливает BT, но финальная проверка ADSP/датчиков/USB не завершена.
    Helper пока не отслеживается Git и не включён в device APKBUILD — оформить после повторного теста.
 3. Офлайн-зарядка: device r11 различает reboot и charger boot. Завершить финальный цикл: poweroff → charger mode → Power hold → boot → unplug → poweroff.

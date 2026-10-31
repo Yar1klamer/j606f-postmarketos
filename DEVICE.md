@@ -24,18 +24,20 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | Экран | BOE + Himax HX83102P, DSI 4 lane, 1200x2000@60, msm DPU 6.3 + panel-himax-hx83102 (патч 0001) | ✅ подтверждено визуально; панель смонтирована перевёрнутой (rotation 180) |
 | Подсветка | DCS 0x51 12 бит (0…4095) → SGM37604A (en: pmi632 gpio6) | ✅ подтверждено визуально; DCS 0x52 (чтение) не поддерживается |
 | LCD bias | TPS65132 I2C1 0x3e, ±5.7 В, ENP tlmm 111, ENN tlmm 44 | ✅ |
-| GPU | Adreno 610, freedreno FD610 (Mesa 26.2.5), zap a610_zap.mbn | ✅ GLES 3.2, kmscube 59.99 fps, weston 60 fps |
+| GPU | Adreno 610, freedreno FD610 (Mesa 26.2.5), zap a610_zap.mbn | ✅ GLES 3.2 и Vulkan (turnip), Plasma 60 Гц; голосование за DDR (патч 0009) |
 | Тач/стилус | Himax HX83102E zero-flash, SPI0 (QUP SE2 4a88000), irq tlmm 86, rst tlmm 54, FW Himax_firmware.bin | ✅ тач работает полноценно, однако стилус не можем проверить так как его нет |
 | Wi-Fi | WCN3990 ath10k_snoc, chip_id 0x150, FW WLAN.HL.3.2.4-00564 (через MPSS + rmtfs + tqftpserv) | ✅ сканирование (2.4+5 ГГц); подключение  проверено |
-| BT | WCN3990 (cherokee) на uart3 4a8c000, SOC 0x40020150, crbtfw21.tlv/crnv21.bin | ✅ сканирование (21 LE-устройство) |
+| BT | WCN3990 (cherokee) на uart3 4a8c000, SOC 0x40020150, crbtfw21.tlv/crnv21.bin | ✅ полностью: сопряжение, HID-устройства (мышь) |
 | USB | DWC3 4e00000, peripheral, HS | ✅ ECM/NCM/ACM; host/OTG проверены |
-| Батарея | MM8013 I2C0 0x55 (`mitsumi,mm8013`), 7500 мА·ч, 328 циклов | ✅ в отладке; в pmOS нужен modules-load |
-| Зарядка | PMI632 (smb5) + SMB1355 | ⚠️ заряжается на HW-дефолтах, драйвера нет |
+| Type-C | FUSB302 I2C0 0x22 (tcpm), VBUS-буст gpio38 (патч 0008) | ✅ OTG и зарядка C-to-C (Rd), без PD |
+| Батарея | MM8013 I2C0 0x55 (`mitsumi,mm8013`), 7500 мА·ч, 328 циклов (29.10) | ✅ заряд/разряд и знак тока верные (патч 0005) |
+| Зарядка | PMI632 (smb5) + SMB1355 | ✅ заряжает (5 В, вход 1.5 А); ⚠️ драйвер PMI632 только читает (патч 0004), настройки загрузчика; SMB1355 не используется |
 | Кнопки | Power/Vol− (PON pwrkey/resin), Vol+ (pm6125 gpio5) |✅ input-устройства есть, нажатия  проверены |
 | CPU/thermal | qcom-cpufreq-hw (1.8/2.016 ГГц), tsens 16 зон, cooling-maps (наш DTS) | ✅ |
 | DSP | modem (MPSS), ADSP, CDSP (стоковые .mbn) | ✅ стартуют |
-| Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ❌ |
-| Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ❌ hexagonrpcd падает |
+| Видео | Venus (SM6115), стоковый venus.mbn (патч 0011) | ✅ аппаратные H.264/HEVC 1080p (v4l2m2m) |
+| Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ✅ динамики (AW88258, PRIMARY TDM, патчи 0012–0016); ❌ микрофоны ES7210 и гарнитура USB-C |
+| Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ✅ свет, приближение, акселерометр (hexagonrpcd с патчем + libssc + iio-sensor-proxy) |
 | SD | sdhc_2, cd tlmm 88 | ✅ подключается и монтируется |
 | Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ❓ клавиатуры нет |
 | Камеры, вибро, RGB LED, датчик Холла (tlmm 36) | — | ❓ не проверялось |
