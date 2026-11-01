@@ -1,0 +1,238 @@
+From: Yar1klamer
+Subject: [PATCH] arm64: dts: qcom: sm6115p-lenovo-j606f: add cameras
+
+Describe the cameras from the stock DT and the stock CamX sensor modules.
+The stock DT points the sensor rails at a PM8008, but nothing answers on
+I2C1 0x08/0x09: the rails are GPIO-switched LDOs (gpio112 VANA 2.8 V,
+gpio108 VDIG 1.05 V, gpio40 VAF 2.8 V), modelled as fixed regulators.
+
+Rear: OV13B10 on CCI0 0x10, MCLK0, reset gpio18, 4-lane CSIPHY0 at
+560 MHz, with a DW9763 focus actuator on CCI0 0x0c powered from VAF. Front: S5K4H7 on CCI1 0x10 (chip id 0x487b), MCLK2, reset
+gpio19, CSIPHY2; there is no driver for it yet, so the node is disabled
+and not linked into the CAMSS graph.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../dts/qcom/sm6115p-lenovo-j606f-camera.dtsi | 199 ++++++++++++++++++
+ .../dts/qcom/sm6115p-lenovo-j606f-common.dtsi |   2 +
+ 2 files changed, 201 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
+new file mode 100644
+index 000000000..2e2bfdd72
+--- /dev/null
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
+@@ -0,0 +1,199 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
++/*
++ * Lenovo Tab P11 (TB-J606F) cameras, from the stock DT (qcom,cci0, cam-sensor0/2)
++ * and the CamX sensor modules of the stock vendor (com.qti.sensormodule.*.bin):
++ * - rear: OV13B10 (two module vendors, both CCI 0x10), 4-lane CSIPHY0, MCLK0,
++ *   reset gpio18, DW9763 VCM, PMI632 flash;
++ * - front: S5K4H7 (CCI 0x10, reg 0x0000 = 0x487b; the CamX module lists 0x2d,
++ *   which does not answer), CSIPHY2, MCLK2, reset gpio19. The stock vendor
++ *   also carries an OV8856 module, not fitted on this unit.
++ * The stock DT points the sensor rails at a PM8008 on I2C1 (pm8008@8/9), but on
++ * this board nothing answers at 0x08/0x09 and the stock kernel never bound a
++ * driver to it: the rails are external LDOs switched by gpio112 (CAM_VANA,
++ * 2.8 V), gpio108 (CAM_VDIG, 1.05 V) and gpio40 (CAM_VAF, 2.8 V), which the
++ * stock power-up sequence raises. The 1.8 V I/O rail is not switched by Linux.
++ */
++
++/ {
++	cam_vana: regulator-cam-vana {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_vana";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		gpio = <&tlmm 112 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		startup-delay-us = <1000>;
++		pinctrl-0 = <&cam_vana_en_default>;
++		pinctrl-names = "default";
++	};
++
++	cam_vdig: regulator-cam-vdig {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_vdig";
++		regulator-min-microvolt = <1050000>;
++		regulator-max-microvolt = <1050000>;
++		gpio = <&tlmm 108 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		startup-delay-us = <1000>;
++		pinctrl-0 = <&cam_vdig_en_default>;
++		pinctrl-names = "default";
++	};
++
++	cam_vaf: regulator-cam-vaf {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_vaf";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		gpio = <&tlmm 40 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		pinctrl-0 = <&cam_vaf_en_default>;
++		pinctrl-names = "default";
++	};
++};
++
++&tlmm {
++	cam_vaf_en_default: cam-vaf-en-default-state {
++		pins = "gpio40";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	cam_vdig_en_default: cam-vdig-en-default-state {
++		pins = "gpio108";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	cam_vana_en_default: cam-vana-en-default-state {
++		pins = "gpio112";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	cam_rear_default: cam-rear-default-state {
++		mclk-pins {
++			pins = "gpio20";
++			function = "cam_mclk";
++			drive-strength = <4>;
++			bias-disable;
++		};
++
++		reset-pins {
++			pins = "gpio18";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-disable;
++		};
++	};
++
++	cam_front_default: cam-front-default-state {
++		mclk-pins {
++			pins = "gpio27";
++			function = "cam_mclk";
++			drive-strength = <6>;
++			bias-disable;
++		};
++
++		reset-pins {
++			pins = "gpio19";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-disable;
++		};
++	};
++};
++
++&camss {
++	/* stock csiphy mipi-csi-vdd: pm6125 L18 1.2 V */
++	vdd-csiphy-1p2-supply = <&pm6125_l18>;
++	status = "okay";
++
++	ports {
++		port@0 {
++			csiphy0_ep: endpoint {
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&cam_rear_ep>;
++			};
++		};
++
++	};
++};
++
++&cci {
++	status = "okay";
++};
++
++&cci_i2c0 {
++	camera@10 {
++		compatible = "ovti,ov13b10";
++		reg = <0x10>;
++
++		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
++		assigned-clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 18 GPIO_ACTIVE_LOW>;
++		pinctrl-0 = <&cam_rear_default>;
++		pinctrl-names = "default";
++
++		avdd-supply = <&cam_vana>;
++		dvdd-supply = <&cam_vdig>;
++
++		lens-focus = <&cam_rear_vcm>;
++
++		orientation = <1>;
++		/* stock sensor-position-roll */
++		rotation = <90>;
++
++		port {
++			cam_rear_ep: endpoint {
++				data-lanes = <1 2 3 4>;
++				link-frequencies = /bits/ 64 <560000000>;
++				remote-endpoint = <&csiphy0_ep>;
++			};
++		};
++	};
++
++	/* DW9763 (stock module "dw9763m11"), chip id 0xf9 */
++	cam_rear_vcm: camera-lens@c {
++		compatible = "dongwoon,dw9763";
++		reg = <0x0c>;
++		vdd-supply = <&cam_vaf>;
++	};
++};
++
++&cci_i2c1 {
++	/*
++	 * S5K4H7 has no driver yet: kept disabled, and out of the CAMSS graph,
++	 * so that the rear camera binds on its own.
++	 */
++	camera@10 {
++		compatible = "samsung,s5k4h7";
++		reg = <0x10>;
++		status = "disabled";
++
++		clocks = <&gcc GCC_CAMSS_MCLK2_CLK>;
++		assigned-clocks = <&gcc GCC_CAMSS_MCLK2_CLK>;
++		assigned-clock-rates = <19200000>;
++
++		reset-gpios = <&tlmm 19 GPIO_ACTIVE_LOW>;
++		pinctrl-0 = <&cam_front_default>;
++		pinctrl-names = "default";
++
++		avdd-supply = <&cam_vana>;
++		dvdd-supply = <&cam_vdig>;
++
++		orientation = <0>;
++		/* stock sensor-position-roll */
++		rotation = <270>;
++
++		port {
++			cam_front_ep: endpoint {
++				/* lanes and link frequency: from the CamX module, TBD */
++			};
++		};
++	};
++};
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+index 0f8a1f6dc..37d2a4ddd 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+@@ -11,6 +11,8 @@
+ #include "sm6115p-lenovo-j606f-abl-sink.dtsi"
+ /* audio: LPASS macros, SoundWire, WCD937x, AW88258 speaker amplifiers */
+ #include "sm6115p-lenovo-j606f-audio.dtsi"
++/* cameras: PM8008 rails, CCI sensors, CAMSS */
++#include "sm6115p-lenovo-j606f-camera.dtsi"
+ 
+ / {
+ 	usb_otg_vbus: regulator-usb-otg-vbus {

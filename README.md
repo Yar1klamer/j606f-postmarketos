@@ -64,7 +64,7 @@
 
 ## Что работает
 
-Проверено в установленном pmOS (ядро 7.2.3 с патчами до 0016, Plasma Desktop), сначала — через `fastboot boot`. Подробности по подсистемам — в [`docs/notes/`](docs/notes/).
+Проверено в установленном pmOS (ядро 7.2.3 с патчами до 0022, Plasma Desktop), сначала — через `fastboot boot`. Подробности по подсистемам — в [`docs/notes/`](docs/notes/).
 
 | Подсистема | Статус | Примечание |
 |---|---|---|
@@ -95,7 +95,9 @@
 | Управление зарядкой (PMI632) | ⚠️ только чтение | свой read-only драйвер (патч 0004): онлайн, статус, тип USB, лимиты. Заряжает на настройках загрузчика (4.40 В / 3 А, вход 1.5 А): лимит входа не поднимается под зарядник на 3 А, нет PD/QC, порога заряда и параллельного SMB1355 |
 | Сон (s2idle) | ⚠️ экспериментально | r110 исправил USB ep0, r111 успешно выполнил s2idle 37 с; ручной helper восстанавливает BT, но полная проверка ADSP/датчиков не завершена |
 | Офлайн-зарядка | ⚠️ частично | device r11: charger mode из PON reason + reboot mark, обычный reboot проверен; полный цикл poweroff/charger/unplug ещё не завершён |
-| Камеры, клавиатура на pogo-пинах | ❓ | не проверялось |
+| Задняя камера | ✅ | OV13B10 (13 Мп) через CAMSS SM6115 (патчи 0017–0021) и libcamera с программным ISP на GPU (`pmaports/temp/libcamera`, свой патч 0007): автоэкспозиция и баланс белого, 2104×1560 ~28 кадров/с, 1280×720 ~117 кадров/с; в PipeWire — «ov13b10 [libcamera]». Фокус DW9763 (0022) — только вручную (`focus_absolute`): автофокуса в программном ISP нет |
+| Фронтальная камера | ❌ | S5K4H7 (CCI1 0x10, ID 0x487b): драйвера в mainline нет; в DT описана и выключена |
+| Клавиатура на pogo-пинах | ❓ | не проверялось |
 
 ## Главная особенность: загрузчик Lenovo и dtbo
 
@@ -137,15 +139,22 @@ kernel/
     0014-…-primary-TDM-…patch  sm8250: воспроизведение на PRIMARY_TDM_RX_0 (4 усилителя, стерео)
     0015-…-soundwire-…patch   soundwire-qcom: восстановление после clock stop без устройств
     0016-…-j606f-add-audio.patch  DTS звука J606F (audio.dtsi)
+    0017-…-camss-…SM6115…patch  CAMSS для SM6115 (Spectra 340: 3× CSIPHY/CSID/TFE)
+    0018-…-ov13b10-…OF-match… ov13b10: таблица OF (драйвер был только для ACPI)
+    0019-…-sm6115-add-CCI-and-CAMSS.patch  узлы CCI и CAMSS в sm6115.dtsi
+    0020-…-j606f-add-cameras.patch  DTS камер J606F (camera.dtsi): питание по GPIO, OV13B10 + DW9763, S5K4H7 (выключен)
+    0021-…-ov13b10-add-get_selection.patch  ov13b10: размер матрицы и crop режимов для libcamera
+    0022-…-dw9719-add-DW9763.patch  dw9719: VCM DW9763 (ID 0xf9)
     config-j606f.fragment   опции ядра (HX83102, TPS65132, MM8013, NT36523, CHARGER_QCOM_PMI632, TOUCHSCREEN_HIMAX_HX83102E, TYPEC_FUSB302)
   himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-lenovo-j606f/      пакет ядра: linux-nura-qcom-sm61x5 7.2.3 + патчи 0001, 0003–0016 (pkgrel 118); своё имя, чтобы апстримный пакет его не заменил
+  linux-lenovo-j606f/      пакет ядра: linux-nura-qcom-sm61x5 7.2.3 + патчи 0001, 0003–0022 (pkgrel 120); своё имя, чтобы апстримный пакет его не заменил
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata, автозапись boot_b при обновлении; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD — свой тарбол; APKBUILD.shared — общий набор S320208 из apk-репозитория)
 pmaports/temp/hexagonrpcd/ hexagonrpcd 0.4.0-r50 с патчем: отдаёт ADSP файл sns_reg_version (нужно для датчиков SSC)
+pmaports/temp/libcamera/  libcamera 0.7.2 (pmOS) r5 + патч 0007: хелпер и свойства сенсора OV13B10 (усиление, уровень чёрного) для автоэкспозиции
 scripts/                   инструменты: разбор boot.img/dtbo/super, бэкап, отладочный initramfs,
                            сборка на самом планшете, прокси для USB-сети, установка
 STATE.md                   ← НАЧАТЬ ЗДЕСЬ: текущее состояние, версии, следующий шаг
@@ -209,8 +218,9 @@ Super не трогается при установке в userdata. Если о
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0016
+cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0022
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
+cp -r pmaports/temp/libcamera                        <pmaports>/temp/              # для задней камеры (см. docs/notes/camera.md)
 # прошивка: либо свой тарбол
 cp firmware-lenovo-j606f-1.tar <pmaports>/device/testing/firmware-lenovo-j606f/
 pmbootstrap checksum firmware-lenovo-j606f   # тарбол у каждого свой
@@ -326,7 +336,8 @@ sudo apk update && sudo apk upgrade && sudo reboot
 - **Сон:** r110/r111 и ручной helper дают успешный s2idle, но требуется полная проверка ADSP/датчиков и упаковка. **Офлайн-зарядка:** device r11 реализует charger mode, осталось финальное тестирование unplug/poweroff.
 - **Venus:** аппаратное H.264/HEVC-декодирование работает (0011/r115), но в mpv `hwdec=v4l2m2m-copy` теряет кадры на выводе (1080p30 ~180 из 360, 1080p60 ~550 из 720) — дорогое копирование кадров обратно; zero-copy (`v4l2m2m`) mpv здесь не поднимает. VA-API/Firefox и энкодер пока не проверялись.
 - **Vulkan и vsync:** Vulkan-приложения в режиме FIFO (vsync) получают 48 кадров/с вместо 60 (каждый 5-й vblank пропускается; Mesa 26.2 + KWin 6.8, протокол wp_fifo_v1); OpenGL — честные 60. Причина пока не найдена.
-- Клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, камеры, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- **Камеры:** задняя работает (r120 + libcamera r5), фокус пока вручную; дальше — автофокус, тюнинг цвета (ov13b10.yaml), вспышка PMI632 и драйвер фронтальной S5K4H7. Пакеты r120 и libcamera r5 пока не в apk-репозитории. [Заметки](docs/notes/camera.md).
+- Клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
 - **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура, drop-in'ы hexagonrpcd) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2).
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
   ```bash

@@ -1,0 +1,195 @@
+From: Yar1klamer
+Subject: [PATCH] media: i2c: ov13b10: add get_selection
+
+libcamera needs the native size, the active pixel array and the analog
+crop of the current mode to describe the sensor. Report them from the
+window registers the modes program: every mode reads columns
+0x000-0x108f and rows 0x008-0xc47, the full resolution mode outputs
+4208x3120 of it from (15, 17), and the binned modes skip by two.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ drivers/media/i2c/ov13b10.c | 100 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 100 insertions(+)
+
+diff --git a/drivers/media/i2c/ov13b10.c b/drivers/media/i2c/ov13b10.c
+index 26033a769..b1086a633 100644
+--- a/drivers/media/i2c/ov13b10.c
++++ b/drivers/media/i2c/ov13b10.c
+@@ -81,6 +81,17 @@
+ /* Vertical Window Offset */
+ #define OV13B10_REG_V_WIN_OFFSET	0x3813
+ 
++/*
++ * Pixel array: every mode reads columns 0x0000-0x108f and rows 0x0008-0x0c47
++ * (X/Y_ADDR_START/END), the full resolution mode outputs 4208x3120 of it.
++ */
++#define OV13B10_NATIVE_WIDTH		4240
++#define OV13B10_NATIVE_HEIGHT		3144
++#define OV13B10_PIXEL_ARRAY_LEFT	15
++#define OV13B10_PIXEL_ARRAY_TOP		17
++#define OV13B10_PIXEL_ARRAY_WIDTH	4208
++#define OV13B10_PIXEL_ARRAY_HEIGHT	3120
++
+ struct ov13b10_reg {
+ 	u16 address;
+ 	u8 val;
+@@ -116,6 +127,9 @@ struct ov13b10_mode {
+ 	/* Pixels per line in current mode */
+ 	u32 ppl;
+ 
++	/* Analog crop rectangle (window offsets x binning), in native pixels */
++	struct v4l2_rect crop;
++
+ 	/* Default register values */
+ 	struct ov13b10_reg_list reg_list;
+ };
+@@ -615,6 +629,12 @@ static const struct ov13b10_mode supported_4_lanes_modes[] = {
+ 		.vts_def = OV13B10_VTS_30FPS,
+ 		.vts_min = OV13B10_VTS_30FPS,
+ 		.ppl = 4704,
++		.crop = {
++			.left = 15,
++			.top = 17,
++			.width = 4208,
++			.height = 3120,
++		},
+ 		.reg_list = {
+ 			.num_of_regs = ARRAY_SIZE(mode_4208x3120_regs),
+ 			.regs = mode_4208x3120_regs,
+@@ -627,6 +647,12 @@ static const struct ov13b10_mode supported_4_lanes_modes[] = {
+ 		.vts_def = OV13B10_VTS_30FPS,
+ 		.vts_min = OV13B10_VTS_30FPS,
+ 		.ppl = 4704,
++		.crop = {
++			.left = 39,
++			.top = 17,
++			.width = 4160,
++			.height = 3120,
++		},
+ 		.reg_list = {
+ 			.num_of_regs = ARRAY_SIZE(mode_4160x3120_regs),
+ 			.regs = mode_4160x3120_regs,
+@@ -639,6 +665,12 @@ static const struct ov13b10_mode supported_4_lanes_modes[] = {
+ 		.vts_def = OV13B10_VTS_30FPS,
+ 		.vts_min = OV13B10_VTS_30FPS,
+ 		.ppl = 4704,
++		.crop = {
++			.left = 39,
++			.top = 151,
++			.width = 4160,
++			.height = 2340,
++		},
+ 		.reg_list = {
+ 			.num_of_regs = ARRAY_SIZE(mode_4160x2340_regs),
+ 			.regs = mode_4160x2340_regs,
+@@ -651,6 +683,12 @@ static const struct ov13b10_mode supported_4_lanes_modes[] = {
+ 		.vts_def = OV13B10_VTS_60FPS,
+ 		.vts_min = OV13B10_VTS_60FPS,
+ 		.ppl = 4704,
++		.crop = {
++			.left = 14,
++			.top = 18,
++			.width = 4208,
++			.height = 3120,
++		},
+ 		.reg_list = {
+ 			.num_of_regs = ARRAY_SIZE(mode_2104x1560_regs),
+ 			.regs = mode_2104x1560_regs,
+@@ -663,6 +701,12 @@ static const struct ov13b10_mode supported_4_lanes_modes[] = {
+ 		.vts_def = OV13B10_VTS_60FPS,
+ 		.vts_min = OV13B10_VTS_60FPS,
+ 		.ppl = 4704,
++		.crop = {
++			.left = 38,
++			.top = 410,
++			.width = 4160,
++			.height = 2340,
++		},
+ 		.reg_list = {
+ 			.num_of_regs = ARRAY_SIZE(mode_2080x1170_regs),
+ 			.regs = mode_2080x1170_regs,
+@@ -676,6 +720,12 @@ static const struct ov13b10_mode supported_4_lanes_modes[] = {
+ 		.vts_min = OV13B10_VTS_120FPS,
+ 		.link_freq_index = OV13B10_LINK_FREQ_INDEX_0,
+ 		.ppl = 4664,
++		.crop = {
++			.left = 754,
++			.top = 854,
++			.width = 2728,
++			.height = 1536,
++		},
+ 		.reg_list = {
+ 			.num_of_regs = ARRAY_SIZE(mode_1364x768_120fps_regs),
+ 			.regs = mode_1364x768_120fps_regs,
+@@ -692,6 +742,12 @@ static const struct ov13b10_mode supported_2_lanes_modes[] = {
+ 		.vts_min = OV13B10_VTS_60FPS,
+ 		.link_freq_index = OV13B10_LINK_FREQ_INDEX_0,
+ 		.ppl = 2352,
++		.crop = {
++			.left = 14,
++			.top = 18,
++			.width = 4208,
++			.height = 3120,
++		},
+ 		.reg_list = {
+ 			.num_of_regs =
+ 				ARRAY_SIZE(mode_2lanes_2104x1560_60fps_regs),
+@@ -1116,6 +1172,49 @@ static int ov13b10_get_pad_format(struct v4l2_subdev *sd,
+ 	return ret;
+ }
+ 
++static int ov13b10_get_selection(struct v4l2_subdev *sd,
++				 struct v4l2_subdev_state *sd_state,
++				 struct v4l2_subdev_selection *sel)
++{
++	struct ov13b10 *ov13b = to_ov13b10(sd);
++	const struct ov13b10_mode *mode;
++	struct v4l2_mbus_framefmt *fmt;
++
++	switch (sel->target) {
++	case V4L2_SEL_TGT_CROP:
++		mutex_lock(&ov13b->mutex);
++		if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
++			fmt = v4l2_subdev_state_get_format(sd_state, sel->pad);
++			mode = v4l2_find_nearest_size(ov13b->supported_modes,
++						      ov13b->supported_modes_num,
++						      width, height,
++						      fmt->width, fmt->height);
++		} else {
++			mode = ov13b->cur_mode;
++		}
++		sel->r = mode->crop;
++		mutex_unlock(&ov13b->mutex);
++		return 0;
++
++	case V4L2_SEL_TGT_NATIVE_SIZE:
++		sel->r.left = 0;
++		sel->r.top = 0;
++		sel->r.width = OV13B10_NATIVE_WIDTH;
++		sel->r.height = OV13B10_NATIVE_HEIGHT;
++		return 0;
++
++	case V4L2_SEL_TGT_CROP_DEFAULT:
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		sel->r.left = OV13B10_PIXEL_ARRAY_LEFT;
++		sel->r.top = OV13B10_PIXEL_ARRAY_TOP;
++		sel->r.width = OV13B10_PIXEL_ARRAY_WIDTH;
++		sel->r.height = OV13B10_PIXEL_ARRAY_HEIGHT;
++		return 0;
++	}
++
++	return -EINVAL;
++}
++
+ static int
+ ov13b10_set_pad_format(struct v4l2_subdev *sd,
+ 		       struct v4l2_subdev_state *sd_state,
+@@ -1343,6 +1442,7 @@ static const struct v4l2_subdev_pad_ops ov13b10_pad_ops = {
+ 	.get_fmt = ov13b10_get_pad_format,
+ 	.set_fmt = ov13b10_set_pad_format,
+ 	.enum_frame_size = ov13b10_enum_frame_size,
++	.get_selection = ov13b10_get_selection,
+ };
+ 
+ static const struct v4l2_subdev_ops ov13b10_subdev_ops = {

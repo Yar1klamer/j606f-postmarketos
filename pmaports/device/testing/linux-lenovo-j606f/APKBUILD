@@ -6,7 +6,7 @@ maintainer="Barnabas Czeman <barnabas.czeman@postmarketos.org>"
 _flavor="nura-qcom-sm61x5"
 pkgname=linux-lenovo-j606f
 pkgver=7.2.3
-pkgrel=118
+pkgrel=120
 pkgdesc="Close to mainline linux kernel for Qualcomm Snapdragon SM61x5, Lenovo Tab P11 (TB-J606F)"
 replaces="linux-$_flavor"
 arch="aarch64"
@@ -54,6 +54,12 @@ source="
 	0014-ASoC-qcom-sm8250-add-primary-TDM-speaker-playback.patch
 	0015-soundwire-qcom-recover-from-clock-stop-without-devices.patch
 	0016-arm64-dts-qcom-sm6115p-lenovo-j606f-add-audio.patch
+	0017-media-qcom-camss-add-SM6115-support.patch
+	0018-media-i2c-ov13b10-add-OF-match-table.patch
+	0019-arm64-dts-qcom-sm6115-add-CCI-and-CAMSS.patch
+	0020-arm64-dts-qcom-sm6115p-lenovo-j606f-add-cameras.patch
+	0021-media-i2c-ov13b10-add-get_selection.patch
+	0022-media-i2c-dw9719-add-DW9763.patch
 "
 builddir="$srcdir/linux"
 
@@ -89,7 +95,7 @@ package() {
 }
 sha512sums="
 2a6393212c413cf3812c2293d074fc9b7f82dec01c740251fe390b0633484b247e95e886493cbec77e6ef9741aebe0a4134c2218672424b332ae119c22566f23  linux-nura-qcom-sm61x5-v7.2.3-r0.tar.gz
-e448099a3e4a408bf612461e294d9cba160a56517dfdc1b90f3248b315be7ce41ee4505ad0ebf484d32b3f035199771e3c92d16c9e781387b99ea41f06c80bc5  config-nura-qcom-sm61x5.aarch64
+3bdbab2929e8df6430038801d99af3ff6cf8e3c7956a90ad6580f3daaa6f0f6ca2baf90ac65907062dbd3a0c4e315ca64f33f3f3b58f380cced6852fd4834b97  config-nura-qcom-sm61x5.aarch64
 170085189456140a4751c4dfc1d1cc9029a1e14c3d242c9f476efee5b1253ebd349d974fbf9b97d01d11d6ad5318f7888bece4fcc62291af5a4382c99af47ad6  0001-drm-panel-himax-hx83102-add-Lenovo-J606F-BOE-HX83102P.patch
 d03008864ed14c0d5f3907abae7f3f9945d0b952d22fa48298e44f13d8475afb0afb186febf7d721c3253a25866d70df6efcb50cf6874b976ea00bb3fc18a0b6  0003-arm64-dts-qcom-sm6115p-lenovo-j606f-add-HX83102P-SKU.patch
 f7ec249b9c58d19d861082a4dc3b410921886c918dafeb3983c674f7f533a1aac916c55a13781aa4382dff65d664491e031d8edeb03e5a228462f5653e3f1a18  0004-power-supply-add-read-only-Qualcomm-PMI632-charger-driver.patch
@@ -105,4 +111,10 @@ f7ec249b9c58d19d861082a4dc3b410921886c918dafeb3983c674f7f533a1aac916c55a13781aa4
 62da9077b4dcaacc6d0b6e9a114663f43e0ce5b47ad037afecaba0383513311ab8394d678020a8b557202da73065b78c1035337815ada1be871a479460afe1f9  0014-ASoC-qcom-sm8250-add-primary-TDM-speaker-playback.patch
 82374e3146ba13c80dfcbe2ef807b09a5fe3ee4a058541d73c524dcadcd81b116ac5608c4651396085cf2a01b0fa30b936a49d4d293d95d327666c4ec0cd1d1d  0015-soundwire-qcom-recover-from-clock-stop-without-devices.patch
 9378de1e07e925638d94cf3b88dabeeb9681fcbf94836695b04c083eb6c6ec39162d0a1bcba299ba9c18d9957bbf4794897698afac6448f0b86ec426cb3aa457  0016-arm64-dts-qcom-sm6115p-lenovo-j606f-add-audio.patch
+ffb052d834117572d07d8aa771e528085ba90a9aaf27bfe0d4ac715505a942639208ceeff094b3e6bb6cae3603cc182d5670a8980ea94326cbe871b702dce51b  0017-media-qcom-camss-add-SM6115-support.patch
+a4f9ee095160252212270c61ed7c5f14415fedccd0521bc3be20f839b679f6948ecbb9bd8d0a05a4808227594cdd651dde3bc3349f0e6177963079e8da16b1b7  0018-media-i2c-ov13b10-add-OF-match-table.patch
+5e9300cb12b01f601899b32cc4d5c835c33a36e410331be608cedd67a265f0c05e98a0e42e6ddc8da1e8bda41f1ed974818ddcad5e038de3d380e0576f328617  0019-arm64-dts-qcom-sm6115-add-CCI-and-CAMSS.patch
+109d7591a9ea69470aabbe689ea13bd0205e2f7dc05900504b459e0c75cec6aebcf45a4978e4cd524ace71ba910cb63e4d965124cca093d7c69912ccc9540d4f  0020-arm64-dts-qcom-sm6115p-lenovo-j606f-add-cameras.patch
+84251324a6a0368ed8125bdee3344a777f855a679d5ceccf2bdb3c77a8703e06d7bc8975fc3b564dcb88aeafa320fdddd9df9522bc75073b398d7074141b0475  0021-media-i2c-ov13b10-add-get_selection.patch
+722cc6bfdc3b9515b9b75056adc4006ff08d1f7040b7e32c658810d142f63e33d9f6b838490bd1b8bdf19116f50ec30df844145ffa2f0a2be704df8902c5a458  0022-media-i2c-dw9719-add-DW9763.patch
 "

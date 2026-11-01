@@ -1,0 +1,94 @@
+From: Yar1klamer
+Subject: [PATCH] media: i2c: dw9719: add DW9763
+
+The DW9763 (chip id 0xf9) found on the Lenovo Tab P11 rear camera module
+answers like the DW9761: same register map, and its defaults drive the
+lens fine (a focus sweep peaks sharply mid-range). Detect it as a
+DW9761 and accept a "dongwoon,dw9763" compatible.
+
+While at it, power the actuator down again when the id read fails or
+the id is unknown, instead of leaving the regulator enabled for
+regulator_put() to warn about.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../bindings/media/i2c/dongwoon,dw9719.yaml           |  1 +
+ drivers/media/i2c/dw9719.c                            | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/media/i2c/dongwoon,dw9719.yaml b/Documentation/devicetree/bindings/media/i2c/dongwoon,dw9719.yaml
+index 8e8d62436..2e148914e 100644
+--- a/Documentation/devicetree/bindings/media/i2c/dongwoon,dw9719.yaml
++++ b/Documentation/devicetree/bindings/media/i2c/dongwoon,dw9719.yaml
+@@ -21,6 +21,7 @@ properties:
+       - dongwoon,dw9718s
+       - dongwoon,dw9719
+       - dongwoon,dw9761
++      - dongwoon,dw9763
+       - dongwoon,dw9800k
+ 
+   reg:
+diff --git a/drivers/media/i2c/dw9719.c b/drivers/media/i2c/dw9719.c
+index 3b7ba88fd..4a5c564ee 100644
+--- a/drivers/media/i2c/dw9719.c
++++ b/drivers/media/i2c/dw9719.c
+@@ -45,6 +45,7 @@
+ #define DW9719_INFO			CCI_REG8(0)
+ #define DW9719_ID			0xF1
+ #define DW9761_ID			0xF4
++#define DW9763_ID			0xF9
+ 
+ #define DW9719_CONTROL			CCI_REG8(2)
+ #define DW9719_STANDBY			0x00
+@@ -150,7 +151,7 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
+ 
+ 		ret = cci_read(dw9719->regmap, DW9719_INFO, &val, NULL);
+ 		if (ret < 0)
+-			return ret;
++			goto out;
+ 
+ 		switch (val) {
+ 		case DW9719_ID:
+@@ -160,6 +161,8 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
+ 			dw9719->vcm_freq = DW9719_DEFAULT_VCM_FREQ;
+ 			break;
+ 		case DW9761_ID:
++		/* DW9763: DW9761 register map and defaults */
++		case DW9763_ID:
+ 			dw9719->model = DW9761;
+ 			dw9719->mode_low_bits = 0x01;
+ 			dw9719->sac_mode = DW9761_DEFAULT_SAC;
+@@ -168,7 +171,8 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
+ 		default:
+ 			dev_err(dw9719->dev,
+ 				"Error unknown device id 0x%02llx\n", val);
+-			return -ENXIO;
++			ret = -ENXIO;
++			goto out;
+ 		}
+ 
+ props:
+@@ -218,6 +222,7 @@ static int dw9719_power_up(struct dw9719_device *dw9719, bool detect)
+ 		cci_write(dw9719->regmap, DW9719_VCM_FREQ, dw9719->vcm_freq, &ret);
+ 	}
+ 
++out:
+ 	if (ret)
+ 		dw9719_power_down(dw9719);
+ 
+@@ -443,6 +448,7 @@ static const struct i2c_device_id dw9719_id_table[] = {
+ 	{ .name = "dw9718s", .driver_data = (kernel_ulong_t)DW9718S },
+ 	{ .name = "dw9719", .driver_data = (kernel_ulong_t)DW9719 },
+ 	{ .name = "dw9761", .driver_data = (kernel_ulong_t)DW9761 },
++	{ .name = "dw9763", .driver_data = (kernel_ulong_t)DW9761 },
+ 	{ .name = "dw9800k", .driver_data = (kernel_ulong_t)DW9800K },
+ 	{ }
+ };
+@@ -452,6 +458,7 @@ static const struct of_device_id dw9719_of_table[] = {
+ 	{ .compatible = "dongwoon,dw9718s", .data = (const void *)DW9718S },
+ 	{ .compatible = "dongwoon,dw9719", .data = (const void *)DW9719 },
+ 	{ .compatible = "dongwoon,dw9761", .data = (const void *)DW9761 },
++	{ .compatible = "dongwoon,dw9763", .data = (const void *)DW9761 },
+ 	{ .compatible = "dongwoon,dw9800k", .data = (const void *)DW9800K },
+ 	{ }
+ };

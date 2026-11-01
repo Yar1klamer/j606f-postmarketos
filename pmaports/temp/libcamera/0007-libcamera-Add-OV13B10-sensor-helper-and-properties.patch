@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yar1klamer
+Subject: [PATCH] libcamera: Add OV13B10 sensor helper and properties
+
+Linear analogue gain (0x80 = 1x, as the ov13b10 driver exposes register
+0x3508), black level 64 at 10 bits, 1.12 um pixels and the colour bar
+test pattern.
+---
+ src/ipa/libipa/camera_sensor_helper.cpp           | 13 +++++++++++++
+ src/libcamera/sensor/camera_sensor_properties.cpp |  8 ++++++++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/src/ipa/libipa/camera_sensor_helper.cpp b/src/ipa/libipa/camera_sensor_helper.cpp
+index bb95700..e68b3c6 100644
+--- a/src/ipa/libipa/camera_sensor_helper.cpp
++++ b/src/ipa/libipa/camera_sensor_helper.cpp
+@@ -839,6 +839,19 @@ public:
+ };
+ REGISTER_CAMERA_SENSOR_HELPER("ov13858", CameraSensorHelperOv13858)
+ 
++class CameraSensorHelperOv13b10 : public CameraSensorHelper
++{
++public:
++	CameraSensorHelperOv13b10()
++	{
++		/* Black level 64 (10-bit), measured on the Lenovo TB-J606F module */
++		blackLevel_ = 4096;
++		/* Analogue gain register 0x3508: 0x80 = 1x, linear */
++		gain_ = AnalogueGainLinear{ 1, 0, 0, 128 };
++	}
++};
++REGISTER_CAMERA_SENSOR_HELPER("ov13b10", CameraSensorHelperOv13b10)
++
+ class CameraSensorHelperVd55g1 : public CameraSensorHelper
+ {
+ public:
+diff --git a/src/libcamera/sensor/camera_sensor_properties.cpp b/src/libcamera/sensor/camera_sensor_properties.cpp
+index cbe55bc..e17ee57 100644
+--- a/src/libcamera/sensor/camera_sensor_properties.cpp
++++ b/src/libcamera/sensor/camera_sensor_properties.cpp
+@@ -519,6 +519,14 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
+ 			},
+ 			.sensorDelays = { },
+ 		} },
++		{ "ov13b10", {
++			.unitCellSize = { 1120, 1120 },
++			.testPatternModes =  {
++				{ controls::draft::TestPatternModeOff, 0 },
++				{ controls::draft::TestPatternModeColorBars, 1 },
++			},
++			.sensorDelays = { },
++		} },
+ 		{ "vd55g1", {
+ 			.unitCellSize = { 2160, 2160 },
+ 			.testPatternModes = {
