@@ -1,0 +1,83 @@
+From: Yar1klamer
+Subject: [PATCH] arm64: dts: qcom: sm6115p-lenovo-j606f: enable the front
+ camera
+
+Describe the S5K4H7 front sensor on CCI1: 4 data lanes on CSIPHY2 at
+366 MHz link frequency and a 24 MHz MCLK2, as in the stock CamX module.
+The sensor shares the switched CAM_VANA and CAM_VDIG rails with the
+rear camera.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../dts/qcom/sm6115p-lenovo-j606f-camera.dtsi | 26 +++++++++++--------
+ 1 file changed, 15 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
+index 2e2bfdd72..802df2053 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
+@@ -5,8 +5,9 @@
+  * - rear: OV13B10 (two module vendors, both CCI 0x10), 4-lane CSIPHY0, MCLK0,
+  *   reset gpio18, DW9763 VCM, PMI632 flash;
+  * - front: S5K4H7 (CCI 0x10, reg 0x0000 = 0x487b; the CamX module lists 0x2d,
+- *   which does not answer), CSIPHY2, MCLK2, reset gpio19. The stock vendor
+- *   also carries an OV8856 module, not fitted on this unit.
++ *   which does not answer), 4-lane CSIPHY2 at 732 Mbps per lane, MCLK2 at
++ *   24 MHz, reset gpio19. The stock vendor also carries an OV8856 module,
++ *   not fitted on this unit.
+  * The stock DT points the sensor rails at a PM8008 on I2C1 (pm8008@8/9), but on
+  * this board nothing answers at 0x08/0x09 and the stock kernel never bound a
+  * driver to it: the rails are external LDOs switched by gpio112 (CAM_VANA,
+@@ -119,6 +120,12 @@ csiphy0_ep: endpoint {
+ 			};
+ 		};
+ 
++		port@2 {
++			csiphy2_ep: endpoint {
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&cam_front_ep>;
++			};
++		};
+ 	};
+ };
+ 
+@@ -166,25 +173,20 @@ cam_rear_vcm: camera-lens@c {
+ };
+ 
+ &cci_i2c1 {
+-	/*
+-	 * S5K4H7 has no driver yet: kept disabled, and out of the CAMSS graph,
+-	 * so that the rear camera binds on its own.
+-	 */
+ 	camera@10 {
+ 		compatible = "samsung,s5k4h7";
+ 		reg = <0x10>;
+-		status = "disabled";
+ 
+ 		clocks = <&gcc GCC_CAMSS_MCLK2_CLK>;
+ 		assigned-clocks = <&gcc GCC_CAMSS_MCLK2_CLK>;
+-		assigned-clock-rates = <19200000>;
++		assigned-clock-rates = <24000000>;
+ 
+ 		reset-gpios = <&tlmm 19 GPIO_ACTIVE_LOW>;
+ 		pinctrl-0 = <&cam_front_default>;
+ 		pinctrl-names = "default";
+ 
+-		avdd-supply = <&cam_vana>;
+-		dvdd-supply = <&cam_vdig>;
++		vdda-supply = <&cam_vana>;
++		vddd-supply = <&cam_vdig>;
+ 
+ 		orientation = <0>;
+ 		/* stock sensor-position-roll */
+@@ -192,7 +194,9 @@ camera@10 {
+ 
+ 		port {
+ 			cam_front_ep: endpoint {
+-				/* lanes and link frequency: from the CamX module, TBD */
++				data-lanes = <1 2 3 4>;
++				link-frequencies = /bits/ 64 <366000000>;
++				remote-endpoint = <&csiphy2_ep>;
+ 			};
+ 		};
+ 	};

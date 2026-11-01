@@ -40,7 +40,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ✅ свет, приближение, акселерометр (hexagonrpcd с патчем + libssc + iio-sensor-proxy) |
 | SD | sdhc_2, cd tlmm 88 | ✅ подключается и монтируется |
 | Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ❓ клавиатуры нет |
-| Камеры | задняя OV13B10 (CCI0 0x10, 4 линии CSIPHY0) + VCM DW9763 (CCI0 0x0c); фронт S5K4H7 (CCI1 0x10, CSIPHY2); питание — LDO по gpio112/108/40 (PM8008 из стокового DT не распаян) | ✅ задняя: CAMSS + libcamera (патчи 0017–0022), фокус вручную; ❌ фронт — нет драйвера |
+| Камеры | задняя OV13B10 (CCI0 0x10, 4 линии CSIPHY0) + VCM DW9763 (CCI0 0x0c); фронт S5K4H7 (CCI1 0x10, CSIPHY2); питание — LDO по gpio112/108/40 (PM8008 из стокового DT не распаян) | ✅ задняя: CAMSS + libcamera (патчи 0017–0022), фокус вручную; 🟡 фронт: свой драйвер S5K4H7 + DT (0023–0024), проверен тестовой сборкой, пакет r121 не собран |
 | Вибро, RGB LED, датчик Холла (tlmm 36) | — | ❓ не проверялось |
 
 ---
@@ -130,7 +130,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 ## Камеры (сток S120184 + проверка в mainline, 2026-11-01)
 - Задняя OV13B10: CCI0 (`i2c-qcom-cci` 0x5c1b000) 0x10, ID 0x560d42, MCLK0 gpio20 19.2 МГц, reset gpio18, 4 линии CSIPHY0, 560 МГц.
 - VCM DW9763: CCI0 0x0c, ID 0xf9 (регистры как у DW9761), питание VAF.
-- Фронт S5K4H7: CCI1 0x10 (не 0x2d из CamX-модуля), рег 0x0000 = 0x487b, MCLK2 gpio27, reset gpio19, CSIPHY2; драйвера нет.
+- Фронт S5K4H7: CCI1 0x10 (не 0x2d из CamX-модуля), рег 0x0000 = 0x487b, MCLK2 gpio27 (24 МГц), reset gpio19, CSIPHY2 (4 линии, 732 Мбит/с); свой драйвер (патч 0023), снимает 3264x2448 30 fps через CSID0/TFE0; CSID1/TFE1 вешает планшет.
 - Питание: стоковый DT ссылается на PM8008 (I2C1 0x08/0x09), но он не отвечает — рельсы через LDO: gpio112 VANA 2.8 В, gpio108 VDIG 1.05 В,
   gpio40 VAF 2.8 В; CSIPHY — pm6125 L18 1.2 В. Камера-подсистема Spectra 340 (TFE) ×3. Подробно: notes/camera.md.
 

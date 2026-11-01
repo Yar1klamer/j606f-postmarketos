@@ -3,7 +3,7 @@ maintainer="Robert Mader <robert.mader@collabora.com>"
 pkgname=libcamera
 _pkgver=0.7.2
 pkgver=9999$_pkgver
-pkgrel=5
+pkgrel=6
 pkgdesc="Linux camera framework"
 url="https://libcamera.org/"
 arch="all"
@@ -65,6 +65,7 @@ source="https://gitlab.freedesktop.org/camera/libcamera/-/archive/v$_pkgver/libc
 	0005-ipa-simple-Derive-AGC-minimum-gain-step-from-sensor-.patch
 	0006-libcamera-Add-quad-Bayer-CFA-layout-support.patch
 	0007-libcamera-Add-OV13B10-sensor-helper-and-properties.patch
+	0008-libcamera-Add-S5K4H7-sensor-helper-and-properties.patch
 	qcam.desktop
 	$_tuning_files
 	"
@@ -186,6 +187,7 @@ b317cdc96f61682ee0bf26dfb7c4d6441db9a9c5b93ab53528121a8cd44862b3d59cbaa3881bb083
 50fd6a28353534e143418207ee07d462f017078091c2909ca2d495840facf7849dfebb061a7ed29a62f57dbf4e506aa9ec085b0c05ccd054d19c31a987b7e37d  0005-ipa-simple-Derive-AGC-minimum-gain-step-from-sensor-.patch
 47277fedc943ad45391ba150f1c4ae70b7bd041fb162239996fe5430429c50fe27a1c5915c9de90cb714ec578c68c4ba5e4c25a3431e35e721fdd232368b703f  0006-libcamera-Add-quad-Bayer-CFA-layout-support.patch
 e890586f01bad7ee7a1c641edbf7dcf91806c4c654b5013bf412c5ff4d524ee2bc1a92c909c0233c2d96c3c05b389ec45b2dd12dce245afdcd0ffb4b5eeba3fe  0007-libcamera-Add-OV13B10-sensor-helper-and-properties.patch
+9942587874fdc30eb417cc5125bda3cecc4274a46297d48132bb7c87c3a36637766cac13f79a2e5d4c69d37536db233d2c3e218fa4a53677ff2ef06ca5910d11  0008-libcamera-Add-S5K4H7-sensor-helper-and-properties.patch
 22167a4eceb6d1b40b0b7c45fdf116c71684f5340de7f767535cb8e160ad9d2ae0f00cb3d461f73a344520a48a4641cf46226841d78bee06bfbfd2a91337f754  qcam.desktop
 2ee566653b17d565d2c0de67cbe6ebad25df5aac6051cad78e6bae52016fa2ca0247e964d735ac776b3e0bd447ead9c4fcb26cd7629228cdba3ceb91b46f378f  hi846.yaml
 4942edd551dcf51630246f71e600c17760d3574d5d45e5530d6cfeefe2c9ab1a812fbe220f8e89d92e19a499c592b2507c801ca4eb74cd15fcecb60bff5c650b  imx355.yaml
