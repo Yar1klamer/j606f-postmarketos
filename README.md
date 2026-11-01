@@ -1,5 +1,7 @@
 # postmarketOS для Lenovo Tab P11 (TB-J606F)
 
+> 🇬🇧 English version of the documentation: the [`english`](../../tree/english) branch.
+
 Порт [postmarketOS](https://postmarketos.org) (с 2026 года проект называется **Nura**) на планшет
 **Lenovo Tab P11 TB-J606F** (Wi-Fi) на основе **mainline-ядра Linux 7.2**
 ([linux-nura-qcom-sm61x5](https://codeberg.org/sm61x5-mainline/linux)).
