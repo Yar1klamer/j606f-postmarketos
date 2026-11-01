@@ -25,7 +25,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 | Android | **не загрузится** (super перезаписан) — с согласия владельца |
 | modem*/persist/fsg/abl/xbl | не трогали (rmtfs в pmOS пишет EFS в modemst1/2, fsg — штатно) |
 | Доступ | `ssh user@172.16.42.1` (USB) или по Wi-Fi; на планшете `sudo` без пароля для user и автологин (локальная настройка, **не в образе**) |
-| apk | репозиторий `https://repo.yarnick.ru/j606f` без метки — из device-пакета (`/usr/lib/apk/repositories.d`, ключ в `/usr/lib/apk/keys`), переход выполнен `repo-migrate`; на планшете linux-lenovo-j606f r120 и libcamera r5 (свои сборки, проверка камер), в apk-репозитории пока linux-lenovo-j606f r118 + device r20 (+ nt36523w r10); в apk-репозитории также общий набор прошивок firmware-lenovo-j606f 0.320208 (сток S320208); на нашем планшете — свой firmware 1-r3 (с `awinic/aw882xx_acf.bin`: vendor у нас стёрт) |
+| apk | репозиторий `https://repo.yarnick.ru/j606f` без метки — из device-пакета (`/usr/lib/apk/repositories.d`, ключ в `/usr/lib/apk/keys`), переход выполнен `repo-migrate`; на планшете и в apk-репозитории linux-lenovo-j606f r120 и libcamera r5 (своя сборка pmOS libcamera с хелпером OV13B10, все подпакеты кроме -dbg) + device r20 (+ nt36523w r10); в apk-репозитории также общий набор прошивок firmware-lenovo-j606f 0.320208 (сток S320208); на нашем планшете — свой firmware 1-r3 (с `awinic/aw882xx_acf.bin`: vendor у нас стёрт) |
 
 Локальные настройки на планшете (пропадут при полной переустановке образа):
 - kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
@@ -68,8 +68,8 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
-- Ядро: **linux-lenovo-j606f 7.2.3-r120** в pmaports и на планшете (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0022`), uname `7.2.3-sm61x5 #121`; в apk-репозитории — r118.
-- libcamera: **99990.7.2-r5** (pmaports temp/libcamera + 0007, OV13B10) на планшете; в apk-репозитории нет.
+- Ядро: **linux-lenovo-j606f 7.2.3-r120** в pmaports и на планшете (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0022`), uname `7.2.3-sm61x5 #121`; в apk-репозитории — r120.
+- libcamera: **99990.7.2-r5** (pmaports temp/libcamera + 0007, OV13B10) на планшете и в apk-репозитории (выше pmOS r4).
 - device-lenovo-j606f **r20** на планшете и в pmaports (репозиторий порта и его ключ, `/etc/mpv/mpv.conf`, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
