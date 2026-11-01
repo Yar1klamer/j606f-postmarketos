@@ -1,25 +1,25 @@
-# Подсветка
+# Backlight
 
-## Факты
-- Управление в стоке: **DCS** (`qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs"`), уровни 1..4095. В dmesg `dsi_panel_set_backlight ... type:2 lvl:1654`.
-- /sys/class/backlight/panel0-backlight max=255 (в стоке Android масштабирует 0..255 → 0..4095).
-- LED-драйвер: **SGM37604A** на I2C1 0x36, stock compatible `sgm,sgm37604a`, enable = **pmi632 gpio6** (`qcom,platform-bklight-en-gpio = <&pmi632_gpios 6 0>`).
-- Схема по смыслу: TCON панели получает 0x51 по DSI и выдаёт PWM на SGM37604A. SGM37604A надо включить (gpio) и, возможно, настроить по I2C (ток, режим PWM). Что пишет стоковый драйвер, неизвестно: нужны исходники или дамп регистров.
+## Facts
+- Control in stock: **DCS** (`qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs"`), levels 1..4095. dmesg shows `dsi_panel_set_backlight ... type:2 lvl:1654`.
+- /sys/class/backlight/panel0-backlight max=255 (stock Android scales 0..255 → 0..4095).
+- LED driver: **SGM37604A** on I2C1 0x36, stock compatible `sgm,sgm37604a`, enable = **pmi632 gpio6** (`qcom,platform-bklight-en-gpio = <&pmi632_gpios 6 0>`).
+- How it works: the panel TCON receives 0x51 over DSI and outputs PWM to the SGM37604A. The SGM37604A must be enabled (gpio) and possibly configured over I2C (current, PWM mode). What the stock driver writes is unknown: the sources or a register dump are needed.
 
 ## Mainline
-- Драйвера sgm37604a в v7.2.3 нет (есть только sgm3140 flash и sgm3804 regulator).
-- План: (1) яркость через DCS в драйвере панели (backlight_device из mipi_dsi_dcs_set_display_brightness_large); (2) включить pmi632 gpio6 (gpio-hog или regulator-fixed/enable). Если SGM37604A после сброса без настройки не светит, снять его регистры в стоке через i2cdump (root) и сделать минимальный драйвер или инициализацию.
+- v7.2.3 has no sgm37604a driver (only sgm3140 flash and the sgm3804 regulator).
+- Plan: (1) brightness through DCS in the panel driver (backlight_device from mipi_dsi_dcs_set_display_brightness_large); (2) enable pmi632 gpio6 (gpio-hog or regulator-fixed/enable). If the SGM37604A does not light up after reset without configuration, dump its registers in stock with i2cdump (root) and write a minimal driver or init sequence.
 
 ## TODO
-- В стоке под root: `i2cdump -y 1 0x36` (если i2c-tools есть в Android) или чтение через debugfs.
+- In stock as root: `i2cdump -y 1 0x36` (if Android has i2c-tools) or read through debugfs.
 
-## Регистры SGM37604A в стоке (I2C1 0x36, экран включён, яркость Android 121/255), toybox i2cdump -fy 1 0x36
-При выключенном экране чип не отвечает (NACK), видимо обесточен через enable-gpio.
+## SGM37604A registers in stock (I2C1 0x36, screen on, Android brightness 121/255), toybox i2cdump -fy 1 0x36
+With the screen off the chip does not answer (NACK), apparently powered down through the enable gpio.
 ```
 10: 1f 65 73 6f 00 00 00 00 07 d7 f7 00 ...
 ```
-Остальные адреса 0x00..0xff = 0x00. Значения регистров 0x10..0x13, 0x18..0x1a пишет стоковый драйвер (или это дефолты чипа). Datasheet не смотрел.
-Файл: notes/stock_dt/i2cdump_sgm_screen_on.txt.
+All other addresses 0x00..0xff = 0x00. Registers 0x10..0x13, 0x18..0x1a are written by the stock driver (or are chip defaults). Datasheet not checked.
+File: notes/stock_dt/i2cdump_sgm_screen_on.txt.
 
-## Исходник SGM37604A (2026-10-29): `src/kernel_lenovo_tbj606/drivers/video/backlight/sgm37604a_driver.c` + `include/linux/sgm37604a.h` (GPL-2.0)
-Подсветка и так работает (DCS через TCON), драйвер нужен только если понадобится ток/режим чипа (например, после холодного старта без ABL).
+## SGM37604A source (2026-10-29): `src/kernel_lenovo_tbj606/drivers/video/backlight/sgm37604a_driver.c` + `include/linux/sgm37604a.h` (GPL-2.0)
+The backlight works anyway (DCS through the TCON); the driver is only needed if the chip current/mode has to be set (for example after a cold start without ABL).

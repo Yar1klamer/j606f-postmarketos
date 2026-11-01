@@ -1,1 +1,1 @@
-# Заметки по подсистемам: notes/<подсистема>.md
+# Per-subsystem notes: notes/<subsystem>.md

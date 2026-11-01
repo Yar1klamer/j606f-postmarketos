@@ -1,3 +1,3 @@
-# Перенесено
+# Moved
 
-Актуальное состояние: [../STATE.md](../STATE.md). Устройство: [../DEVICE.md](../DEVICE.md).
+Current state: [../STATE.md](../STATE.md). Device: [../DEVICE.md](../DEVICE.md).

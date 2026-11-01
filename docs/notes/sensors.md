@@ -1,28 +1,28 @@
-# Датчики
+# Sensors
 
-Все за SSC (Qualcomm Snapdragon Sensor Core на ADSP), а не на I2C Linux:
-- акселерометр + гироскоп TDK icm4x6xx
-- освещённость Lite-On ltr578
+All behind the SSC (Qualcomm Snapdragon Sensor Core on the ADSP), not on Linux I2C:
+- accelerometer + gyroscope TDK icm4x6xx
+- ambient light Lite-On ltr578
 - ToF/proximity ams tmf8801
-- SAR Semtech sx932x (virtualsar на I2C1 0x33 для «vitural-sar» input)
+- SAR Semtech sx932x (virtualsar on I2C1 0x33 for the "vitural-sar" input)
 
-В Linux нужно: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (SSC-путь, работает на других qcom-устройствах в pmOS). Нужны /vendor/dsp/* и sns-регистрация (/mnt/vendor/persist/sensors, есть в BACKUP/firmware/mnt_vendor_persist.tar). Сложно, P1.
+Linux needs: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (the SSC path that works on other qcom devices in pmOS). It needs /vendor/dsp/* and the sns registry (/mnt/vendor/persist/sensors, available in BACKUP/firmware/mnt_vendor_persist.tar). Hard, P1.
 
-## Статус (2026-10-29, ночь): **работают** свет, приближение, акселерометр (подробно ниже и в заметках автора)
+## Status (2026-10-29, night): light, proximity and accelerometer **work** (details below and in the author's notes)
 
-## Попытки SSC в mainline (2026-10-29), 1–3 не получились (история, LOG.md)
-- ADSP стартует со стоковым adsp.mbn; fastrpc.ko даёт /dev/fastrpc-adsp; hexagonrpcd 1.x и libssc (ssccli) из Alpine community.
-- Конфиги взяты read-only из стоковых vendor_a (в super, смещение 0xebf00000) и dsp_a; реестр — копия из persist.
-- hexagonrpcd: ADSP пытается писать в registry (sns_reg_version, temp.json), а hexagonrpcd пишет «Tried to open … for writing»; затем «Could not read from directory: Bad file descriptor» и «Broken pipe».
-- Ищем рабочую раскладку файлов, как в firmware-пакетах pmOS для других qcom-устройств с hexagonrpcd (папка /usr/share/qcom/<soc>/<vendor>/<device>/, а реестр, возможно, в /var/lib/hexagonrpcd).
+## SSC attempts in mainline (2026-10-29), 1–3 failed (history, LOG.md)
+- The ADSP starts with the stock adsp.mbn; fastrpc.ko provides /dev/fastrpc-adsp; hexagonrpcd 1.x and libssc (ssccli) from Alpine community.
+- Configs were taken read-only from the stock vendor_a (in super, offset 0xebf00000) and dsp_a; the registry is a copy from persist.
+- hexagonrpcd: the ADSP tries to write to the registry (sns_reg_version, temp.json), and hexagonrpcd reports "Tried to open … for writing"; then "Could not read from directory: Bad file descriptor" and "Broken pipe".
+- Looking for a working file layout, as in the pmOS firmware packages of other qcom devices with hexagonrpcd (folder /usr/share/qcom/<soc>/<vendor>/<device>/, with the registry possibly in /var/lib/hexagonrpcd).
 
-## ★ Попытка 4 — работает (2026-10-29, ночь)
-- Корень `-R /usr/share/qcom/sm6115/LENOVO/J606F`, раскладка по виртуальным путям hexagonrpcd (`rpcd_builder.c`), **плоско**:
-  `dsp/adsp/` (из dsp_a), `sensors/config/` и `sensors/sns_reg.conf` (из vendor `/etc/sensors`), `sensors/registry/` + `sensors/sns_reg_version` (из persist), `socinfo/`.
-- ADSP SM6115 без `sns_reg_version` рядом с реестром пытается его пересобрать (`temp.json`) → запись запрещена → «'registry' sensor unavailable».
-  hexagonrpcd 0.4.0 файл не отдаёт → патч `pmaports/temp/hexagonrpcd` (0.4.0-r50, `0001-rpcd-serve-sns_reg_version-next-to-the-registry.patch`).
-- `apk add hexagonrpcd` включает сервисы rootpd/sensorspd **без `-R`** → ADSP падает каждые ~4 с. Нужны drop-in'ы
+## ★ Attempt 4 — works (2026-10-29, night)
+- Root `-R /usr/share/qcom/sm6115/LENOVO/J606F`, laid out by hexagonrpcd's virtual paths (`rpcd_builder.c`), **flat**:
+  `dsp/adsp/` (from dsp_a), `sensors/config/` and `sensors/sns_reg.conf` (from vendor `/etc/sensors`), `sensors/registry/` + `sensors/sns_reg_version` (from persist), `socinfo/`.
+- Without `sns_reg_version` next to the registry the SM6115 ADSP tries to rebuild it (`temp.json`) → writing is denied → "'registry' sensor unavailable".
+  hexagonrpcd 0.4.0 does not serve the file → patch `pmaports/temp/hexagonrpcd` (0.4.0-r50, `0001-rpcd-serve-sns_reg_version-next-to-the-registry.patch`).
+- `apk add hexagonrpcd` enables the rootpd/sensorspd services **without `-R`** → the ADSP crashes every ~4 s. Drop-ins are needed:
   `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` (`ExecStart=` + `ExecStart=/usr/bin/hexagonrpcd -f /dev/fastrpc-adsp -d adsp [-s] -R …/J606F`).
-- Результат: `ssccli` — Light ≈231 лк, Proximity FAR, Accelerometer (8.30, 0.12, 5.28) м/с² (|g| ≈ 9.84); `monitor-sensor` (iio-sensor-proxy) видит все три. Падений ADSP нет.
-- Не сделано: `ACCEL_MOUNT_MATRIX` (udev-правило, как `81-libssc-*.rules`) для автоповорота — подобрать с владельцем; гироскоп/SAR не выводились;
-  упаковка: drop-in'ы и зависимость hexagonrpcd r50 → device-пакет, файлы SSC (со своего устройства) → приватный firmware-пакет.
+- Result: `ssccli` — Light ≈231 lx, Proximity FAR, Accelerometer (8.30, 0.12, 5.28) m/s² (|g| ≈ 9.84); `monitor-sensor` (iio-sensor-proxy) sees all three. No ADSP crashes.
+- Not done: `ACCEL_MOUNT_MATRIX` (a udev rule like `81-libssc-*.rules`) for auto-rotation — to be found together with the owner; gyroscope/SAR not exposed;
+  packaging: drop-ins and the hexagonrpcd r50 dependency → device package, SSC files (from one's own device) → private firmware package.

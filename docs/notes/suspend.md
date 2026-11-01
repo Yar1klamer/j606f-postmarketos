@@ -1,10 +1,10 @@
-# Сон (s2idle) — не работает (2026-10-30)
+# Suspend (s2idle) — not working (2026-10-30)
 
-- mem_sleep: только [s2idle]; RTC pm8xxx (wakealarm есть, время 1970 — смещение не хранится; будильник ставится).
-- PowerDevil сам пытается усыпить ~раз в 10 мин простоя.
-- Блокеры: (1) dwc3-qcom-legacy «port-1 HS-PHY not in L2» — с OTG-устройством сон отменяется; при первой попытке xHC error in resume -110 и «hard LOCKUP on cpu 1».
-  (2) После сна или смены роли host→device «dwc3: failed to enable ep0out» (CoreSoftReset в __dwc3_set_mode, HS-only + select-utmi-as-pipe-clk) — USB-гаджет до
-  перезагрузки не работает, следующий сон: dwc3 suspend -11. (3) ADSP «fatal error … crash detected in adsp» при засыпании → будит через ~2 с (подозрение: SSC/hexagonrpcd).
-  (4) Wi-Fi деаутентифицируется (нет WoWLAN).
-- План: тест сна с остановленными hexagonrpcd/iio-sensor-proxy; dwc3 — перевод USB на qcom,snps-dwc3 (плоская привязка) или квирк на повторную инициализацию;
-  пока — выключить автосон в PowerDevil.
+- mem_sleep: only [s2idle]; RTC pm8xxx (wakealarm exists, time is 1970 — the offset is not stored; the alarm can be set).
+- PowerDevil tries to suspend on its own about every 10 min of idle.
+- Blockers: (1) dwc3-qcom-legacy "port-1 HS-PHY not in L2" — with an OTG device attached the suspend is aborted; on the first attempt "xHC error in resume -110" and "hard LOCKUP on cpu 1".
+  (2) After suspend or a host→device role switch "dwc3: failed to enable ep0out" (CoreSoftReset in __dwc3_set_mode, HS-only + select-utmi-as-pipe-clk) — the USB gadget does not
+  work until reboot, the next suspend gives "dwc3 suspend -11". (3) ADSP "fatal error … crash detected in adsp" while suspending → wakes up after ~2 s (suspect: SSC/hexagonrpcd).
+  (4) Wi-Fi gets deauthenticated (no WoWLAN).
+- Plan: test suspend with hexagonrpcd/iio-sensor-proxy stopped; dwc3 — move USB to qcom,snps-dwc3 (flat binding) or a quirk for re-initialisation;
+  for now — disable automatic suspend in PowerDevil.

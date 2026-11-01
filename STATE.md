@@ -1,82 +1,82 @@
-# STATE — где мы остановились (2026-11-01)
+# STATE — where we stopped (2026-11-01)
 
-> Текущее состояние порта. Устройство: [DEVICE.md](DEVICE.md). Решения: [docs/DECISIONS.md](docs/DECISIONS.md).
-> Подробные заметки по подсистемам: `docs/notes/*.md`.
+> The current state of the port. Device: [DEVICE.md](DEVICE.md). Decisions: [docs/DECISIONS.md](docs/DECISIONS.md).
+> Detailed per-subsystem notes: `docs/notes/*.md`.
 
-## 1. Одной строкой
-**pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
-**rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 с патчами 0001, 0003–0022)
-(в pmaports **pkgrel 120**; без HACK 0002). Работают: Plasma, Wi-Fi, Bluetooth, батарея, датчики, **тач**, **USB OTG**, зарядка от сетевой USB-C (FUSB302),
-GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппаратное H.264/HEVC-декодирование через Venus** (патч 0011, firmware r2) и **динамики** (4× AW88258, стерео, 0012–0016), **задняя камера** (OV13B10 + фокус DW9763, CAMSS 0017–0022, libcamera r5).
-Нет: микрофоны, гарнитура (USB-C), полностью проверенный сон и финальный тест offline-зарядки. Пакеты раздаются через **https://repo.yarnick.ru/j606f** (README; публичный снимок пока старше).
-Второй планшет (тестировщик, тоже HX83102P, Android 11 в стоке) работает на образе с его прошивками.
+## 1. In one line
+**pmOS (Nura edge) with KDE Plasma Desktop is installed to internal storage and boots on its own** on the Lenovo Tab P11 TB-J606F (Himax HX83102P revision):
+**rootfs in `userdata` (~100 GiB)**, boot.img in `boot_b`, **dtbo_b erased**, active slot **b**. Kernel — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 with patches 0001, 0003–0022)
+(**pkgrel 120** in pmaports; without HACK 0002). Working: Plasma, Wi-Fi, Bluetooth, battery, sensors, **touch**, **USB OTG**, charging from a USB-C wall charger (FUSB302),
+GPU with a DDR bandwidth vote (patch 0009, ×2.5–7), **hardware H.264/HEVC decoding through Venus** (patch 0011, firmware r2), **speakers** (4× AW88258, stereo, 0012–0016) and the **rear camera** (OV13B10 + DW9763 focus, CAMSS 0017–0022, libcamera r5).
+Missing: microphones, headset (USB-C), a fully verified suspend and the final offline-charging test. Packages are served from **https://repo.yarnick.ru/j606f** (README; the public snapshot is older for now).
+A second tablet (a tester's, also HX83102P, Android 11 in stock) runs an image with its own firmware.
 
-## 2. Состояние устройства прямо сейчас
-| Что | Значение |
+## 2. Device state right now
+| What | Value |
 |---|---|
-| Что запущено | pmOS + Plasma Desktop (автологин user), обычная загрузка со слота b |
-| Активный слот | **b** (`slot-successful:b` = yes) |
-| boot_a | стоковый boot + Magisk; стоковый оригинал в приватном бэкапе |
-| boot_b | ядро **linux-lenovo-j606f r120** (uname `#121`, камеры), boot.img записан boot-deploy автоматически; перед этим r120 проверен через `fastboot boot`; откатные образы в приватном бэкапе |
-| dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
-| dtbo_a, vbmeta_a / vbmeta_b | стоковые |
-| userdata (102 ГиБ) | **rootfs pmOS**: GPT (сектор 4096) pmOS_boot 480 МиБ + pmOS_root 102 ГиБ (перенесено поблочно из super с теми же UUID, 29.10) |
-| super (12 ГиБ) | старая копия системы, **GPT подразделов удалена** (иначе initramfs выберет super раньше userdata); дамп таблицы для восстановления сохранён |
-| Android | **не загрузится** (super перезаписан) — с согласия владельца |
-| modem*/persist/fsg/abl/xbl | не трогали (rmtfs в pmOS пишет EFS в modemst1/2, fsg — штатно) |
-| Доступ | `ssh user@172.16.42.1` (USB) или по Wi-Fi; на планшете `sudo` без пароля для user и автологин (локальная настройка, **не в образе**) |
-| apk | репозиторий `https://repo.yarnick.ru/j606f` без метки — из device-пакета (`/usr/lib/apk/repositories.d`, ключ в `/usr/lib/apk/keys`), переход выполнен `repo-migrate`; на планшете и в apk-репозитории linux-lenovo-j606f r120 и libcamera r5 (своя сборка pmOS libcamera с хелпером OV13B10, все подпакеты кроме -dbg) + device r20 (+ nt36523w r10); в apk-репозитории также общий набор прошивок firmware-lenovo-j606f 0.320208 (сток S320208); на нашем планшете — свой firmware 1-r3 (с `awinic/aw882xx_acf.bin`: vendor у нас стёрт) |
+| Running | pmOS + Plasma Desktop (autologin user), normal boot from slot b |
+| Active slot | **b** (`slot-successful:b` = yes) |
+| boot_a | stock boot + Magisk; the stock original is in the private backup |
+| boot_b | kernel **linux-lenovo-j606f r120** (uname `#121`, cameras), boot.img written by boot-deploy automatically; r120 was tested through `fastboot boot` first; rollback images in the private backup |
+| dtbo_b | **erased** (`fastboot erase dtbo_b`): ABL applies no overlay, compatible = `lenovo,j606f` |
+| dtbo_a, vbmeta_a / vbmeta_b | stock |
+| userdata (102 GiB) | **pmOS rootfs**: GPT (sector 4096) pmOS_boot 480 MiB + pmOS_root 102 GiB (moved block by block from super with the same UUIDs, 29.10) |
+| super (12 GiB) | an old copy of the system, **the subpartition GPT is removed** (otherwise the initramfs would pick super before userdata); a dump of the table is kept for recovery |
+| Android | **will not boot** (super overwritten) — with the owner's consent |
+| modem*/persist/fsg/abl/xbl | untouched (rmtfs in pmOS writes EFS to modemst1/2 and fsg — as intended) |
+| Access | `ssh user@172.16.42.1` (USB) or over Wi-Fi; on the tablet passwordless `sudo` for user and autologin (local setting, **not in the image**) |
+| apk | repository `https://repo.yarnick.ru/j606f` without a tag — from the device package (`/usr/lib/apk/repositories.d`, key in `/usr/lib/apk/keys`), migrated with `repo-migrate`; on the tablet and in the apk repository linux-lenovo-j606f r120 and libcamera r5 (own build of the pmOS libcamera with the OV13B10 helper, all subpackages except -dbg) + device r20 (+ nt36523w r10); the apk repository also has the shared firmware set firmware-lenovo-j606f 0.320208 (stock S320208); our tablet has its own firmware 1-r3 (with `awinic/aw882xx_acf.bin`: our vendor is wiped) |
 
-Локальные настройки на планшете (пропадут при полной переустановке образа):
-- kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
-- `apk add mesa-vulkan-freedreno fastfetch` (Vulkan: Turnip Adreno 610); `~/.config/fastfetch/config.jsonc` — GPU через Vulkan;
-- Bluetooth-мышь Mi Mouse3C сопряжена и доверена (`bluetoothctl`);
-- экранная клавиатура: `kwinrc [Wayland] InputMethod=/usr/share/applications/org.kde.plasma.keyboard.desktop`, `VirtualKeyboardMode=2`; `plasmakeyboardrc [General] enabledLocales=en_US,ru_RU`;
-  ярлык `~/.local/bin/osk-toggle` + `org.j606f.osk-toggle.desktop` на панели;
-- датчики: `/usr/share/qcom/sm6115/LENOVO/J606F/` (dsp, sensors, socinfo — со своего устройства), hexagonrpcd 0.4.0-r50 (наш патч), drop-in'ы
-  `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` с `-R …/J606F`; iio-sensor-proxy включён, датчики работают (`monitor-sensor`: свет, приближение, акселерометр);
-- `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (отключено, пока не было тача; владелец решил так и оставить);
-- `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
-- mpv (настройки из device r20: `/etc/mpv/mpv.conf` — profile=fast, hwdec=no; свой `~/.config/mpv/mpv.conf` убран), glmark2, vkmark;
+Local settings on the tablet (lost on a full reinstall of the image):
+- kscreen: DSI-1 `rotation.left` (landscape), scale 1.4;
+- `apk add mesa-vulkan-freedreno fastfetch` (Vulkan: Turnip Adreno 610); `~/.config/fastfetch/config.jsonc` — GPU through Vulkan;
+- the Mi Mouse3C Bluetooth mouse is paired and trusted (`bluetoothctl`);
+- on-screen keyboard: `kwinrc [Wayland] InputMethod=/usr/share/applications/org.kde.plasma.keyboard.desktop`, `VirtualKeyboardMode=2`; `plasmakeyboardrc [General] enabledLocales=en_US,ru_RU`;
+  shortcut `~/.local/bin/osk-toggle` + `org.j606f.osk-toggle.desktop` on the panel;
+- sensors: `/usr/share/qcom/sm6115/LENOVO/J606F/` (dsp, sensors, socinfo — from our own device), hexagonrpcd 0.4.0-r50 (our patch), drop-ins
+  `/etc/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf` with `-R …/J606F`; iio-sensor-proxy enabled, the sensors work (`monitor-sensor`: light, proximity, accelerometer);
+- `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (disabled while there was no touch; the owner decided to keep it);
+- `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = screen on/off);
+- mpv (settings from device r20: `/etc/mpv/mpv.conf` — profile=fast, hwdec=no; the own `~/.config/mpv/mpv.conf` was removed), glmark2, vkmark;
 - `/etc/apk/repositories`: pmOS — `https://mirror.minlexx.ru/postmarketos/{extra-repos/systemd/main,main}`, Alpine — `http://mirror.yandex.ru/mirrors/alpine/edge/{main,community,testing}`
-  (mirror.nura.eco из этой сети отдаёт ~500 Б/с; запасной вариант — официальное RWTH Aachen).
+  (mirror.nura.eco serves ~500 B/s from this network; the fallback is the official RWTH Aachen).
 
-## 3. Следующий шаг
-1. ✅ **Venus работает**: ядро r115 + firmware r2, аппаратные H.264 и HEVC 1080p проверены через `v4l2m2m-copy` с корректным EOF. Опубликовано (патч 0011 в репозитории, пакеты в apk-репозитории); в mpv по умолчанию программное декодирование (r20).
-2. Сон: r110 исправил USB ep0, r111 дал успешный s2idle; ручной `j606f-sleep` восстанавливает BT, но финальная проверка ADSP/датчиков/USB не завершена.
-   Helper пока не отслеживается Git и не включён в device APKBUILD — оформить после повторного теста.
-3. Офлайн-зарядка: device r11 различает reboot и charger boot. Завершить финальный цикл: poweroff → charger mode → Power hold → boot → unplug → poweroff.
-4. Умолчания в device-пакет (Power = экран, экранная клавиатура EN/RU, без автоблокировки, масштаб 1.4) — у тестировщика это пришлось делать руками.
-5. Звук дальше: микрофоны ES7210 (порт драйвера Lenovo), гарнитура через USB-C (FSA4480 + WCD937x); динамики готовы (r117). Автоповорот (ACCEL_MOUNT_MATRIX), упаковка датчиков, запись лимитов зарядника,
-   тач Novatek для ревизии NT36523W, перо.
+## 3. Next step
+1. ✅ **Venus works**: kernel r115 + firmware r2, hardware H.264 and HEVC 1080p tested through `v4l2m2m-copy` with a clean EOF. Published (patch 0011 in the repository, packages in the apk repository); mpv uses software decoding by default (r20).
+2. Suspend: r110 fixed USB ep0, r111 achieved a successful s2idle; the manual `j606f-sleep` restores BT, but the final check of ADSP/sensors/USB is not finished.
+   The helper is not tracked in Git yet and not in the device APKBUILD — package it after a repeated test.
+3. Offline charging: device r11 tells a reboot from a charger boot. Finish the final cycle: poweroff → charger mode → Power hold → boot → unplug → poweroff.
+4. Defaults in the device package (Power = screen, on-screen keyboard EN/RU, no autolock, scale 1.4) — the tester had to set these by hand.
+5. Audio next: ES7210 microphones (port of the Lenovo driver), headset over USB-C (FSA4480 + WCD937x); the speakers are done (r117). Auto-rotation (ACCEL_MOUNT_MATRIX), sensor packaging, writing the charger limits,
+   Novatek touch for the NT36523W revision, the pen.
 
-## 4. Как обновлять без переустановки (проверено 29.10)
-Полная переустановка (`pmbootstrap install` + `fastboot flash super/boot_b`) сбрасывает локальные настройки и требует fastboot. Вместо неё:
-1. На сборочном хосте: `pmbootstrap build <пакеты>` → `.apk` в `pmb-work/packages/edge/aarch64/` (подписаны ключом `pmos@local-*`, он уже есть в `/etc/apk/keys` планшета).
-2. Скопировать `.apk` на планшет (`scp`), `sudo apk add -u /tmp/pk/*.apk` — mkinitfs и boot-deploy сами соберут `/boot/boot.img`.
-3. Проверить `/boot/boot.img` (cmdline с прежними `pmos_*_uuid`, DTB, initramfs), затем
-   `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync` и сверить sha256.
-4. `sudo systemctl reboot`. Откат — прошлый `boot.img` через `fastboot flash boot_b`.
+## 4. How to update without reinstalling (tested 29.10)
+A full reinstall (`pmbootstrap install` + `fastboot flash super/boot_b`) resets the local settings and needs fastboot. Instead:
+1. On the build host: `pmbootstrap build <packages>` → `.apk` in `pmb-work/packages/edge/aarch64/` (signed with the `pmos@local-*` key, which is already in the tablet's `/etc/apk/keys`).
+2. Copy the `.apk` to the tablet (`scp`), `sudo apk add -u /tmp/pk/*.apk` — mkinitfs and boot-deploy build `/boot/boot.img` by themselves.
+3. Check `/boot/boot.img` (cmdline with the same `pmos_*_uuid`, DTB, initramfs), then
+   `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync` and compare the sha256.
+4. `sudo systemctl reboot`. Rollback — the previous `boot.img` through `fastboot flash boot_b`.
 
-## 5. Сборка (pmbootstrap)
+## 5. Build (pmbootstrap)
 - `pmbootstrap_v3.cfg`: device lenovo-j606f, **ui plasma-desktop**.
-- Зеркала:
+- Mirrors:
   `pmbootstrap config mirrors.alpine http://mirror.yandex.ru/mirrors/alpine/`,
   `pmbootstrap config mirrors.pmaports https://mirror.minlexx.ru/postmarketos/`,
   `pmbootstrap config mirrors.systemd https://mirror.minlexx.ru/postmarketos/extra-repos/systemd/`.
-- Ядро собирается cross-native; повторная сборка с ccache ~12 мин, с нуля ~80 мин. Install с Plasma ~25 мин.
+- The kernel is built cross-native; a rebuild with ccache takes ~12 min, from scratch ~80 min. Install with Plasma ~25 min.
 
-## 6. Версии
-- pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
-- Ядро: **linux-lenovo-j606f 7.2.3-r120** на планшете и в apk-репозитории (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0022`), uname `7.2.3-sm61x5 #121`; в pmaports — **r121** (+ 0023–0024, фронтальная камера S5K4H7), ещё не собран.
-- libcamera: **99990.7.2-r5** (pmaports temp/libcamera + 0007, OV13B10) на планшете и в apk-репозитории (выше pmOS r4); в pmaports — **r6** (+ 0008, S5K4H7), ещё не собран.
-- device-lenovo-j606f **r20** на планшете и в pmaports (репозиторий порта и его ключ, `/etc/mpv/mpv.conf`, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
+## 6. Versions
+- pmbootstrap **3.12.1**; pmaports branch **main** + local commits; channel **systemd-edge**.
+- Kernel: **linux-lenovo-j606f 7.2.3-r120** on the tablet and in the apk repository (up to r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0022`), uname `7.2.3-sm61x5 #121`; in pmaports — **r121** (+ 0023–0024, the S5K4H7 front camera), not built yet.
+- libcamera: **99990.7.2-r5** (pmaports temp/libcamera + 0007, OV13B10) on the tablet and in the apk repository (above pmOS r4); in pmaports — **r6** (+ 0008, S5K4H7), not built yet.
+- device-lenovo-j606f **r20** on the tablet and in pmaports (the port's repository and its key, `/etc/mpv/mpv.conf`, rootfs → userdata, automatic boot_b write, offline-charger hook, speaker UCM, SoundWire → WCD937x softdep, firmware from the tablet's own modem/bluetooth/super — into /lib/firmware/updates with the shared set, an apk trigger); firmware-lenovo-j606f: personal **1-r3** (from our own backup, not published) or the shared **0.320208** from the apk repository (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (our `sns_reg_version` patch).
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
-- Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
+- Stock firmware: TB-J606F_S120184_210520_ROW (Android 10), ABL "Loader Build Info: Sep 4 2021".
 
-## 7. Чек-лист
-P0: [x] дисплей+подсветка · [x] стабильная загрузка с внутренней памяти после выключения и включения · [x] тач (HX83102E, патч 0006; перо не проверено) ·
-[x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
-[~] батарея и зарядка: индикация (mm8013), статус зарядника (read-only), зарядка от USB-A и от сетевой USB-C (FUSB302, 5 В); нет офлайн-зарядки и записи лимитов · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
-P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [~] звук (динамики ✅ r117; микрофоны и гарнитура — нет) · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [~] USB OTG (FUSB302) · [~] suspend (r110/r111 + ручной sleep helper, финальная проверка не завершена) · [x] GPU-производительность (DDR votes, 0009) · [x] аппаратное H.264/HEVC-декодирование (Venus, 0011/r115).
-P2/P3: пакеты pmaports (linux-lenovo-j606f r121, libcamera r6, device r20, device-lenovo-j606f-nt36523w r10, firmware r2 + APKBUILD.shared, hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.
+## 7. Checklist
+P0: [x] display+backlight · [x] stable boot from internal storage after power off and on · [x] touch (HX83102E, patch 0006; pen not tested) ·
+[x] USB networking + SSH · [x] Wi-Fi (connection, DHCP, DNS, internet) ·
+[~] battery and charging: gauge (mm8013), charger status (read-only), charging from USB-A and from a USB-C wall charger (FUSB302, 5 V); no offline charging and no writing of limits · [x] buttons (Power turns the screen off/on, volume checked by the owner).
+P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [~] audio (speakers ✅ r117; no microphones or headset) · [x] BT (pairing and input: Mi Mouse3C mouse) · [x] sensors (light, proximity, accelerometer; orientation — the matrix is to be found) · [~] USB OTG (FUSB302) · [~] suspend (r110/r111 + manual sleep helper, final check not finished) · [x] GPU performance (DDR votes, 0009) · [x] hardware H.264/HEVC decoding (Venus, 0011/r115).
+P2/P3: pmaports packages (linux-lenovo-j606f r121, libcamera r6, device r20, device-lenovo-j606f-nt36523w r10, firmware r2 + APKBUILD.shared, hexagonrpcd r50) — in `pmaports/`; apk repository https://repo.yarnick.ru/j606f; documentation — this repository.

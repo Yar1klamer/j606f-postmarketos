@@ -1,31 +1,31 @@
 # Wi-Fi / Bluetooth
 
 ## Wi-Fi
-- Сток: icnss (c800000.qcom,icnss), qcacld wlan.ko. `WLAN FW is ready: 0x587`, `Board id: 0, Board version: b 0 0 0 6`.
-- Mainline: ath10k snoc (WCN3990-семейство), DTS уже содержит `&wifi` с calibration-variant "Lenovo_P11" и регуляторами pm6125 l8/l16/l17/l23.
-- Прошивка: wlanmdsp.mbn (раздел modem, /vendor/firmware_mnt/image/), загружается MPSS (remoteproc_mpss, modem.mbn) → нужны modem.mbn и wlanmdsp.mbn.
-- Board data: bdwlan.bin + bdwlan.<id> в /vendor/firmware_mnt/image/. Проверить, есть ли в linux-firmware ath10k/WCN3990/hw1.0/board-2.bin запись с variant=Lenovo_P11; если нет, собрать board-2.bin из bdwlan.bin (ath10k-bdencoder).
-- MAC: <WIFI_MAC> (ro.odm.lenovo.wifiaddr); в Linux его надо задать (ath10k, скорее всего, даст случайный или из persist).
+- Stock: icnss (c800000.qcom,icnss), qcacld wlan.ko. `WLAN FW is ready: 0x587`, `Board id: 0, Board version: b 0 0 0 6`.
+- Mainline: ath10k snoc (WCN3990 family); the DTS already contains `&wifi` with calibration-variant "Lenovo_P11" and the pm6125 l8/l16/l17/l23 regulators.
+- Firmware: wlanmdsp.mbn (modem partition, /vendor/firmware_mnt/image/), loaded by the MPSS (remoteproc_mpss, modem.mbn) → modem.mbn and wlanmdsp.mbn are needed.
+- Board data: bdwlan.bin + bdwlan.<id> in /vendor/firmware_mnt/image/. Check whether linux-firmware ath10k/WCN3990/hw1.0/board-2.bin has an entry with variant=Lenovo_P11; if not, build board-2.bin from bdwlan.bin (ath10k-bdencoder).
+- MAC: <WIFI_MAC> (ro.odm.lenovo.wifiaddr); Linux has to set it (ath10k will most likely use a random one or one from persist).
 
 ## Bluetooth
-- Отдельный раздел bluetooth_a (sde5) монтируется в /vendor/bt_firmware. Файлы: apbtfw10/11.tlv, crbtfw11/20/21.tlv, apnv10/11.bin, crnv11/20/21.bin.
-- Mainline: btqca. Тип чипа (WCN3950/3988/3990) пока не определён: ранний dmesg стока потерян (буфер начинается с 15 с). TODO: в Android `dmesg | grep -i bt` после выключения и включения BT, либо logcat vendor.qti.bluetooth.
-- MAC BT: <BT_MAC>.
-- В mainline DTS j606f BT не описан. UART для BT: по sm6115.dtsi (qup uart) выяснить по DT стока.
+- A separate bluetooth_a partition (sde5) is mounted at /vendor/bt_firmware. Files: apbtfw10/11.tlv, crbtfw11/20/21.tlv, apnv10/11.bin, crnv11/20/21.bin.
+- Mainline: btqca. The chip type (WCN3950/3988/3990) is not known yet: the early stock dmesg is lost (the buffer starts at 15 s). TODO: in Android `dmesg | grep -i bt` after toggling BT off and on, or logcat vendor.qti.bluetooth.
+- BT MAC: <BT_MAC>.
+- BT is not described in the mainline j606f DTS. BT UART: find it from the stock DT via sm6115.dtsi (qup uart).
 
 ## BT SoC
-getprop vendor.qcom.bluetooth.soc = **cherokee** (стек QTI называет так семейство WCN399x). В mainline: compatible qca,wcn3990 (stock DT: узел bt_wcn3990, compatible "qca,wcn3990"; uart = qup_uart@4a8c000 = mainline uart3).
-Питание BT в стоке: vdd-io / core / pa / xtal из pm6125 (phandle 0x11..0x14), io 1.7–1.9 В, core 1.304 В, pa 3.0–3.3 В, xtal 1.7–1.9 В.
+getprop vendor.qcom.bluetooth.soc = **cherokee** (the QTI stack's name for the WCN399x family). In mainline: compatible qca,wcn3990 (stock DT: node bt_wcn3990, compatible "qca,wcn3990"; uart = qup_uart@4a8c000 = mainline uart3).
+Stock BT power: vdd-io / core / pa / xtal from pm6125 (phandle 0x11..0x14), io 1.7–1.9 V, core 1.304 V, pa 3.0–3.3 V, xtal 1.7–1.9 V.
 
-## ★ Результаты mainline 7.2.3 (2026-10-29)
-### Wi-Fi — сканирование работает
-- Нужно: remoteproc MPSS (modem.mbn) + rmtfs (EFS) + tqftpserv (отдаёт wlanmdsp.mbn) + in-kernel qrtr-ns и pd-mapper + ath10k_snoc.
-- В отладке rmtfs работал на КОПИЯХ modemst1/2, fsg, fsc в RAM (`rmtfs -v -o /var/rmtfs`, файлы modem_fs1/modem_fs2/modem_fsg/modem_fsc). В pmOS rmtfs по умолчанию пишет в реальные разделы modemst*; так и задумано (EFS), но это запись в modem-разделы, поэтому включать только с ведома пользователя (бэкап есть).
-- tqftpserv требует каталог /var/lib/tqftpserv.
-- ath10k: chip_id 0x150, board_id 0xff, fw WLAN.HL.3.2.4-00564; board data из linux-firmware-ath10k подошла («cal file»). MAC случайный.
-- iw scan: 4 BSS (2.4 + 5 ГГц), до −38 дБм. ~~Подключение не проверено.~~ **В pmOS: подключение WPA2 (NetworkManager), DHCP, DNS, интернет работают** (29.10).
-### Bluetooth — сканирование работает
-- DTS: uart3 + pinctrl GPIO8–11 (qup3), alias serial1 = &uart3 (без него «qcom_geni_serial … Invalid line -19»), qcom,wcn3990-bt с L9/L16/L17/L23.
-- Прошивки из стокового раздела bluetooth: qca/crbtfw21.tlv, qca/crnv21.bin. SOC Version 0x40020150, ROM 0x201.
-- Контроллер стартует «Unconfigured» (нет публичного адреса) → `btmgmt public-addr <BT_MAC>` (ro.odm.lenovo.btaddr). Для pmOS: local-bd-address в DT (пишет ABL? нет) или сервис, задающий адрес при старте.
-- btmgmt find -l: 21 уникальное LE-устройство. ~~Сопряжение не проверено.~~ **В pmOS: сопряжение и HID (мышь Mi Mouse3C) работают**; адрес задаёт bootmac (device r5). Автопереподключение после перезагрузки не проверено.
+## ★ Mainline 7.2.3 results (2026-10-29)
+### Wi-Fi — scanning works
+- Needed: MPSS remoteproc (modem.mbn) + rmtfs (EFS) + tqftpserv (serves wlanmdsp.mbn) + in-kernel qrtr-ns and pd-mapper + ath10k_snoc.
+- While debugging, rmtfs ran on COPIES of modemst1/2, fsg, fsc in RAM (`rmtfs -v -o /var/rmtfs`, files modem_fs1/modem_fs2/modem_fsg/modem_fsc). In pmOS rmtfs writes to the real modemst* partitions by default; that is intended (EFS), but it is a write to modem partitions, so enable it only with the owner's consent (a backup exists).
+- tqftpserv needs the /var/lib/tqftpserv directory.
+- ath10k: chip_id 0x150, board_id 0xff, fw WLAN.HL.3.2.4-00564; the board data from linux-firmware-ath10k fits ("cal file"). Random MAC.
+- iw scan: 4 BSS (2.4 + 5 GHz), up to −38 dBm. ~~Connection not tested.~~ **In pmOS: WPA2 connection (NetworkManager), DHCP, DNS and internet work** (29.10).
+### Bluetooth — scanning works
+- DTS: uart3 + pinctrl GPIO8–11 (qup3), alias serial1 = &uart3 (without it "qcom_geni_serial … Invalid line -19"), qcom,wcn3990-bt with L9/L16/L17/L23.
+- Firmware from the stock bluetooth partition: qca/crbtfw21.tlv, qca/crnv21.bin. SOC Version 0x40020150, ROM 0x201.
+- The controller starts "Unconfigured" (no public address) → `btmgmt public-addr <BT_MAC>` (ro.odm.lenovo.btaddr). For pmOS: local-bd-address in the DT (written by ABL? no) or a service that sets the address at startup.
+- btmgmt find -l: 21 unique LE devices. ~~Pairing not tested.~~ **In pmOS: pairing and HID (Mi Mouse3C mouse) work**; the address is set by bootmac (device r5). Auto-reconnect after reboot not tested.

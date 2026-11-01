@@ -1,56 +1,56 @@
-# План установки во внутреннюю память
+# Plan for installing to internal storage
 
-> **Выполнено 29.10 по другой схеме** (с разрешения пользователя: «слот любой», «андроид можешь сносить»):
-> rootfs → **super** (`fastboot flash super lenovo-j606f.img`, образ sparse), boot.img → **boot_b**, `fastboot --set-active=b`.
-> userdata отдан под рабочее место pmbootstrap, dtbo_b не трогали (работает «отстойник» в DTB). Подробности: LOG.md 29.10, STATE.md.
-> **dtbo_b стёрт 29.10** (`fastboot erase dtbo_b`, совет напарника пользователя): ABL при стёртом dtbo не накладывает оверлей, compatible = lenovo,j606f.
-> Пустую DTBO-таблицу (шаг A0) не проверяли — стирание уже решает задачу.
-> **29.10 (ночь): rootfs перенесён из super в userdata** (поблочно, те же UUID; GPT подразделов в super удалена, дамп сохранён) — заметки автора, device r6.
-> Итог совпал с вариантом A ниже (rootfs в userdata, dtbo_b стёрт), только dtbo_b стёрт, а не заменён пустой таблицей.
-> Ниже исходный план (вариант A с пустым dtbo_b и rootfs в userdata), оставлен для истории.
+> **Done on 29.10 with a different scheme** (with the owner's permission: "any slot", "you can wipe Android"):
+> rootfs → **super** (`fastboot flash super lenovo-j606f.img`, sparse image), boot.img → **boot_b**, `fastboot --set-active=b`.
+> userdata was given to the pmbootstrap workspace, dtbo_b was left alone (the "sink" in the DTB works). Details: LOG.md 29.10, STATE.md.
+> **dtbo_b erased on 29.10** (`fastboot erase dtbo_b`, a tip from the owner's partner): with an erased dtbo ABL does not apply an overlay, compatible = lenovo,j606f.
+> An empty DTBO table (step A0) was not tested — erasing already solves the problem.
+> **29.10 (night): rootfs moved from super to userdata** (block by block, same UUIDs; the GPT of the subpartitions in super was removed, a dump is kept) — author's notes, device r6.
+> The result matches option A below (rootfs in userdata, dtbo_b erased), except that dtbo_b was erased rather than replaced with an empty table.
+> The original plan (option A with an empty dtbo_b and rootfs in userdata) is kept below for history.
 
-Все шаги ниже пишут во внутреннюю память. Перед каждым убедиться, что бэкап на месте (BACKUP/README.md, sha256).
+Every step below writes to internal storage. Before each one make sure the backup is in place (BACKUP/README.md, sha256).
 
-## Вариант A (рекомендую): pmOS на слоте b, Android на слоте a остаётся
-Слот b ни разу не загружался (`slot-successful:b:no`), в нём заводские копии. Android на a не трогаем.
+## Option A (recommended): pmOS on slot b, Android stays on slot a
+Slot b has never booted (`slot-successful:b:no`) and holds the factory copies. Android on a is not touched.
 
-### Шаг A0. Проверка, примет ли ABL пустой dtbo (без «отстойника» и без HACK 0002)
-Пишет только dtbo_b (24 МиБ раздел; файл out/dtbo_empty.img: валидная DTBO-таблица с 0 записей, sha256 51c15f49…).
+### Step A0. Check whether ABL accepts an empty dtbo (without the "sink" and without HACK 0002)
+Writes only dtbo_b (24 MiB partition; file out/dtbo_empty.img: a valid DTBO table with 0 entries, sha256 51c15f49…).
 ```bash
 ~/platform-tools/fastboot flash dtbo_b out/dtbo_empty.img
 ~/platform-tools/fastboot --set-active=b
 ~/platform-tools/fastboot reboot bootloader
-~/platform-tools/fastboot boot out/<образ с DTB БЕЗ отстойника>.img
+~/platform-tools/fastboot boot out/<image with a DTB WITHOUT the sink>.img
 ```
-Ожидание: ABL не накладывает оверлей → корневой compatible остаётся «lenovo,j606f», ubwc_config/pd_mapper работают без HACK.
-Если ABL не грузит: `fastboot --set-active=a` (Android цел), а для pmOS остаётся вариант с отстойником (проверен).
-Откат: `fastboot flash dtbo_b BACKUP/partitions/dtbo_b.img; fastboot --set-active=a`.
+Expected: ABL applies no overlay → the root compatible stays "lenovo,j606f", ubwc_config/pd_mapper work without the HACK.
+If ABL does not boot: `fastboot --set-active=a` (Android is intact), and pmOS keeps the sink variant (tested).
+Rollback: `fastboot flash dtbo_b BACKUP/partitions/dtbo_b.img; fastboot --set-active=a`.
 
-### Шаг A1. Ядро pmOS → boot_b
+### Step A1. pmOS kernel → boot_b
 ```bash
-~/platform-tools/fastboot flash boot_b boot.img        # из pmbootstrap export
+~/platform-tools/fastboot flash boot_b boot.img        # from pmbootstrap export
 ```
-Откат: `fastboot flash boot_b BACKUP/partitions/boot_b.img`.
+Rollback: `fastboot flash boot_b BACKUP/partitions/boot_b.img`.
 
-### Шаг A2. rootfs
-userdata (≈110 ГиБ) → rootfs pmOS. **Стирает данные Android** (пользователь сказал, что не важны; всё равно спросить ещё раз прямо перед шагом).
+### Step A2. rootfs
+userdata (≈110 GiB) → pmOS rootfs. **Wipes the Android data** (the owner said it does not matter; still ask again right before the step).
 ```bash
 ~/platform-tools/fastboot flash userdata <rootfs>.img   # pmbootstrap export, sparse
 ```
-Android на слоте a после этого будет без данных (factory reset). Он загрузится, если отформатировать userdata заново (LMSA/recovery).
-Альтернатива без потери Android-данных: rootfs на SD-карте (нужна карта).
+Android on slot a will then have no data (factory reset). It boots if userdata is formatted again (LMSA/recovery).
+Alternative without losing Android data: rootfs on an SD card (a card is needed).
 
-### Шаг A3. Активный слот
+### Step A3. Active slot
 ```bash
 ~/platform-tools/fastboot --set-active=b && ~/platform-tools/fastboot reboot
 ```
-pmOS должен помечать загрузку успешной (qbootctl -m), иначе ABL через несколько попыток вернётся на a.
+pmOS must mark the boot as successful (qbootctl -m), otherwise ABL falls back to a after a few attempts.
 
-## Вариант B: заменить Android на слоте a
-То же самое, но boot_a/dtbo_a. Откат: BACKUP/partitions/{boot_a,dtbo_a}.img или BACKUP/stock/boot_a_stock_from_magisk.img.
+## Option B: replace Android on slot a
+The same, but with boot_a/dtbo_a. Rollback: BACKUP/partitions/{boot_a,dtbo_a}.img or BACKUP/stock/boot_a_stock_from_magisk.img.
 
-## Аварийный откат всего
-EDL + qdl + полная прошивка Lenovo (см. вики, Back to stock) или BACKUP/partitions/*.img (все разделы, кроме userdata).
+## Full emergency rollback
+EDL + qdl + the full Lenovo firmware (see the wiki, Back to stock) or BACKUP/partitions/*.img (all partitions except userdata).
 
-## Что включать осторожно
-- rmtfs в pmOS пишет в modemst1/modemst2/fsg (EFS) — это модемные разделы. Бэкап есть, но включать с ведома пользователя.
+## Enable with care
+- rmtfs in pmOS writes to modemst1/modemst2/fsg (EFS) — these are modem partitions. A backup exists, but enable it only with the owner's consent.
