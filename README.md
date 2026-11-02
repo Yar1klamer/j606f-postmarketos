@@ -313,7 +313,7 @@ sudo apk update && sudo apk upgrade && sudo reboot
 (на device ≤ r6 — нужен: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 Если новое ядро не загрузится или питание пропало во время записи — в fastboot (Vol− + Power) `fastboot flash boot_b <прошлый boot.img>`;
 перед обновлением ядра удобно сохранить копию: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r20 и linux-lenovo-j606f r118 или новее.
+Проверка после перезагрузки: `uname -v` показывает `#<pkgrel+1>-nura-qcom-sm61x5` (например, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r21 и linux-lenovo-j606f r118 или новее.
 Звук: `pactl list short sinks` показывает `alsa_output.platform-sound.HiFi__Speaker__sink`.
 В репозиторий попадают пакеты порта и ровно один пакет прошивки — общий набор S320208, сверенный по sha256 при публикации.
 Любые другие firmware, в том числе личные сборки с бэкапов, и всё с `license = proprietary` отсекаются.
