@@ -313,7 +313,7 @@ Since **device-lenovo-j606f r7** `deviceinfo_flash_kernel_on_update` is enabled:
 (on device ≤ r6 it is: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 If the new kernel does not boot or power was lost during the write — in fastboot (Vol− + Power) `fastboot flash boot_b <previous boot.img>`;
 before a kernel update it is handy to save a copy: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Check after the reboot: `uname -v` shows `#<pkgrel+1>-nura-qcom-sm61x5` (for example, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r20 and linux-lenovo-j606f r118 or newer.
+Check after the reboot: `uname -v` shows `#<pkgrel+1>-nura-qcom-sm61x5` (for example, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r21 and linux-lenovo-j606f r118 or newer.
 Sound: `pactl list short sinks` shows `alsa_output.platform-sound.HiFi__Speaker__sink`.
 The repository receives the port's packages and exactly one firmware package — the shared S320208 set, verified by sha256 at publication.
 Any other firmware, including personal builds from backups, and everything with `license = proprietary` is filtered out.
