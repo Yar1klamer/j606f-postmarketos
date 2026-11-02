@@ -6,9 +6,10 @@ All behind the SSC (Qualcomm Snapdragon Sensor Core on the ADSP), not on Linux I
 - ToF/proximity ams tmf8801
 - SAR Semtech sx932x (virtualsar on I2C1 0x33 for the "vitural-sar" input)
 
-Linux needs: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (the SSC path that works on other qcom devices in pmOS). It needs /vendor/dsp/* and the sns registry (/mnt/vendor/persist/sensors, available in BACKUP/firmware/mnt_vendor_persist.tar). Hard, P1.
+Linux needs: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (the SSC path that works on other qcom devices in pmOS). It needs /vendor/dsp/* and the sns registry (/mnt/vendor/persist/sensors, available in BACKUP/firmware/mnt_vendor_persist.tar).
 
-## Status (2026-10-29, night): light, proximity and accelerometer **work** (details below and in the author's notes)
+## Status: light, proximity and accelerometer **work** (since 29.10, details below)
+- 02.11: after suspend the sensors do not come back (sensorspd is stopped because of `Conflicts=suspend.target`), see suspend.md.
 
 ## SSC attempts in mainline (2026-10-29), 1–3 failed (history, LOG.md)
 - The ADSP starts with the stock adsp.mbn; fastrpc.ko provides /dev/fastrpc-adsp; hexagonrpcd 1.x and libssc (ssccli) from Alpine community.

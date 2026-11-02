@@ -58,6 +58,6 @@ Partial clone (lineage-18.1, f6bb9c6): `src/kernel_lenovo_tbj606/` (not publishe
   without inversion touches are mirrored through the centre. Test on the 4 corners (screen in landscape, as the owner holds it): TL (1109,114), TR (1050,1855), BR (218,1859), BL (192,133).
   First checked with the udev matrix `LIBINPUT_CALIBRATION_MATRIX="-1 0 1 0 -1 1"` → "exact", then moved into the driver (DT properties).
 - Probe log: "detect IC HX83102E successfully" → after 2 s "Forced upgrade" → "Update FW success", FW_VER D403, CID 1741, BOE/P11; IRQ tlmm 86 edge falling.
-- Firmware: `Himax_firmware.bin`, `Himax_mpfw.bin` — in firmware-lenovo-j606f r1 (local tarball, not published).
+- Firmware: `Himax_firmware.bin`, `Himax_mpfw.bin` — from the personal firmware package, the shared set 0.320208 or the tablet's own vendor (firmware-extract, device r16+).
 - Pitfalls: `pkill -f` over ssh kills its own shell (again); `udevadm info` right after insmod shows the properties before the rules are applied — wait for `udevadm settle`;
   this image has no /etc/udev/rules.d (create it).

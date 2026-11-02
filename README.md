@@ -11,6 +11,7 @@ A port of [postmarketOS](https://postmarketos.org) (since 2026 the project is ca
 > The sensors (light, proximity, accelerometer), the **touchscreen** (a port of the Lenovo GPL driver for HX83102E), **USB OTG** and charging from a USB-C wall charger work;
 > the GPU is 2.5–7 times faster after fixing the DDR bandwidth vote (patch 0009). **Hardware H.264/HEVC decoding through Venus** works (patch 0011).
 > **The speakers work** (4× AW88258, stereo, since kernel r117 + device r17); no microphones or USB-C headset yet.
+> **Both cameras work** (rear OV13B10 with manual focus, front S5K4H7 with our own driver; kernel r121 + libcamera r6).
 > Suspend and offline charging are in final testing.
 > Updates are installed through the **apk repository** (see [below](#updates-through-the-apk-repository)). Details are in [STATE.md](STATE.md).
 
@@ -66,7 +67,7 @@ The revision is identified by `/proc/cmdline` of the stock Android:
 
 ## What works
 
-Tested in the installed pmOS (kernel 7.2.3 with patches up to 0022, Plasma Desktop), first through `fastboot boot`. Per-subsystem details are in [`docs/notes/`](docs/notes/).
+Tested in the installed pmOS (kernel 7.2.3 with patches up to 0024, Plasma Desktop), first through `fastboot boot`. Per-subsystem details are in [`docs/notes/`](docs/notes/).
 
 | Subsystem | Status | Note |
 |---|---|---|
@@ -89,13 +90,13 @@ Tested in the installed pmOS (kernel 7.2.3 with patches up to 0022, Plasma Deskt
 | cpufreq, thermal, CPU throttling | ✅ | cooling-maps added to the DTS |
 | Modem / ADSP / CDSP | ✅ start | stock firmware |
 | Reboot to bootloader | ✅ | PON reboot-mode |
-| Touchscreen | ✅ | HX83102E (zero-flash, SPI): port of the Lenovo driver (patch 0006), firmware `Himax_firmware.bin` from one's own device; follows the panel when the screen is turned off |
+| Touchscreen | ✅ | HX83102E (zero-flash, SPI): port of the Lenovo driver (patch 0006), firmware `Himax_firmware.bin` from the tablet's own vendor or the shared set; follows the panel when the screen is turned off |
 | Stylus | ❓ | the `himax-pen` device exists, not tested with a pen |
 | Speakers | ✅ | 4× AW88258 (own driver, patch 0013) on PRIMARY TDM (0014): stereo, the left pair plays the left channel, the right pair the right one; amplifier volume is limited to −6 dB (the stock speaker protection on the DSP is missing), a battery/temperature monitor as in stock; the amplifier settings `awinic/aw882xx_acf.bin` come from the tablet's own vendor partition. UCM: the "Speaker" device in PulseAudio |
 | Microphones, headset | ❌ | ES7210 — needs a driver port; the headset goes through USB-C (WCD937x behind the FSA4480, the codec and SoundWire already come up) |
 | Sensors (accelerometer, light, proximity) | ✅ | Qualcomm SSC on the ADSP: hexagonrpcd (own patch, `pmaports/temp/hexagonrpcd`) + libssc + iio-sensor-proxy; the SSC files come from one's own device. The accelerometer mount matrix is not found yet |
 | Charge control (PMI632) | ⚠️ read only | own read-only driver (patch 0004): online, status, USB type, limits. Charges on the bootloader settings (4.40 V / 3 A, 1.5 A input): the input limit is not raised for a 3 A charger, no PD/QC, no charge threshold and no parallel SMB1355 |
-| Suspend (s2idle) | ⚠️ experimental | r110 fixed USB ep0, r111 completed a 37 s s2idle; the manual helper restores BT, but the full check of ADSP/sensors is not finished |
+| Suspend (s2idle) | ⚠️ experimental | r110 fixed USB ep0, r111 — a successful s2idle; on r121 (02.11) suspend and resume run without USB/ADSP errors, sound and BT come back. A helper around suspend is needed (stops the sensors and BT; not packaged yet), and with it the sensors do not come back after resume (hexagonrpcd-adsp-sensorspd has `Conflicts=suspend.target`) — being fixed |
 | Offline charging | ⚠️ partial | device r11: charger mode from the PON reason + a reboot mark, a normal reboot is tested; the full poweroff/charger/unplug cycle is not finished yet |
 | Rear camera | ✅ | OV13B10 (13 MP) through the SM6115 CAMSS (patches 0017–0021) and libcamera with the GPU software ISP (`pmaports/temp/libcamera`, own patch 0007): auto exposure and white balance, 2104×1560 ~28 fps, 1280×720 ~117 fps; in PipeWire — "ov13b10 [libcamera]". The DW9763 focus (0022) is manual only (`focus_absolute`): the software ISP has no autofocus |
 | Front camera | 🟡 | S5K4H7 (8 MP): no mainline driver — own one (patch 0023, registers from the stock CamX module), DT (0024) and a libcamera helper (own patch 0008); 3264×2448 at 30 fps through libcamera. Kernel r121 + libcamera r6 (in the apk repository since 02.11). With strong backlight (a window in the frame) the libcamera auto exposure overexposes the frame — tuning is ahead |

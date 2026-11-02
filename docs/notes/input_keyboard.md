@@ -14,5 +14,6 @@
 - Next step: `hid-over-i2c` nodes (i2c0@0x60 irq tlmm 93, i2c1@0x61 irq tlmm 96, hid-descr-addr 0x1, post-power-on-delay-ms 100) + a test with the keyboard docked (needs the owner and the keyboard itself).
 
 ## Status in pmOS (29.10)
-- Power, Vol+, Vol− work (volume checked by the owner). Power turns the screen off/on: PowerDevil `PowerButtonAction=128` (author's notes).
+- Power, Vol+, Vol− work (volume checked by the owner). Power turns the screen off/on: PowerDevil `PowerButtonAction=128` (local setting, STATE §2).
+- On-screen keyboard: plasma-keyboard (KWin InputMethod, EN/RU) — a local setting, not moved into the device package.
 - Hall (SW_LID), pogo keyboard, vibration motor, RGB LED, flash — not described in the DTS, not tested.

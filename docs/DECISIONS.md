@@ -79,4 +79,25 @@ Mainline covers boot, UFS, display (for the BOE SKU), GPU, Wi-Fi, buttons, SD, U
   while the charger driver is read-only.
 - GPU: the DDR vote from the stock kgsl table (patch 0009) in common.dtsi — a device-level change, not in sm6115.dtsi (for upstream — in sm6115.dtsi).
   firmware-lenovo-j606f is not published (blobs of a specific device), the script filters it out and everything with license = proprietary.
+  (Revised 31.10: exactly one set is published — the shared S320208 stock, see below.)
 - deviceinfo_flash_kernel_on_update is not enabled for now — the owner's decision (risk: a broken kernel/power loss while writing boot_b).
+  (Revised: enabled since device r7 — boot-deploy writes boot_b itself; the safety net is a test through fastboot boot and a boot_b backup before installing.)
+
+## 2026-10-31 — firmware, kernel name, repository
+- The shared firmware set of the S320208 stock (Android 11) is published in the apk repository as `firmware-lenovo-j606f-0.320208-r1` (a version below
+  the personal `1-rN`, so a personal build always wins); the source tar is in `j606f/distfiles`, sha256 is verified at publication. No other firmware.
+- The device package takes the DSP firmware of the tablet's own stock from its partitions (firmware-extract) and puts it in /lib/firmware/updates: an ADSP
+  of another version breaks the sensors.
+- The kernel is renamed to `linux-lenovo-j606f` (r118): a package from the regular repositories cannot replace it, the `@j606f` tag is not needed.
+  The repository address and key are in the device package (r18), old installs migrate with `repo-migrate`.
+- Audio: the speakers first (TDM on LPI, our own AW88258 driver from the GPL sources), ES7210 and the USB-C headset later; the volume is limited (no stock protection).
+
+## 2026-11-01 — cameras
+- CAMSS SM6115 — with our own tables (3× CSIPHY/CSID/TFE like QCM2290), libcamera — our own build of the pmOS package with sensor helpers (temp/libcamera).
+- Front S5K4H7 — our own driver from the registers of the stock CamX module (no driver in mainline). The CSID1/TFE1 path hangs the SoC → only CSID0/TFE0
+  is used (libcamera picks it by itself); do not enable CSID1 by hand.
+- A kernel is tested through `fastboot boot` (the current boot.img + new vmlinuz/DTB) and only then installed through apk.
+
+## 2026-11-02 — documentation in English
+- The English version is the `english` branch of the same GitHub repository (all .md files translated), not a separate repository; main stays Russian,
+  with a link to the branch in the README. Documentation changes are carried over to english by hand.

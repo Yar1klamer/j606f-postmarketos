@@ -12,7 +12,7 @@
 ## Mainline v7.2.3
 - mm8013: present (`mitsumi,mm8013`, drivers/power/supply/mm8013.c). Change the stock compatible `qcom,mm8013` to `mitsumi,mm8013`.
 - pmi632: pmi632.dtsi exists (typec `qcom,pmi632-typec`, vbus-reg, adc5, adc-tm5, gpio, lpg, vib).
-- pmi632 charger: **no driver** (qcom_smbx knows only pm660 and pmi8998). Without a driver charging most likely runs on the hardware defaults (to be checked: current and voltage with USB connected).
+- pmi632 charger: **no driver** (qcom_smbx knows only pm660 and pmi8998) → our own read-only driver, patch 0004 (below). Without a driver charging most likely runs on the hardware defaults (to be checked: current and voltage with USB connected).
 - smb1355: no driver.
 - fusb302: a driver exists (tcpm/fusb302.c). But in stock typec is handled by the pmi632. Find out what is connected to the CC lines.
 
@@ -45,7 +45,9 @@
   (stock: fusb302 → pogo_psy usb_vbus_ctl), not from the PMI632 OTG. DTS: regulator-fixed usb_otg_vbus (gpio38) → fusb302 vbus-supply; connector dual/dual, try sink, pd-disable.
 - OTG: a mouse receiver is detected (hid-generic), the charger is offline meanwhile (no loop).
 - Charging: C-to-C charging now starts (Rd from the FUSB302): 5 V / 3 A per Rp, ~+1.36 A into the battery, PMI632 ICL 1.5 A (hardware defaults). PD is disabled.
-- Offline charging does not work: when a charger is connected to the powered-off tablet, ABL boots the kernel with androidboot.mode=charger, and the pmOS initramfs does not handle it.
+- Offline charging: when a charger is connected to the powered-off tablet, ABL boots the kernel with androidboot.mode=charger. Since device r8/r11 the initramfs hook
+  `20-j606f-charger.sh` handles it (a «Charging: N%» screen, Power ≥2 s — normal boot, charger removed — poweroff; r11 tells a reboot from a charger boot).
+  The final poweroff → charger → unplug cycle is not finished; the owner wants to drop the «hold power button to boot» screen and do offline charging differently (later).
 
 ## Charger tests (2026-10-31, kernel r118, read-only PMI632 driver)
 | Source | Cable | Type-C (FUSB302) | PMI632: APSD type / input limit | Battery current |

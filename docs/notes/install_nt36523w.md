@@ -42,7 +42,8 @@ give them only to whoever builds your image, and do not publish them.
 
 ## 4. Image
 Built with pmbootstrap using the pmaports from this repository (`pmaports/device/testing/`): kernel `linux-lenovo-j606f`,
-`device-lenovo-j606f-nt36523w`, `firmware-lenovo-j606f` (a tarball of your files: the layout is in its APKBUILD).
+`device-lenovo-j606f-nt36523w`, `firmware-lenovo-j606f`: either the shared set of the S320208 stock from the apk repository (`APKBUILD.shared`, no backup needed,
+the device package takes the DSP firmware of your own stock from the tablet's partitions), or a tarball of your files (the layout is in the APKBUILD).
 ```bash
 pmbootstrap init        # device: lenovo-j606f-nt36523w
 pmbootstrap install --password <temporary password>

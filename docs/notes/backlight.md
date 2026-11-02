@@ -6,7 +6,10 @@
 - LED driver: **SGM37604A** on I2C1 0x36, stock compatible `sgm,sgm37604a`, enable = **pmi632 gpio6** (`qcom,platform-bklight-en-gpio = <&pmi632_gpios 6 0>`).
 - How it works: the panel TCON receives 0x51 over DSI and outputs PWM to the SGM37604A. The SGM37604A must be enabled (gpio) and possibly configured over I2C (current, PWM mode). What the stock driver writes is unknown: the sources or a register dump are needed.
 
-## Mainline
+## Status: works (29.10)
+Brightness is DCS 0x51 (12 bit) from the panel driver (patch 0001), the SGM37604A is enabled by pmi632 gpio6 (a hog in the DTS); a separate driver for the chip was not needed.
+
+## Mainline (original analysis)
 - v7.2.3 has no sgm37604a driver (only sgm3140 flash and the sgm3804 regulator).
 - Plan: (1) brightness through DCS in the panel driver (backlight_device from mipi_dsi_dcs_set_display_brightness_large); (2) enable pmi632 gpio6 (gpio-hog or regulator-fixed/enable). If the SGM37604A does not light up after reset without configuration, dump its registers in stock with i2cdump (root) and write a minimal driver or init sequence.
 

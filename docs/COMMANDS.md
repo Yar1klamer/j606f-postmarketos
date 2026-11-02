@@ -91,3 +91,40 @@ ssh -i out/sshkey/j606f_test -o StrictHostKeyChecking=no -o UserKnownHostsFile=/
 losetup -r -o 3958374400 /dev/loop0 /dev/sda14 && mount -t ext4 -o ro,noload /dev/loop0 /mnt/vendor   # vendor_a from super
 mount -o ro /dev/sde9 /mnt/dsp                                                                            # dsp_a
 ```
+
+## A new kernel without writing (tested 01–02.11, r120/r121)
+```bash
+tar -xzf linux-lenovo-j606f-7.2.3-rN.apk -C x boot/vmlinuz boot/dtbs/qcom/sm6115p-lenovo-j606f-hx83102p.dtb
+python3 scripts/bootimg_replace_dtb.py boot-current.img x/boot/dtbs/qcom/sm6115p-lenovo-j606f-hx83102p.dtb boot-test.img x/boot/vmlinuz
+ssh user@<tablet> 'sudo systemctl reboot --reboot-argument=bootloader'
+~/platform-tools/fastboot boot boot-test.img
+```
+
+## Installing a kernel on the tablet (after the test)
+```bash
+sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-before-rN.img   # backup
+cp /etc/apk/world /tmp/world.before
+sudo apk add ./linux-lenovo-j606f-7.2.3-rN.apk          # boot-deploy writes boot_b itself
+sudo cp /tmp/world.before /etc/apk/world                  # apk puts paths with hashes into world
+uname -v                                                  # after the reboot: #<pkgrel+1>
+```
+
+## Cameras
+```bash
+cam -l                                                    # 1: Internal back camera, 2: Internal front camera
+cam -c 2 -s width=1632,height=1224 --capture=90           # fps
+cam -c 2 --capture=150 --metadata | grep -E 'ExposureTime|AnalogueGain'   # how the AGC behaves
+# RAW of the front camera through CSID0 (do not touch CSID1 — it hangs the tablet)
+media-ctl -r
+media-ctl -l '"msm_csiphy2":1->"msm_csid0":0[1],"msm_csid0":1->"msm_vfe0_rdi0":0[1]'
+media-ctl -V '"s5k4h7 3-0010":0[fmt:SGRBG10_1X10/3264x2448]'   # and the same for msm_csiphy2:0, msm_csid0:0, msm_vfe0_rdi0:0
+v4l2-ctl -d /dev/video0 --set-fmt-video=width=3264,height=2448,pixelformat=pgAA --stream-mmap --stream-count=6 --stream-to=/tmp/f.raw
+```
+
+## Diagnostics
+```bash
+journalctl -b -1 -o short-monotonic --no-pager | tail -200   # the previous boot (journald is persistent), e.g. after a CrashDump
+qrtr-lookup                                                  # DSP services: without ADSP services there is no sound and no sensors
+for r in /sys/class/remoteproc/remoteproc*; do echo $(cat $r/name) $(cat $r/state); done
+```
+

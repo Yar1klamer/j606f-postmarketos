@@ -49,7 +49,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b had never booted 
 Sources: raw/adb_20261028_232150/ (adb shell without root, uid=shell), raw/fastboot_20261028_232246/,
 then root (Magisk, 28.10 evening, raw/root_20261028/) and mainline (tests 3–9). The sections below up to "Additions" were written before root;
 refinements and corrections are in the "Additions 2026-10-29" section at the end.
-> Now (29.10, night): Android is removed; **userdata = pmOS rootfs** (GPT: pmOS_boot + pmOS_root), super — an old copy without the subpartition GPT, active slot **b** (boot_b = pmOS), dtbo_b erased.
+> Now (02.11): Android is removed; **userdata = pmOS rootfs** (GPT: pmOS_boot + pmOS_root), super — an old copy without the subpartition GPT, active slot **b** (boot_b = pmOS), dtbo_b erased.
 
 ## Identification (getprop)
 | Parameter | Value |
@@ -99,9 +99,9 @@ refinements and corrections are in the "Additions 2026-10-29" section at the end
 - Panel model: **Himax HX83102P (BOE)**, confirmed by the stock cmdline (see "Additions"). Mainline describes the other revision, NT36523W.
 
 ## Input
-- I2C 0-0060 and 1-0061: hid-over-i2c (i2c_hid). Most likely touch and/or keyboard/touchpad (there is a "touchpad" power_supply). Not confirmed.
+- I2C 0-0060 and 1-0061: hid-over-i2c (i2c_hid) — the MCU of the Lenovo Keyboard Pack pogo keyboard/touchpad (docs/notes/input_keyboard.md); touch is HX83102E on SPI0 (see «Added»).
 - SPI: spi0.0, spi0.1 (4a88000.spi), spi1.0 (4a94000.spi), drivers not read (the device dropped off USB)
-- Buttons (per the mainline DTS, not tested on the device): Vol+ = pm6125 gpio5, Vol− = PON resin, Power = PON pwrkey
+- Buttons: Vol+ = pm6125 gpio5, Vol− = PON resin, Power = PON pwrkey (tested in pmOS)
 
 ## Power / charging
 - PMICs: pm6125 (spmi 0), pmi632 (spmi 2), pm2250 (spmi_dlkm, rouleur audio)
@@ -125,7 +125,7 @@ refinements and corrections are in the "Additions 2026-10-29" section at the end
 - Ambient light: Lite-On ltr578
 - Proximity / ToF: ams tmf8801
 - SAR: Semtech sx932x (I2C 1-0033 virtualsar)
-- In Linux this needs hexagonrpcd + libssc / iio-sensor-proxy with SSC. Hard, P1.
+- In pmOS they work through hexagonrpcd (our patch, 0.4.0-r50) + libssc + iio-sensor-proxy (docs/notes/sensors.md).
 
 ## Cameras (stock S120184 + checks in mainline, 2026-11-01)
 - Rear OV13B10: CCI0 (`i2c-qcom-cci` 0x5c1b000) 0x10, ID 0x560d42, MCLK0 gpio20 19.2 MHz, reset gpio18, 4 lanes CSIPHY0, 560 MHz.

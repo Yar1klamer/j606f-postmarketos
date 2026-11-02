@@ -85,4 +85,10 @@ Plan:
 - No acf → the driver defers the probe (EPROBE_DEFER); after adding the file firmware-extract rebinds one amplifier.
 - CORRECTION 2026-10-31 (listening to one amplifier at a time on our tablet): 0x36 — top right, 0x37 — top left.
   Stereo: L → 0x34 (BL) + 0x37 (TL), R → 0x35 (BR) + 0x36 (TR); the top ones get their channel through awinic,rx-channel (r117).
-- The system audio backend is PulseAudio (not PipeWire): check `pactl list short sinks` → HiFi__Speaker__sink.
+- The system audio backend is PulseAudio (PipeWire runs only for video/cameras): check `pactl list short sinks` → HiFi__Speaker__sink.
+
+## Known issues (as of 02.11)
+- Occasionally after boot the ADSP comes up without APR services (`qrtr-lookup` shows no ADSP services) → no sound card; restarting the ADSP through
+  remoteproc does not work (-110), a reboot helps. Seen on r117 and on the first boot of r121 (02.11); unrelated to the kernel changes.
+- There is no acf in the shared set 0.320208: whoever has an erased vendor gets no sound without a personal firmware package.
+- Missing: the ES7210 microphones, the analogue headset over USB-C (FSA4480), the stock speaker protection (ADSP) — the volume is limited.

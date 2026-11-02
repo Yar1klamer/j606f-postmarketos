@@ -8,6 +8,7 @@
 - Video (Venus, hardware H.264/HEVC): patch 0011 adds the SM6115 DT node (QCM2290/AR50 Lite fallback), `HW_CTRL_TRIGGER` for vcodec0,
   a resource that accepts the stock firmware v6.0.33 and the dummy EOS allocation for firmware <=6.0.53. firmware-lenovo-j606f r2 contains the per-device venus.mbn.
   Tested on kernel r115: /dev/video0 + /dev/video1; mpv `hwdec=v4l2m2m-copy`, H.264 1080p30 (240 frames) and HEVC 1080p30 (150 frames), RC=0,
-  `Using hardware decoding (v4l2m2m-copy)`, a clean `Exiting... (End of file)`, no POLLERR/exception. `~/.config/mpv/mpv.conf` enables `hwdec=v4l2m2m-copy`.
+  `Using hardware decoding (v4l2m2m-copy)`, a clean `Exiting... (End of file)`, no POLLERR/exception. Back then `hwdec=v4l2m2m-copy` was enabled in `~/.config/mpv/mpv.conf`; since device r20 the default is `/etc/mpv/mpv.conf` (profile=fast, hwdec=no) — `v4l2m2m-copy` dropped frames on output (1080p30 ~180 of 360).
   `hwdec=auto-copy-safe` picks h264-vulkan-copy on this system, so v4l2m2m-copy is set explicitly for Venus. Firefox/VA-API not tested.
+- Vulkan and vsync: in FIFO mode Vulkan applications get 48 fps instead of 60 (every 5th vblank is skipped; Mesa 26.2 + KWin 6.8, wp_fifo_v1), OpenGL gets an honest 60. The cause is not found.
 - Earlier: mpv with profile=fast handles 1080p; with the default shader scaling (before the DDR fix) it dropped ~40% of frames.

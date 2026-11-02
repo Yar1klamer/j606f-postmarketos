@@ -3,7 +3,7 @@
 ## Facts from the device (2026-10-28, root)
 - /proc/cmdline: `msm_drm.dsi_display0=qcom,mdss_dsi_himax83102p_boe_2k_video:` → **Himax HX83102P panel (BOE, 2K), video mode**.
 - The stock DT describes both panels: `qcom,mdss_dsi_himax83102p_boe_2k_video` (selected, qcom,dsi-default-panel = <0x3F4>) and `qcom,mdss_dsi_nt36523w_boe_2k_video`. ABL selects the SKU through the cmdline.
-- **The mainline DTS sm6115p-lenovo-j606f.dts describes only NT36523W (lenovo,j606f-boe-nt36523w).** That does NOT fit our unit. An HX83102P DTS variant is needed.
+- **The mainline DTS sm6115p-lenovo-j606f.dts describes only NT36523W (lenovo,j606f-boe-nt36523w).** That does NOT fit our unit → our own DTS `sm6115p-lenovo-j606f-hx83102p.dts` (patch 0003, the shared part — common.dtsi, 0007).
 - Stock panel node: stock_dt/panel_hx83102p_boe.dtsi. Decoded on-command (50 DSI packets): stock_dt/panel_hx83102p_on_cmds.txt.
 - Key parameters:
   - 1200x2000, 24 bpp, 4 lanes (lane_map_0123), burst mode, video mode, 60 Hz
@@ -21,7 +21,7 @@
 
 ## Mainline
 - The sm61x5 v7.2.3 kernel has drivers/gpu/drm/panel/panel-himax-hx83102.c (compatible: boe,nv110wum-l60, csot,pna957qt1-1, holitech,htf065h045, ivo,t109nw41, kingdisplay,kd110n11-51ie, starry,2082109qfh040022-50e, starry,himax83102-j02, waveshare,12.3-dsi-touch-a). Our panel is not there.
-- Plan: add a "lenovo,j606f-boe-hx83102p" description to panel-himax-hx83102.c with the init sequence from stock_dt/panel_hx83102p_on_cmds.txt and the timings above. Alternative: generate a separate driver with linux-mdss-dsi-panel-driver-generator (lmdpdg) from the stock DT.
+- ✓ Done (patch 0001): a "lenovo,j606f-boe-hx83102p" description to panel-himax-hx83102.c with the init sequence from stock_dt/panel_hx83102p_on_cmds.txt and the timings above. Alternative: generate a separate driver with linux-mdss-dsi-panel-driver-generator (lmdpdg) from the stock DT.
 - The panel is not needed for the first boot: the simple-framebuffer left by ABL works (address in the mainline DTS 0x5c000000, 1200x2000, stride 4800). To be checked: the stock splash buffer address must match (cont_splash in the stock DT).
 
 ## Status
@@ -39,5 +39,5 @@ The DTS should set regulator-min/max-microvolt = 5700000 for outp/outn (in case 
 - ~~PROBLEM: vsync IRQ~~ **RESOLVED in understanding (test 7):** at first I mixed up the registers. In the legacy DPU (≤6.x, dpu_hwio.h) INTR_EN = +0x010, INTR_STATUS = +0x014, INTR_CLEAR = +0x018. In fact: EN (0x5e01010) = 0 when idle, STATUS (0x5e01014) = 0x08000100 (bits 27 vsync and 8 PP0_DONE are latched and not serviced while disabled). This is normal, vblank is enabled on demand.
   During `modetest -v`: OR(EN) = 0x08000000 (vsync enabled), and drm.debug shows "updating vblank count … diff=1" every ~16.9 ms, i.e. **the vblank IRQ works at 60 Hz**.
   ~~A real problem remains: page flips complete slowly~~ **NO PROBLEM (test 8):** it was an artefact: modetest -v exits at once without an open stdin. With `sleep | modetest -v` it reports freq 60.0 Hz, kmscube gives 59.99 fps. The old text is kept for history: (modetest -v prints no freq line in 12 s, i.e. fewer than 60 flips; kmscube -c 120 does not finish in 20 s). The cause seemed to be in the commit/flip path (waiting for ctl start / frame done?), not in the IRQ. Setting bit 27 in EN by hand is cleared by the driver at once (no callback). Deep cpuidle is not involved (disabling state1 changed nothing).
-  Next steps: drm.debug=0x1ff (+ msm DPU_DEBUG) during a flip with full logs; check INTR2 (ctl_0 intr_start = TOP0_INTR2 bit 9: EN2 +0x008, STATUS2 +0x00c) — whether the commit waits for "ctl start"; try weston/kmscube with atomic and look at the real fps; compare with other SM6115 devices in mainline.
-- Visual check: a test chart is left on the screen (8 bars + frame + "J606F OK"). Waiting for the owner's eyes.
+  (Outdated, there was no problem:) drm.debug=0x1ff (+ msm DPU_DEBUG) during a flip with full logs; check INTR2 (ctl_0 intr_start = TOP0_INTR2 bit 9: EN2 +0x008, STATUS2 +0x00c) — whether the commit waits for "ctl start"; try weston/kmscube with atomic and look at the real fps; compare with other SM6115 devices in mainline.
+- Visual check (29.10): the test chart on the screen was confirmed by the owner; Plasma runs on this panel since.
