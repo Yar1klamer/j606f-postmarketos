@@ -2,12 +2,19 @@
 
 ## Status (2026-11-02)
 - Works with caveats: kernel r110 (patch 0010 — the dwc3 UTMI clock after resume) removed «failed to enable ep0out», r111 — a successful s2idle.
-- The `j606f-sleep.service` helper (`/usr/lib/j606f/sleep pre|post`, installed by hand on our tablet, not in the device package yet): before suspend it stops
-  iio-sensor-proxy and hexagonrpcd-adsp-sensorspd (otherwise sensor_process crashes the ADSP) and turns BT off with rfkill (the BT UART wakes the system), afterwards it restores them.
-- 02.11, r121: 4.5 min of suspend → resume without ep0out and ADSP crashes, sound (3 cards), BT and Wi-Fi are back.
-  **Bug:** the sensors do not come back — the stock hexagonrpcd-adsp-sensorspd.service has `Conflicts=suspend.target`, and `systemctl start --no-block`
-  from the ExecStop of our unit does not work (iio-sensor-proxy comes up, sensorspd does not; a manual `systemctl start` helps).
-  Fix it with a separate unit After=suspend.target, and only then package it.
+- The suspend helper is in the device package since **r21** (nt36523w — r11), files `j606f-sleep.sh`, `j606f-sleep.service`, `j606f-resume.service`:
+  - `j606f-sleep.service` (WantedBy/Before=sleep.target, StopWhenUnneeded): `pre` — remembers the enabled hexagonrpcd-adsp-rootpd/sensorspd and an active
+    iio-sensor-proxy in /run/j606f-sleep.units, stops them (otherwise sensor_process crashes the ADSP), BT — `rfkill block` (the BT UART wakes the system);
+    `post` (when sleep.target stops) — `rfkill unblock`.
+  - `j606f-resume.service` (WantedBy/After=suspend.target, oneshot): `resume` — `systemctl start --no-block` rootpd, sensorspd, iio-sensor-proxy.
+  - Two state files (/run/j606f-sleep for BT, /run/j606f-sleep.units for the units): `post` and `resume` run at the same time.
+- The bug before r21 (02.11): the sensors did not come back. The cause — the stock hexagonrpcd-adsp-*.service have `Conflicts=suspend.target`: systemd stops them
+  itself in the same transaction as our `pre` (journal: pre 1934.258, sensorspd deactivated 1934.273), `is-active` saw them already stopped → they were not recorded
+  → not started again. For the same reason rootpd had been down since the first suspend on 30.10. Fixed: the hexagonrpcd units are restored by `is-enabled`.
+- 02.11, r121: 4.5 min of suspend → resume without ep0out and ADSP crashes, sound (3 cards), BT and Wi-Fi are back. With r21 — three cycles (rtcwake + `systemctl suspend`):
+  rootpd/sensorspd/iio-sensor-proxy active, `monitor-sensor` reports light/proximity/accelerometer, ADSP running, BT UP.
+- Observation: when suspended from ssh the tablet wakes after ~2 s, `/sys/power/pm_wakeup_irq` = 114 (msmgpio 11, `4a8c000.serial:wakeup` — the BT UART),
+  although BT is rfkill-blocked; a suspend by the button on 02.11 lasted 4 min. Not investigated.
 - Not tested: suspend with an OTG device attached after r110, long suspend (hours), Wi-Fi without WoWLAN (reconnects after resume).
 
 ## The original analysis (2026-10-30)

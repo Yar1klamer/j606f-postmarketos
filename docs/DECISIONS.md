@@ -101,3 +101,8 @@ Mainline covers boot, UFS, display (for the BOE SKU), GPU, Wi-Fi, buttons, SD, U
 ## 2026-11-02 — documentation in English
 - The English version is the `english` branch of the same GitHub repository (all .md files translated), not a separate repository; main stays Russian,
   with a link to the branch in the README. Documentation changes are carried over to english by hand.
+
+## 2026-11-02 — suspend and sensors
+- The suspend helper is part of the device package (r21, nt36523w r11). hexagonrpcd-adsp-rootpd/sensorspd are restored after suspend when enabled
+  (not by is-active: the stock `Conflicts=suspend.target` stops them at the same time as our `pre`); they are started from a separate `j606f-resume.service`
+  (After=suspend.target), the stock hexagonrpcd units are left unchanged.
