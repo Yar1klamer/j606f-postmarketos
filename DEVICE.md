@@ -40,7 +40,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ✅ свет, приближение, акселерометр (hexagonrpcd с патчем + libssc + iio-sensor-proxy) |
 | SD | sdhc_2, cd tlmm 88 | ✅ подключается и монтируется |
 | Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ❓ клавиатуры нет |
-| Камеры | задняя OV13B10 (CCI0 0x10, 4 линии CSIPHY0) + VCM DW9763 (CCI0 0x0c); фронт S5K4H7 (CCI1 0x10, CSIPHY2); питание — LDO по gpio112/108/40 (PM8008 из стокового DT не распаян) | ✅ задняя: CAMSS + libcamera (патчи 0017–0022), фокус вручную; 🟡 фронт: свой драйвер S5K4H7 + DT (0023–0024), проверен тестовой сборкой, пакет r121 не собран |
+| Камеры | задняя OV13B10 (CCI0 0x10, 4 линии CSIPHY0) + VCM DW9763 (CCI0 0x0c); фронт S5K4H7 (CCI1 0x10, CSIPHY2); питание — LDO по gpio112/108/40 (PM8008 из стокового DT не распаян) | ✅ задняя: CAMSS + libcamera (патчи 0017–0022), фокус вручную; 🟡 фронт: свой драйвер S5K4H7 + DT (0023–0024), ядро r121 + libcamera r6 (apk-репозиторий 02.11) |
 | Вибро, RGB LED, датчик Холла (tlmm 36) | — | ❓ не проверялось |
 
 ---
