@@ -3,7 +3,7 @@
 ## Факты с устройства (2026-10-28, root)
 - /proc/cmdline: `msm_drm.dsi_display0=qcom,mdss_dsi_himax83102p_boe_2k_video:` → **панель Himax HX83102P (BOE, 2K), video mode**.
 - В DT стока описаны обе панели: `qcom,mdss_dsi_himax83102p_boe_2k_video` (выбрана, qcom,dsi-default-panel = <0x3F4>) и `qcom,mdss_dsi_nt36523w_boe_2k_video`. Выбор SKU делает ABL через cmdline.
-- **Mainline DTS sm6115p-lenovo-j606f.dts описывает только NT36523W (lenovo,j606f-boe-nt36523w).** Для нашего экземпляра это НЕ подходит. Нужен вариант DTS для HX83102P.
+- **Mainline DTS sm6115p-lenovo-j606f.dts описывает только NT36523W (lenovo,j606f-boe-nt36523w).** Для нашего экземпляра это НЕ подходит → свой DTS `sm6115p-lenovo-j606f-hx83102p.dts` (патч 0003, общая часть — common.dtsi, 0007).
 - Узел панели стока: stock_dt/panel_hx83102p_boe.dtsi. Расшифрованный on-command (50 DSI-пакетов): stock_dt/panel_hx83102p_on_cmds.txt.
 - Ключевые параметры:
   - 1200x2000, 24 bpp, 4 линии (lane_map_0123), burst mode, video mode, 60 Гц
@@ -21,7 +21,7 @@
 
 ## Mainline
 - В ядре sm61x5 v7.2.3 есть drivers/gpu/drm/panel/panel-himax-hx83102.c (compatible: boe,nv110wum-l60, csot,pna957qt1-1, holitech,htf065h045, ivo,t109nw41, kingdisplay,kd110n11-51ie, starry,2082109qfh040022-50e, starry,himax83102-j02, waveshare,12.3-dsi-touch-a). Нашей панели там нет.
-- План: добавить в panel-himax-hx83102.c описание «lenovo,j606f-boe-hx83102p» с init-sequence из stock_dt/panel_hx83102p_on_cmds.txt и таймингами выше. Альтернатива: сгенерировать отдельный драйвер через linux-mdss-dsi-panel-driver-generator (lmdpdg) из DT стока.
+- ✓ Сделано (патч 0001): в panel-himax-hx83102.c описание «lenovo,j606f-boe-hx83102p» с init-sequence из stock_dt/panel_hx83102p_on_cmds.txt и таймингами выше. Альтернатива: сгенерировать отдельный драйвер через linux-mdss-dsi-panel-driver-generator (lmdpdg) из DT стока.
 - Для первой загрузки панель не нужна: работает simple-framebuffer, оставленный ABL (адрес в mainline DTS 0x5c000000, 1200x2000, stride 4800). Это проверить: адрес splash-буфера стока должен совпадать (cont_splash в DT стока).
 
 ## Статус
@@ -39,5 +39,5 @@
 - ~~ПРОБЛЕМА: vsync IRQ~~ **ИСПРАВЛЕНО в понимании (тест 7):** сначала я перепутал регистры. В legacy DPU (≤6.x, dpu_hwio.h) INTR_EN = +0x010, INTR_STATUS = +0x014, INTR_CLEAR = +0x018. Реально: EN (0x5e01010) = 0 в простое, STATUS (0x5e01014) = 0x08000100 (биты 27 vsync и 8 PP0_DONE защёлкнуты и не обслуживаются, пока выключены). Это нормально, vblank включается по запросу.
   Во время `modetest -v`: OR(EN) = 0x08000000 (vsync включён), а drm.debug показывает «updating vblank count … diff=1» каждые ~16.9 мс, то есть **vblank IRQ работает на 60 Гц**.
   ~~Остаётся реальная проблема: page flip завершаются медленно~~ **НЕТ ПРОБЛЕМЫ (тест 8):** это был артефакт: modetest -v без открытого stdin сразу выходит. С `sleep | modetest -v` выходит freq 60.0 Гц, kmscube даёт 59.99 fps. Старый текст оставлен для истории: (modetest -v за 12 с не выводит ни одной строки freq, то есть меньше 60 flip; kmscube -c 120 не завершается за 20 с). Причина, видимо, в пути commit/flip (ожидание ctl start / frame done?), а не в IRQ. Ручное включение бита 27 в EN драйвер сразу снимает (нет callback). Глубокий cpuidle ни при чём (запрет state1 ничего не изменил).
-  Следующие шаги: drm.debug=0x1ff (+ msm DPU_DEBUG) во время flip с полными логами; проверить INTR2 (ctl_0 intr_start = TOP0_INTR2 бит 9: EN2 +0x008, STATUS2 +0x00c) — ждёт ли commit «ctl start»; попробовать weston/kmscube с atomic и посмотреть фактический fps; сравнить с другими SM6115-устройствами в mainline.
-- Визуальная проверка: на экране оставлена тестовая таблица (8 полос + рамка + «J606F OK»). Ждёт глаз пользователя.
+  (Устарело, проблемы не было:) drm.debug=0x1ff (+ msm DPU_DEBUG) во время flip с полными логами; проверить INTR2 (ctl_0 intr_start = TOP0_INTR2 бит 9: EN2 +0x008, STATUS2 +0x00c) — ждёт ли commit «ctl start»; попробовать weston/kmscube с atomic и посмотреть фактический fps; сравнить с другими SM6115-устройствами в mainline.
+- Визуальная проверка (29.10): тестовая таблица на экране подтверждена владельцем; дальше Plasma на этой панели.

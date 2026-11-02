@@ -1,14 +1,15 @@
 # Сборка образа pmOS (Nura) через pmbootstrap
 
-> **С 31.10:** пакет ядра переименован в `linux-lenovo-j606f` (r118; те же файлы и uname-суффикс, `replaces` старого), см. README «Обновления через apk-репозиторий». Ниже — история под старым именем.
-
-> **Статус 29.10 (ночь):** ядро linux-nura-qcom-sm61x5 **7.2.3-r105** (патчи 0001, 0003, 0004, 0005; без HACK 0002), device-lenovo-j606f **r6**
-> (на планшете r5), firmware-lenovo-j606f r0, temp/hexagonrpcd 0.4.0-r50. Собираются на хосте, ставятся обновлением через apk (STATE.md §4).
-> Локальные коммиты в src/pmaports-main: ядро c523e3a (r101), 06429e1 (r102), d97938f (r103), b2ad809 (r104), 7a93404 (r105);
-> device 4a3d060 (r4), 7b52c2d (r5), 9d0a730 (r6, rootfs → userdata); hexagonrpcd 7adbd16. История (до r101): 9f25afd, 02cd3cd, f0ab532.
+> **Статус 02.11:** пакеты порта в `pmaports/` этого репозитория: ядро **linux-lenovo-j606f 7.2.3-r121** (linux-nura-qcom-sm61x5 + патчи 0001, 0003–0024;
+> с 31.10/r118 своё имя, `replaces` старого пакета), device-lenovo-j606f **r20**, device-lenovo-j606f-nt36523w **r10**, firmware-lenovo-j606f
+> (личный APKBUILD + `APKBUILD.shared` для общего набора 0.320208), temp/hexagonrpcd **0.4.0-r50**, temp/libcamera **99990.7.2-r6** (0007 OV13B10, 0008 S5K4H7).
+> Сборка на хосте, установка и обновление — через apk (STATE.md §4), раздача — apk-репозиторий (README).
+> Разделы ниже — исходные шаги 28–29.10 (под старым именем ядра) с пометками, что изменилось.
 
 
 ## 1. Ядро: локальная доработка linux-nura-qcom-sm61x5 (7.2.3)
+> Сейчас это отдельный пакет `device/testing/linux-lenovo-j606f` (патчи 0001, 0003–0024 и config-j606f.fragment уже в нём); ниже — как начиналось.
+
 В локальной копии pmaports: device/testing/linux-nura-qcom-sm61x5/
 - добавить в source= и в prepare() (default_prepare применит *.patch):
   - src/patches/0001-drm-panel-himax-hx83102-add-Lenovo-J606F-BOE-HX83102P.patch (панель: init из стока, тайминги, DCS-подсветка)
@@ -40,12 +41,15 @@ pmbootstrap export          # boot.img и rootfs-образ в /tmp/postmarketOS
 - `fastboot set_active b`; откат: `fastboot set_active a`. pmOS должен помечать слот успешным (qbootctl), иначе ABL через ~7 попыток вернётся на a.
 Вариант B: слот a (заменить Android). Откат: BACKUP/.
 
-## 5. Что ещё нужно в DTS/драйверах (по notes/*)
-- тач HX83102E SPI (zero-flash) — нет драйвера;
+## 5. Что ещё нужно в DTS/драйверах (по notes/*, на 02.11)
+- ✓ тач HX83102E SPI (zero-flash) — порт драйвера Lenovo, патч 0006;
 - зарядка pmi632: свой драйвер только на чтение (патч 0004), запись лимитов не сделана; smb1355 — нет драйвера;
 - MAC Wi-Fi/BT: ABL не передаёт; сейчас стабильные адреса из serialno даёт bootmac (device r5), заводские из persist не берём;
 - ~~медленные page flip в msm~~ — оказалось артефактом теста (modetest без stdin), реально 60 Гц (notes/display.md);
-- аудио (aw88258, es7210, wcd937x/pm4125) — не начато (notes/audio.md); датчики (SSC) — **работают** (notes/sensors.md), не упакованы.
+- аудио: ✓ динамики AW88258 (0012–0016); нет ES7210 (микрофоны) и гарнитуры через USB-C/FSA4480 (notes/audio.md);
+- датчики (SSC) — **работают** (notes/sensors.md); drop-in'ы hexagonrpcd и файлы SSC не упакованы;
+- камеры: ✓ OV13B10 + DW9763, S5K4H7 (0017–0024); нет автофокуса, вспышки PMI632, тюнинга libcamera (notes/camera.md);
+- сон: помощник j606f-sleep не упакован (notes/suspend.md); Hall, pogo-клавиатура, вибромотор, светодиод — не описаны.
 
 ## 6. Апстрим (P3)
 Перед любым MR прочитать AI policy: https://docs.postmarketos.org/policies-and-processes/development/ai-policy.html

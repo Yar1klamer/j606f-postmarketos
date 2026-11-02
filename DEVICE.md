@@ -49,7 +49,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 Источники: raw/adb_20261028_232150/ (adb shell без root, uid=shell), raw/fastboot_20261028_232246/,
 затем root (Magisk, 28.10 вечер, raw/root_20261028/) и mainline (тесты 3–9). Разделы ниже до «Дополнено» записаны до root;
 уточнения и исправления в разделе «Дополнено 2026-10-29» в конце.
-> Сейчас (29.10, ночь): Android удалён; **userdata = rootfs pmOS** (GPT: pmOS_boot + pmOS_root), super — старая копия без GPT подразделов, активный слот **b** (boot_b = pmOS), dtbo_b стёрт.
+> Сейчас (02.11): Android удалён; **userdata = rootfs pmOS** (GPT: pmOS_boot + pmOS_root), super — старая копия без GPT подразделов, активный слот **b** (boot_b = pmOS), dtbo_b стёрт.
 
 ## Идентификация (getprop)
 | Параметр | Значение |
@@ -99,9 +99,9 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 - Модель панели: **Himax HX83102P (BOE)**, подтверждено по cmdline стока (см. «Дополнено»). В mainline описана другая ревизия, NT36523W.
 
 ## Ввод
-- I2C 0-0060 и 1-0061: hid-over-i2c (i2c_hid). Скорее всего, это тач и/или клавиатура/тачпад (power_supply «touchpad» есть). Не подтверждено.
+- I2C 0-0060 и 1-0061: hid-over-i2c (i2c_hid) — MCU pogo-клавиатуры/тачпада Lenovo Keyboard Pack (notes/input_keyboard.md); тач — HX83102E на SPI0 (см. «Дополнено»).
 - SPI: spi0.0, spi0.1 (4a88000.spi), spi1.0 (4a94000.spi), драйверы не прочитаны (устройство ушло с USB)
-- Кнопки (по mainline DTS, на устройстве не проверено): Vol+ = pm6125 gpio5, Vol− = PON resin, Power = PON pwrkey
+- Кнопки: Vol+ = pm6125 gpio5, Vol− = PON resin, Power = PON pwrkey (в pmOS проверены)
 
 ## Питание / зарядка
 - PMIC: pm6125 (spmi 0), pmi632 (spmi 2), pm2250 (spmi_dlkm, аудио rouleur)
@@ -125,7 +125,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 - Освещённость: Lite-On ltr578
 - Близость / ToF: ams tmf8801
 - SAR: Semtech sx932x (I2C 1-0033 virtualsar)
-- В Linux это потребует hexagonrpcd + libssc / iio-sensor-proxy с SSC. Сложно, P1.
+- В pmOS работают через hexagonrpcd (наш патч, 0.4.0-r50) + libssc + iio-sensor-proxy (notes/sensors.md).
 
 ## Камеры (сток S120184 + проверка в mainline, 2026-11-01)
 - Задняя OV13B10: CCI0 (`i2c-qcom-cci` 0x5c1b000) 0x10, ID 0x560d42, MCLK0 gpio20 19.2 МГц, reset gpio18, 4 линии CSIPHY0, 560 МГц.

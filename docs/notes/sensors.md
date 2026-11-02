@@ -6,9 +6,10 @@
 - ToF/proximity ams tmf8801
 - SAR Semtech sx932x (virtualsar на I2C1 0x33 для «vitural-sar» input)
 
-В Linux нужно: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (SSC-путь, работает на других qcom-устройствах в pmOS). Нужны /vendor/dsp/* и sns-регистрация (/mnt/vendor/persist/sensors, есть в BACKUP/firmware/mnt_vendor_persist.tar). Сложно, P1.
+В Linux нужно: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (SSC-путь, работает на других qcom-устройствах в pmOS). Нужны /vendor/dsp/* и sns-регистрация (/mnt/vendor/persist/sensors, есть в BACKUP/firmware/mnt_vendor_persist.tar).
 
-## Статус (2026-10-29, ночь): **работают** свет, приближение, акселерометр (подробно ниже и в заметках автора)
+## Статус: **работают** свет, приближение, акселерометр (с 29.10, подробно ниже)
+- 02.11: после сна датчики не возвращаются (sensorspd останавливается из-за `Conflicts=suspend.target`), см. suspend.md.
 
 ## Попытки SSC в mainline (2026-10-29), 1–3 не получились (история, LOG.md)
 - ADSP стартует со стоковым adsp.mbn; fastrpc.ko даёт /dev/fastrpc-adsp; hexagonrpcd 1.x и libssc (ssccli) из Alpine community.

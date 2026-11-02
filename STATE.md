@@ -1,14 +1,14 @@
-# STATE — где мы остановились (2026-11-01)
+# STATE — где мы остановились (2026-11-02)
 
 > Текущее состояние порта. Устройство: [DEVICE.md](DEVICE.md). Решения: [docs/DECISIONS.md](docs/DECISIONS.md).
 > Подробные заметки по подсистемам: `docs/notes/*.md`.
 
 ## 1. Одной строкой
 **pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
-**rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 с патчами 0001, 0003–0022)
-(в pmaports **pkgrel 120**; без HACK 0002). Работают: Plasma, Wi-Fi, Bluetooth, батарея, датчики, **тач**, **USB OTG**, зарядка от сетевой USB-C (FUSB302),
+**rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 с патчами 0001, 0003–0024)
+(в pmaports **pkgrel 121**; без HACK 0002). Работают: Plasma, Wi-Fi, Bluetooth, батарея, датчики, **тач**, **USB OTG**, зарядка от сетевой USB-C (FUSB302),
 GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппаратное H.264/HEVC-декодирование через Venus** (патч 0011, firmware r2) и **динамики** (4× AW88258, стерео, 0012–0016), **задняя камера** (OV13B10 + фокус DW9763, CAMSS 0017–0022) и **фронтальная камера** (свой драйвер S5K4H7, 0023–0024); libcamera r6.
-Нет: микрофоны, гарнитура (USB-C), полностью проверенный сон и финальный тест offline-зарядки. Пакеты раздаются через **https://repo.yarnick.ru/j606f** (README; публичный снимок пока старше).
+Нет: микрофоны, гарнитура (USB-C), полностью проверенный сон и финальный тест offline-зарядки. Пакеты раздаются через **https://repo.yarnick.ru/j606f** (README).
 Второй планшет (тестировщик, тоже HX83102P, Android 11 в стоке) работает на образе с его прошивками.
 
 ## 2. Состояние устройства прямо сейчас
@@ -38,25 +38,31 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 - `~/.config/kscreenlockerrc`: `[Daemon] Autolock=false, LockOnResume=false` (отключено, пока не было тача; владелец решил так и оставить);
 - `~/.config/powerdevilrc`: `PowerButtonAction=128` (Power = вкл/выкл экрана);
 - mpv (настройки из device r20: `/etc/mpv/mpv.conf` — profile=fast, hwdec=no; свой `~/.config/mpv/mpv.conf` убран), glmark2, vkmark;
+- оболочка zsh + starship, Konsole с JetBrains Mono Nerd и тёмной схемой, KDE: Papirus-Dark, оформление окон Breeze, ночная подсветка;
+- локаль ru_RU.UTF-8, NTP (systemd-timesyncd) включён: аппаратные часы PMIC из Linux не пишутся, без сети время берётся из метки timesyncd;
 - `/etc/apk/repositories`: pmOS — `https://mirror.minlexx.ru/postmarketos/{extra-repos/systemd/main,main}`, Alpine — `http://mirror.yandex.ru/mirrors/alpine/edge/{main,community,testing}`
   (mirror.nura.eco из этой сети отдаёт ~500 Б/с; запасной вариант — официальное RWTH Aachen).
 
 ## 3. Следующий шаг
+0. Камеры: обе работают (r121 + libcamera r6). Дальше — автофокус, AGC фронта при контровом свете, тюнинг цвета (ov13b10.yaml, s5k4h7.yaml),
+   скрыть сырые узлы CAMSS в PipeWire (правило WirePlumber), вспышка PMI632.
 1. ✅ **Venus работает**: ядро r115 + firmware r2, аппаратные H.264 и HEVC 1080p проверены через `v4l2m2m-copy` с корректным EOF. Опубликовано (патч 0011 в репозитории, пакеты в apk-репозитории); в mpv по умолчанию программное декодирование (r20).
-2. Сон: r110 исправил USB ep0, r111 дал успешный s2idle; ручной `j606f-sleep` восстанавливает BT, но финальная проверка ADSP/датчиков/USB не завершена.
-   Helper пока не отслеживается Git и не включён в device APKBUILD — оформить после повторного теста.
-3. Офлайн-зарядка: device r11 различает reboot и charger boot. Завершить финальный цикл: poweroff → charger mode → Power hold → boot → unplug → poweroff.
+2. Сон: r110 исправил USB ep0, r111 дал успешный s2idle; на r121 сон и пробуждение без ошибок USB/ADSP, звук и BT возвращаются.
+   Helper `j606f-sleep` (останавливает датчики и BT) пока не в device-пакете; с ним датчики после пробуждения не поднимаются —
+   у hexagonrpcd-adsp-sensorspd `Conflicts=suspend.target`, нужен отдельный юнит After=suspend.target. Затем упаковать.
+3. Офлайн-зарядка: device r11 различает reboot и charger boot. Финальный цикл poweroff → charger → unplug не завершён; экран «hold power button to boot» планируется убрать и сделать офлайн-зарядку иначе.
 4. Умолчания в device-пакет (Power = экран, экранная клавиатура EN/RU, без автоблокировки, масштаб 1.4) — у тестировщика это пришлось делать руками.
 5. Звук дальше: микрофоны ES7210 (порт драйвера Lenovo), гарнитура через USB-C (FSA4480 + WCD937x); динамики готовы (r117). Автоповорот (ACCEL_MOUNT_MATRIX), упаковка датчиков, запись лимитов зарядника,
    тач Novatek для ревизии NT36523W, перо.
 
-## 4. Как обновлять без переустановки (проверено 29.10)
-Полная переустановка (`pmbootstrap install` + `fastboot flash super/boot_b`) сбрасывает локальные настройки и требует fastboot. Вместо неё:
-1. На сборочном хосте: `pmbootstrap build <пакеты>` → `.apk` в `pmb-work/packages/edge/aarch64/` (подписаны ключом `pmos@local-*`, он уже есть в `/etc/apk/keys` планшета).
-2. Скопировать `.apk` на планшет (`scp`), `sudo apk add -u /tmp/pk/*.apk` — mkinitfs и boot-deploy сами соберут `/boot/boot.img`.
-3. Проверить `/boot/boot.img` (cmdline с прежними `pmos_*_uuid`, DTB, initramfs), затем
-   `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync` и сверить sha256.
-4. `sudo systemctl reboot`. Откат — прошлый `boot.img` через `fastboot flash boot_b`.
+## 4. Как обновлять без переустановки (порядок с r120)
+Полная переустановка сбрасывает локальные настройки и требует fastboot. Вместо неё:
+1. Собрать пакеты: `pmbootstrap build <пакет>` → `.apk` (подписаны ключом репозитория, он уже есть на планшете).
+2. Новое ядро — сначала без записи: тестовый образ = текущий `/boot/boot.img` с vmlinuz и DTB из нового пакета
+   ([`scripts/bootimg_replace_dtb.py`](scripts/bootimg_replace_dtb.py)), `systemctl reboot --reboot-argument=bootloader`, `fastboot boot`, проверка.
+3. Сохранить копию boot_b и `/etc/apk/world`, затем `sudo apk add <файлы .apk>` — mkinitfs и boot-deploy сами пишут boot_b (device r7+);
+   вернуть world из копии, перезагрузиться и проверить `uname -v` (`#<pkgrel+1>`).
+4. Опубликовать в apk-репозитории — остальные получают обычным `apk upgrade`. Откат — прошлый boot.img через `fastboot flash boot_b`.
 
 ## 5. Сборка (pmbootstrap)
 - `pmbootstrap_v3.cfg`: device lenovo-j606f, **ui plasma-desktop**.
@@ -71,12 +77,12 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 - Ядро: **linux-lenovo-j606f 7.2.3-r121** на планшете и в apk-репозитории (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0024`), uname `7.2.3-sm61x5 #122`.
 - libcamera: **99990.7.2-r6** (pmaports temp/libcamera + 0007 OV13B10, 0008 S5K4H7) на планшете и в apk-репозитории (выше pmOS r4).
 - device-lenovo-j606f **r20** на планшете и в pmaports (репозиторий порта и его ключ, `/etc/mpv/mpv.conf`, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
-- postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
+- postmarketos-ui-plasma-desktop 5; Plasma 6.8.1; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
 
 ## 7. Чек-лист
 P0: [x] дисплей+подсветка · [x] стабильная загрузка с внутренней памяти после выключения и включения · [x] тач (HX83102E, патч 0006; перо не проверено) ·
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
 [~] батарея и зарядка: индикация (mm8013), статус зарядника (read-only), зарядка от USB-A и от сетевой USB-C (FUSB302, 5 В); нет офлайн-зарядки и записи лимитов · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
-P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [~] звук (динамики ✅ r117; микрофоны и гарнитура — нет) · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [~] USB OTG (FUSB302) · [~] suspend (r110/r111 + ручной sleep helper, финальная проверка не завершена) · [x] GPU-производительность (DDR votes, 0009) · [x] аппаратное H.264/HEVC-декодирование (Venus, 0011/r115).
-P2/P3: пакеты pmaports (linux-lenovo-j606f r121, libcamera r6, device r20, device-lenovo-j606f-nt36523w r10, firmware r2 + APKBUILD.shared, hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.
+P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [x] камеры (задняя с ручным фокусом, фронтальная) · [~] звук (динамики ✅ r117; микрофоны и гарнитура — нет) · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [~] USB OTG (FUSB302) · [~] suspend (r110/r111 + ручной sleep helper, финальная проверка не завершена) · [x] GPU-производительность (DDR votes, 0009) · [x] аппаратное H.264/HEVC-декодирование (Venus, 0011/r115).
+P2/P3: пакеты pmaports (linux-lenovo-j606f r121, libcamera r6, device r20, device-lenovo-j606f-nt36523w r10, firmware 1-r3 (личный APKBUILD) + APKBUILD.shared (общий 0.320208), hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.

@@ -58,6 +58,6 @@
   без инверсии касания отражены через центр. Тест по 4 углам (экран в ландшафте, как держит владелец): ЛВ (1109,114), ПВ (1050,1855), ПН (218,1859), ЛН (192,133).
   Проверено сначала udev-матрицей `LIBINPUT_CALIBRATION_MATRIX="-1 0 1 0 -1 1"` → «точно», затем перенесено в драйвер (DT-свойства).
 - Лог probe: «detect IC HX83102E successfully» → через 2 с «Forced upgrade» → «Update FW success», FW_VER D403, CID 1741, BOE/P11; IRQ tlmm 86 edge falling.
-- Прошивка: `Himax_firmware.bin`, `Himax_mpfw.bin` — в firmware-lenovo-j606f r1 (тарбол локальный, не публикуется).
+- Прошивка: `Himax_firmware.bin`, `Himax_mpfw.bin` — из личного firmware-пакета, общего набора 0.320208 или с vendor самого планшета (firmware-extract, device r16+).
 - Грабли: `pkill -f` в ssh убивает свою же оболочку (снова); `udevadm info` сразу после insmod показывает свойства до обработки правил — ждать `udevadm settle`;
   на этом образе нет /etc/udev/rules.d (создать).

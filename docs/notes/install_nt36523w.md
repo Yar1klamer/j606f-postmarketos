@@ -42,7 +42,8 @@ bash scripts/collect_firmware.sh         # прошивки Lenovo → FIRMWARE/
 
 ## 4. Образ
 Собирается pmbootstrap с pmaports из этого репозитория (`pmaports/device/testing/`): ядро `linux-lenovo-j606f`,
-`device-lenovo-j606f-nt36523w`, `firmware-lenovo-j606f` (тарбол из ваших файлов: раскладка в его APKBUILD).
+`device-lenovo-j606f-nt36523w`, `firmware-lenovo-j606f`: либо общий набор стока S320208 из apk-репозитория (`APKBUILD.shared`, бэкап не нужен,
+DSP-прошивку своего стока device-пакет возьмёт с разделов планшета), либо тарбол из ваших файлов (раскладка в APKBUILD).
 ```bash
 pmbootstrap init        # device: lenovo-j606f-nt36523w
 pmbootstrap install --password <временный пароль>
