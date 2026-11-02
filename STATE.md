@@ -7,7 +7,7 @@
 **pmOS (Nura edge) with KDE Plasma Desktop is installed to internal storage and boots on its own** on the Lenovo Tab P11 TB-J606F (Himax HX83102P revision):
 **rootfs in `userdata` (~100 GiB)**, boot.img in `boot_b`, **dtbo_b erased**, active slot **b**. Kernel — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 with patches 0001, 0003–0022)
 (**pkgrel 120** in pmaports; without HACK 0002). Working: Plasma, Wi-Fi, Bluetooth, battery, sensors, **touch**, **USB OTG**, charging from a USB-C wall charger (FUSB302),
-GPU with a DDR bandwidth vote (patch 0009, ×2.5–7), **hardware H.264/HEVC decoding through Venus** (patch 0011, firmware r2), **speakers** (4× AW88258, stereo, 0012–0016) and the **rear camera** (OV13B10 + DW9763 focus, CAMSS 0017–0022, libcamera r5).
+GPU with a DDR bandwidth vote (patch 0009, ×2.5–7), **hardware H.264/HEVC decoding through Venus** (patch 0011, firmware r2), **speakers** (4× AW88258, stereo, 0012–0016) and the **rear camera** (OV13B10 + DW9763 focus, CAMSS 0017–0022) and the **front camera** (own S5K4H7 driver, 0023–0024); libcamera r6.
 Missing: microphones, headset (USB-C), a fully verified suspend and the final offline-charging test. Packages are served from **https://repo.yarnick.ru/j606f** (README; the public snapshot is older for now).
 A second tablet (a tester's, also HX83102P, Android 11 in stock) runs an image with its own firmware.
 
@@ -17,7 +17,7 @@ A second tablet (a tester's, also HX83102P, Android 11 in stock) runs an image w
 | Running | pmOS + Plasma Desktop (autologin user), normal boot from slot b |
 | Active slot | **b** (`slot-successful:b` = yes) |
 | boot_a | stock boot + Magisk; the stock original is in the private backup |
-| boot_b | kernel **linux-lenovo-j606f r120** (uname `#121`, cameras), boot.img written by boot-deploy automatically; r120 was tested through `fastboot boot` first; rollback images in the private backup |
+| boot_b | kernel **linux-lenovo-j606f r121** (uname `#122`, both cameras), boot.img written by boot-deploy automatically; r121 was tested through `fastboot boot` first; rollback images in the private backup |
 | dtbo_b | **erased** (`fastboot erase dtbo_b`): ABL applies no overlay, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | stock |
 | userdata (102 GiB) | **pmOS rootfs**: GPT (sector 4096) pmOS_boot 480 MiB + pmOS_root 102 GiB (moved block by block from super with the same UUIDs, 29.10) |
@@ -25,7 +25,7 @@ A second tablet (a tester's, also HX83102P, Android 11 in stock) runs an image w
 | Android | **will not boot** (super overwritten) — with the owner's consent |
 | modem*/persist/fsg/abl/xbl | untouched (rmtfs in pmOS writes EFS to modemst1/2 and fsg — as intended) |
 | Access | `ssh user@172.16.42.1` (USB) or over Wi-Fi; on the tablet passwordless `sudo` for user and autologin (local setting, **not in the image**) |
-| apk | repository `https://repo.yarnick.ru/j606f` without a tag — from the device package (`/usr/lib/apk/repositories.d`, key in `/usr/lib/apk/keys`), migrated with `repo-migrate`; on the tablet and in the apk repository linux-lenovo-j606f r120 and libcamera r5 (own build of the pmOS libcamera with the OV13B10 helper, all subpackages except -dbg) + device r20 (+ nt36523w r10); the apk repository also has the shared firmware set firmware-lenovo-j606f 0.320208 (stock S320208); our tablet has its own firmware 1-r3 (with `awinic/aw882xx_acf.bin`: our vendor is wiped) |
+| apk | repository `https://repo.yarnick.ru/j606f` without a tag — from the device package (`/usr/lib/apk/repositories.d`, key in `/usr/lib/apk/keys`), migrated with `repo-migrate`; on the tablet and in the apk repository linux-lenovo-j606f r121 and libcamera r6 (own build of the pmOS libcamera with the OV13B10 and S5K4H7 helpers, all subpackages except -dbg) + device r20 (+ nt36523w r10); the apk repository also has the shared firmware set firmware-lenovo-j606f 0.320208 (stock S320208); our tablet has its own firmware 1-r3 (with `awinic/aw882xx_acf.bin`: our vendor is wiped) |
 
 Local settings on the tablet (lost on a full reinstall of the image):
 - kscreen: DSI-1 `rotation.left` (landscape), scale 1.4;
@@ -68,8 +68,8 @@ A full reinstall (`pmbootstrap install` + `fastboot flash super/boot_b`) resets 
 
 ## 6. Versions
 - pmbootstrap **3.12.1**; pmaports branch **main** + local commits; channel **systemd-edge**.
-- Kernel: **linux-lenovo-j606f 7.2.3-r120** on the tablet and in the apk repository (up to r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0022`), uname `7.2.3-sm61x5 #121`; in pmaports — **r121** (+ 0023–0024, the S5K4H7 front camera), not built yet.
-- libcamera: **99990.7.2-r5** (pmaports temp/libcamera + 0007, OV13B10) on the tablet and in the apk repository (above pmOS r4); in pmaports — **r6** (+ 0008, S5K4H7), not built yet.
+- Kernel: **linux-lenovo-j606f 7.2.3-r121** on the tablet and in the apk repository (up to r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0024`), uname `7.2.3-sm61x5 #122`.
+- libcamera: **99990.7.2-r6** (pmaports temp/libcamera + 0007 OV13B10, 0008 S5K4H7) on the tablet and in the apk repository (above pmOS r4).
 - device-lenovo-j606f **r20** on the tablet and in pmaports (the port's repository and its key, `/etc/mpv/mpv.conf`, rootfs → userdata, automatic boot_b write, offline-charger hook, speaker UCM, SoundWire → WCD937x softdep, firmware from the tablet's own modem/bluetooth/super — into /lib/firmware/updates with the shared set, an apk trigger); firmware-lenovo-j606f: personal **1-r3** (from our own backup, not published) or the shared **0.320208** from the apk repository (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (our `sns_reg_version` patch).
 - postmarketos-ui-plasma-desktop 5; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Stock firmware: TB-J606F_S120184_210520_ROW (Android 10), ABL "Loader Build Info: Sep 4 2021".

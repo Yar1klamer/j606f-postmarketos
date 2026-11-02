@@ -42,7 +42,7 @@
 - Config: I2C_QCOM_CCI, VIDEO_OV13B10, VIDEO_OV8856, VIDEO_DW9719, V4L2_CCI(_I2C) = m (PM8008 removed). Kernel r120; r121 + VIDEO_S5K4H7=m.
 - libcamera (pmaports temp/libcamera): r5 — 0007 helper + ov13b10 properties (gain 0x80 = 1x, black 4096, 1.12 µm);
   r6 — 0008 helper + s5k4h7 properties (gain 0x20 = 1x, black 4096, 1.12 µm, test patterns 0–4).
-- r121 and libcamera r6 are committed but **not built yet** and not tested as packages (the front camera was tested with a test module and DTB).
+- r121 and libcamera r6 were built (01.11), tested through fastboot boot, installed on our tablet and published in the apk repository (02.11).
 - Working tree: src/work-cam (git worktree of linux-sm61x5-full at 5a88d98 + 0001, 0003–0016 as one commit).
 
 ## Tested (2026-11-01, r119 + test DTBs through fastboot boot)
@@ -70,10 +70,20 @@
   the watchdog → the Qualcomm CrashDump screen, exit with a long press of Power). The CSID1/TFE1 addresses, IRQs, clocks and SMMU
   match the stock DT; the cause is not found. The rear camera also works through CSID0 — do not enable CSID1/TFE1 by hand.
 
+## r121 + libcamera r6 as packages (2026-11-02)
+- fastboot boot (r120 boot.img + r121 vmlinuz/DTB), then installation: `#122`, kernel not tainted, s5k4h7 from the package (kernel/…/s5k4h7.ko.zst),
+  `cam -l` — both cameras, front properties: Model s5k4h7, PixelArraySize 3264x2448, active (8,8)/3264x2448, UnitCellSize 1120, Rotation 270.
+- `cam -c 2 -s 1632x1224` — 15–30 fps (AGC keeps a long exposure), `cam -c 1 -s 2104x1560` — ~15 fps (evening light in the room).
+- A front frame against a window is overexposed and milky: the soft IPA AGC goes to the maximum exposure (33 ms, 2526 lines) with a gain of ~1.3–1.6.
+  RAW check (csiphy2 → csid0 → vfe0_rdi0, gain 1x, the same view): exposure 100/400/1600/2500 lines → mean 24/48/103/123 (8 bit),
+  minimum 15 (≈ 60 in 10 bit with black at 64), saturation 0/2/18/26 % — the exposure is linear, the black level is right. So the cause is the soft IPA AGC
+  (histogram mean) on a backlit scene, not the driver. To check in normal lighting; possibly s5k4h7.yaml/the initial exposure.
+- First normal boot of r121: no sound card (ADSP without APR services — the same rare failure as on r117); the second one — 3 cards, speakers.
+
 ## Next
 1. Rear: ✅ crop, ✅ AGC in libcamera, ✅ manual focus (DW9763: sharpness 0 → 286, 450 → 907, 900+ → 79).
    Open: the soft IPA has no autofocus; orientation/rotation;
    sensor delays and ov13b10.yaml tuning; PMI632 flash.
-2. Front: ✅ driver and DT (0023–0024), ✅ libcamera helper (0008). Open: build and test r121/libcamera r6,
+2. Front: ✅ driver and DT (0023–0024), ✅ libcamera helper (0008). Open: AGC with backlight,
    a 2x2 binned mode (1632x1224), sensor delays, s5k4h7.yaml/colour, the CSID1/TFE1 hang.
 3. VCM DW9763, PMI632 flash.
