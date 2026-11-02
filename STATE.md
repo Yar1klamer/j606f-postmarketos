@@ -25,7 +25,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 | Android | **не загрузится** (super перезаписан) — с согласия владельца |
 | modem*/persist/fsg/abl/xbl | не трогали (rmtfs в pmOS пишет EFS в modemst1/2, fsg — штатно) |
 | Доступ | `ssh user@172.16.42.1` (USB) или по Wi-Fi; на планшете `sudo` без пароля для user и автологин (локальная настройка, **не в образе**) |
-| apk | репозиторий `https://repo.yarnick.ru/j606f` без метки — из device-пакета (`/usr/lib/apk/repositories.d`, ключ в `/usr/lib/apk/keys`), переход выполнен `repo-migrate`; на планшете и в apk-репозитории linux-lenovo-j606f r121 и libcamera r6 (своя сборка pmOS libcamera с хелперами OV13B10 и S5K4H7, все подпакеты кроме -dbg) + device r20 (+ nt36523w r10); в apk-репозитории также общий набор прошивок firmware-lenovo-j606f 0.320208 (сток S320208); на нашем планшете — свой firmware 1-r3 (с `awinic/aw882xx_acf.bin`: vendor у нас стёрт) |
+| apk | репозиторий `https://repo.yarnick.ru/j606f` без метки — из device-пакета (`/usr/lib/apk/repositories.d`, ключ в `/usr/lib/apk/keys`), переход выполнен `repo-migrate`; на планшете и в apk-репозитории linux-lenovo-j606f r121 и libcamera r6 (своя сборка pmOS libcamera с хелперами OV13B10 и S5K4H7, все подпакеты кроме -dbg) + device r20 (+ nt36523w r10; в pmaports уже r21 / r11 с помощником сна); в apk-репозитории также общий набор прошивок firmware-lenovo-j606f 0.320208 (сток S320208); на нашем планшете — свой firmware 1-r3 (с `awinic/aw882xx_acf.bin`: vendor у нас стёрт) |
 
 Локальные настройки на планшете (пропадут при полной переустановке образа):
 - kscreen: DSI-1 `rotation.left` (ландшафт), масштаб 1.4;
@@ -48,8 +48,10 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
    скрыть сырые узлы CAMSS в PipeWire (правило WirePlumber), вспышка PMI632.
 1. ✅ **Venus работает**: ядро r115 + firmware r2, аппаратные H.264 и HEVC 1080p проверены через `v4l2m2m-copy` с корректным EOF. Опубликовано (патч 0011 в репозитории, пакеты в apk-репозитории); в mpv по умолчанию программное декодирование (r20).
 2. Сон: r110 исправил USB ep0, r111 дал успешный s2idle; на r121 сон и пробуждение без ошибок USB/ADSP, звук и BT возвращаются.
-   Helper `j606f-sleep` (останавливает датчики и BT) пока не в device-пакете; с ним датчики после пробуждения не поднимаются —
-   у hexagonrpcd-adsp-sensorspd `Conflicts=suspend.target`, нужен отдельный юнит After=suspend.target. Затем упаковать.
+   С **device r21** (nt36523w r11) помощник сна в пакете: `j606f-sleep.service` останавливает датчики и BT перед сном, `j606f-resume.service`
+   (After=suspend.target) поднимает hexagonrpcd-adsp-rootpd/sensorspd и iio-sensor-proxy после. Причина прежнего бага: у hexagonrpcd-adsp-*
+   `Conflicts=suspend.target`, systemd гасил их одновременно с нашим хуком, и они не попадали в список на восстановление. 02.11: три цикла сна —
+   датчики, ADSP, звук, BT на месте. Не проверены долгий сон (часы) и сон с OTG; при сне из ssh будит UART BT (msmgpio 11) через ~2 с.
 3. Офлайн-зарядка: device r11 различает reboot и charger boot. Финальный цикл poweroff → charger → unplug не завершён; экран «hold power button to boot» планируется убрать и сделать офлайн-зарядку иначе.
 4. Умолчания в device-пакет (Power = экран, экранная клавиатура EN/RU, без автоблокировки, масштаб 1.4) — у тестировщика это пришлось делать руками.
 5. Звук дальше: микрофоны ES7210 (порт драйвера Lenovo), гарнитура через USB-C (FSA4480 + WCD937x); динамики готовы (r117). Автоповорот (ACCEL_MOUNT_MATRIX), упаковка датчиков, запись лимитов зарядника,
@@ -76,7 +78,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
 - Ядро: **linux-lenovo-j606f 7.2.3-r121** на планшете и в apk-репозитории (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0024`), uname `7.2.3-sm61x5 #122`.
 - libcamera: **99990.7.2-r6** (pmaports temp/libcamera + 0007 OV13B10, 0008 S5K4H7) на планшете и в apk-репозитории (выше pmOS r4).
-- device-lenovo-j606f **r20** на планшете и в pmaports (репозиторий порта и его ключ, `/etc/mpv/mpv.conf`, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
+- device-lenovo-j606f **r21** в pmaports (помощник сна j606f-sleep/j606f-resume, репозиторий порта и его ключ, `/etc/mpv/mpv.conf`, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
 - postmarketos-ui-plasma-desktop 5; Plasma 6.8.1; Mesa 26.2.5 (freedreno FD610); Alpine edge.
 - Стоковая прошивка: TB-J606F_S120184_210520_ROW (Android 10), ABL «Loader Build Info: Sep 4 2021».
 
@@ -84,5 +86,5 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 P0: [x] дисплей+подсветка · [x] стабильная загрузка с внутренней памяти после выключения и включения · [x] тач (HX83102E, патч 0006; перо не проверено) ·
 [x] USB-сеть + SSH · [x] Wi-Fi (подключение, DHCP, DNS, интернет) ·
 [~] батарея и зарядка: индикация (mm8013), статус зарядника (read-only), зарядка от USB-A и от сетевой USB-C (FUSB302, 5 В); нет офлайн-зарядки и записи лимитов · [x] кнопки (Power гасит/включает экран, громкость проверена владельцем).
-P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [x] камеры (задняя с ручным фокусом, фронтальная) · [~] звук (динамики ✅ r117; микрофоны и гарнитура — нет) · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [~] USB OTG (FUSB302) · [~] suspend (r110/r111 + ручной sleep helper, финальная проверка не завершена) · [x] GPU-производительность (DDR votes, 0009) · [x] аппаратное H.264/HEVC-декодирование (Venus, 0011/r115).
-P2/P3: пакеты pmaports (linux-lenovo-j606f r121, libcamera r6, device r20, device-lenovo-j606f-nt36523w r10, firmware 1-r3 (личный APKBUILD) + APKBUILD.shared (общий 0.320208), hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.
+P1: [x] GPU + Wayland (Plasma), Vulkan (turnip) · [x] камеры (задняя с ручным фокусом, фронтальная) · [~] звук (динамики ✅ r117; микрофоны и гарнитура — нет) · [x] BT (сопряжение и ввод: мышь Mi Mouse3C) · [x] датчики (свет, приближение, акселерометр; ориентация — подобрать матрицу) · [~] USB OTG (FUSB302) · [~] suspend (r110/r111 + помощник сна в device r21; долгий сон не проверен) · [x] GPU-производительность (DDR votes, 0009) · [x] аппаратное H.264/HEVC-декодирование (Venus, 0011/r115).
+P2/P3: пакеты pmaports (linux-lenovo-j606f r121, libcamera r6, device r21, device-lenovo-j606f-nt36523w r11, firmware 1-r3 (личный APKBUILD) + APKBUILD.shared (общий 0.320208), hexagonrpcd r50) — в `pmaports/`; apk-репозиторий https://repo.yarnick.ru/j606f; документация — этот репозиторий.

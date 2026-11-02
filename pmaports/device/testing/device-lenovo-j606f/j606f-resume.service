@@ -1,0 +1,13 @@
+[Unit]
+Description=Restart J606F sensors after a resume
+Documentation=file:///usr/lib/j606f/sleep
+# hexagonrpcd-adsp-*.service have Conflicts=suspend.target: a start job queued while the sleep
+# transaction runs (from j606f-sleep.service) is dropped, so start them once suspend.target is reached
+After=suspend.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/j606f/sleep resume
+
+[Install]
+WantedBy=suspend.target

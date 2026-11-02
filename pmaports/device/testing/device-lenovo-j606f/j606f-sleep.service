@@ -1,0 +1,14 @@
+[Unit]
+Description=Stop J606F sensors and Bluetooth for the time of a suspend
+Documentation=file:///usr/lib/j606f/sleep
+Before=sleep.target
+StopWhenUnneeded=yes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/j606f/sleep pre
+ExecStop=/usr/lib/j606f/sleep post
+
+[Install]
+WantedBy=sleep.target
