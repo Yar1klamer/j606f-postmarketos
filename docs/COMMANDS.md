@@ -159,3 +159,20 @@ fastboot flash super BACKUP/partitions/super.img       # stock super (sha256 cf8
 echo YES | ./flash-all.sh                              # from the unpacked archive
 # sshd is off and sudo asks for a password in the image: on the tablet sudo systemctl start sshd, then the owner adds the Mac key (typing the password themselves).
 ```
+
+## Wi-Fi: wlanmdsp from modem_a (03.11)
+Check: `sudo dmesg | grep -E "wlan_process|crash detected"` (the modem crashing in a loop) and compare
+```
+sudo mkdir -p /tmp/m && sudo mount -t vfat -o ro /dev/disk/by-partlabel/modem_a /tmp/m
+sha256sum /tmp/m/image/wlanmdsp.mbn /lib/firmware/updates/qcom/sm6115/LENOVO/J606F/wlanmdsp.mbn /lib/firmware/qcom/sm6115/LENOVO/J606F/wlanmdsp.mbn
+```
+Fix (an sh script under sudo):
+```
+U=/lib/firmware/updates/qcom/sm6115/LENOVO/J606F; mkdir -p $U && cp /tmp/m/image/wlanmdsp.mbn $U/ && umount /tmp/m
+R=$(grep -l '^modem$' /sys/class/remoteproc/*/name | xargs dirname)
+echo stop > $R/state; echo start > $R/state
+```
+After ~30 s: `ip -br link show wlan0`, `dmesg | grep fw_build_id`.
+
+## Keys (evtest)
+`sudo timeout 30 evtest /dev/input/event1` (pm8941_resin, Volume−) and `/dev/input/event2` (gpio-keys, Volume+); list: `cat /sys/class/input/event*/device/name`.

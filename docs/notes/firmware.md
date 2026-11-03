@@ -15,6 +15,17 @@ crbtfw21/crnv21 from bluetooth_a, the adsp tree from dsp_a, registry + sns_reg_v
 aw882xx_acf, sensors/config, sns_reg.conf from vendor_a → "initramfs rebuilt", "rebooting once" (at second 89). Later boots add nothing.
 Afterwards /dev/mapper is empty (mappings removed), nothing is mounted. GPU (FD610), touch, speakers and sensors work.
 
+## wlanmdsp.mbn has to match modem_a (03.11)
+- Symptom: after our system was restored from the backup (the release image had run on the tablet before) there is no wlan0, Wi-Fi shows "type unknown".
+  dmesg: `qcom_q6v5_pas 6080000.remoteproc: fatal error received: dog_virtual_root.c:92:User-PD grace timer expired for wlan_process (ASID: 1)`
+  every ~41 s, then "crash detected in modem" and a restart; tqftpserv serves `/readonly/vendor/firmware_mnt/image/wlanmdsp.mbn` again and again.
+- Cause: wlanmdsp.mbn in the personal package 1-r3 differs from `image/wlanmdsp.mbn` of the modem_a partition (modem/adsp/cdsp/venus match).
+  Before the release image ran (it takes wlanmdsp from modem_a) the same 1-r3 worked — the modem seems to remember the WLAN image version in EFS (modemst via rmtfs).
+- Fix: the stock file in `/lib/firmware/updates/qcom/sm6115/LENOVO/J606F/wlanmdsp.mbn` (tqftpserv and the kernel search updates first), restart
+  the modem through `/sys/class/remoteproc/<modem>/state` (stop, start) → `ath10k_snoc … fw_build_id … WLAN.HL.3.2.4-00564`, wlan0 appears, NM connects.
+  Commands — COMMANDS.md "Wi-Fi: wlanmdsp from modem_a".
+- Takeaway: put only the same tablet's wlanmdsp from modem_a into a firmware package (firmware-extract does exactly that); rebuild the personal package (TODO).
+
 ## How it was (since 31.10, device r16–r22)
 - The `firmware-lenovo-j606f` package: either a personal one (pkgver 1, a tarball from one's own device, not published; ours is 1-r3 with venus.mbn and the awinic acf),
   or the shared set of the S320208 stock (Android 11) `0.320208-r1` — only in the apk repository, verified by sha256 at publication.

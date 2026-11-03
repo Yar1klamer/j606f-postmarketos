@@ -7,6 +7,10 @@
 - Board data: bdwlan.bin + bdwlan.<id> in /vendor/firmware_mnt/image/. Check whether linux-firmware ath10k/WCN3990/hw1.0/board-2.bin has an entry with variant=Lenovo_P11; if not, build board-2.bin from bdwlan.bin (ath10k-bdencoder).
 - MAC: <WIFI_MAC> (ro.odm.lenovo.wifiaddr). In pmOS a stable address derived from serialno is set by bootmac (device r5); the factory one from persist is not used.
 
+### No wlan0 / the modem keeps restarting (03.11)
+"User-PD grace timer expired for wlan_process" in dmesg — the modem does not accept wlanmdsp.mbn. Put the stock one from modem_a into /lib/firmware/updates
+and restart the modem — see firmware.md "wlanmdsp.mbn has to match modem_a".
+
 ## Bluetooth
 - A separate bluetooth_a partition (sde5) is mounted at /vendor/bt_firmware. Files: apbtfw10/11.tlv, crbtfw11/20/21.tlv, apnv10/11.bin, crnv11/20/21.bin.
 - Mainline: btqca. The chip is WCN3990 (see «BT SoC» and the results below).

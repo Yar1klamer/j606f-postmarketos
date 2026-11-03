@@ -118,6 +118,13 @@ Mainline covers boot, UFS, display (for the BOE SKU), GPU, Wi-Fi, buttons, SD, U
 - Before testing the image on our tablet — a userdata backup (used blocks only, Android sparse), restore through fastboot.
 - 03.11: the archive was tested on our tablet after restoring the stock super (the owner chose "on ours"): pmOS in userdata does not need our super anyway,
   and the stock one gives firmware-extract vendor_a. Our system was then restored from the userdata + boot_b backup (dtbo_b was erased anyway).
-- The GitHub Release is created by the owner in the web interface (the owner is the release author; there is no gh on the Mac, we do not type tokens for the owner).
+- The GitHub Release is published under the owner's name (the owner is the release author): the official gh in ~/bin, the owner runs `gh auth login` themselves,
+  we do not type tokens for the owner; draft → publish through the API, checked by an anonymous download. Text — release/github_release.md.
 - The archive README and the 4PDA post warn about the CrashDump after suspend and suggest turning automatic sleep off until the cause is found.
 - Backups over USB only, e2image through a read-only loop: freezing / for more than a couple of minutes kills journald (3 min watchdog) and the Wi-Fi link.
+- 03.11: Wi-Fi on our system after the restore from the backup — the stock wlanmdsp.mbn from modem_a (partition mounted read-only) put into
+  /lib/firmware/updates by hand, without rebuilding the package: reversible (delete the file), does not touch the modem partitions. Rebuilding the personal firmware 1-r4 — later.
+- 03.11: volume keys checked with evtest (KEY_VOLUMEDOWN — pm8941_resin, KEY_VOLUMEUP — gpio-keys): kernel and DT are fine.
+- 04.11: a new direction — UEFI (Project Aloha mu_aloha_platforms) and Windows on ARM. Kept separate: the `../uefi-winarm/` subfolder, its own chat,
+  its own STATE/LOG; the common rules (no writes to modem/persist/abl/xbl, ask before fastboot flash, no typing passwords/tokens) are the same.
+  pmOS stays the main system: UEFI only through `fastboot boot` at first.

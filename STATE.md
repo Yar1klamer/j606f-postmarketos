@@ -1,4 +1,4 @@
-# STATE — where we stopped (2026-11-03)
+# STATE — where we stopped (2026-11-04)
 
 > The current state of the port. Device: [DEVICE.md](DEVICE.md). Decisions: [docs/DECISIONS.md](docs/DECISIONS.md).
 > Detailed per-subsystem notes: `docs/notes/*.md`.
@@ -52,6 +52,12 @@ Local settings on the tablet (lost on a full reinstall of the image):
 0a. **CrashDump** (the tester — on volume keys, a browser page reload and a reboot; ours — ~2 min after a resume from s2idle), kernel r121.
    No panic in the journal (an SoC hang → watchdog). On resume — "Watchdog detected hard LOCKUP" in cpuidle_enter_s2idle.
    Next: reproduce and take the ramoops (`/var/lib/systemd/pstore`) on the first boot after the crash. For now — advise turning automatic sleep off.
+0c. **Wi-Fi and wlanmdsp.mbn** (03.11): on our system with the personal firmware package, after the release image had run, the modem stopped
+   accepting its wlanmdsp.mbn (it differed from the file in modem_a): "User-PD grace timer expired for wlan_process", no wlan0. The stock file from modem_a
+   in `/lib/firmware/updates` brought Wi-Fi back ([docs/notes/firmware.md](docs/notes/firmware.md)). The release archive and the shared set are not affected
+   (firmware-extract takes wlanmdsp from modem_a). Volume keys checked with evtest.
+0d. **UEFI and Windows on ARM** (since 04.11): explored separately — UEFI [Project Aloha mu_aloha_platforms](https://github.com/Project-Aloha/mu_aloha_platforms/releases),
+   installation following the [Renegade Project guide](https://renegade-project.tech/en/install). pmOS stays the main system.
 0b. Cameras: both work (r121 + libcamera r6). Next — autofocus, front AGC with backlight, colour tuning (ov13b10.yaml, s5k4h7.yaml),
    hiding the raw CAMSS nodes in PipeWire (a WirePlumber rule), the PMI632 flash.
 1. ✅ **Venus works**: kernel r115 + firmware r2, hardware H.264 and HEVC 1080p tested through `v4l2m2m-copy` with a clean EOF. Published (patch 0011 in the repository, packages in the apk repository); mpv uses software decoding by default (r20).
