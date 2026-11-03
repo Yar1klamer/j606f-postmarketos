@@ -128,3 +128,34 @@ qrtr-lookup                                                  # DSP services: wit
 for r in /sys/class/remoteproc/remoteproc*; do echo $(cat $r/name) $(cat $r/state); done
 ```
 
+
+## Flashable image (host, ~/j606f/release)
+```bash
+# pmaports worktree at the right commit, without the personal firmware package
+git -C ~/j606f/pmaports worktree add --detach ~/j606f/release/pmaports <commit>; rm -r ~/j606f/release/pmaports/device/testing/firmware-lenovo-j606f
+# workdir: version, config_abuild + config_apk_keys/pmos@local-*.pub (sudo cp -a), packages (chown 12345:12345), apk cache
+P="python3 ~/j606f/pmbootstrap/pmbootstrap.py -y -c ~/j606f/release/pmbootstrap.cfg"
+$P chroot -- true && $P index          # after shutdown, index does not mount the native chroot by itself
+$P install --password 147147 --no-sshd && $P export
+```
+The mirror breaks large packages → fetch them from the CDN into the cache: name `<pkg>-<ver>.<first 4 bytes of C: from APKINDEX in hex>.apk` (release/prefetch.sh).
+
+## userdata backup to the Mac (used blocks only → Android sparse)
+```bash
+# USB only (Wi-Fi ~6 MiB/s — too long to keep / frozen); ~13 MiB/s, 11 GB in ~15 min
+scp scripts/raw2simg.py scripts/backup_userdata.sh user@172.16.42.1:/tmp/
+ssh -o ServerAliveInterval=15 -T user@172.16.42.1 'sudo -n sh /tmp/backup_userdata.sh /tmp/raw2simg.py' 2>tablet.log \
+  | python3 -B scripts/raw2simg.py unpack 110004875264 BACKUP/userdata-backup-<date>.simg 2>mac.log   # the sha256 in both logs must match
+fastboot flash userdata BACKUP/userdata-backup-<date>.simg   # restore (~5 min)
+```
+backup_userdata.sh: GPT and pmOS_boot as they are (dd), the root as `e2image -ra` through `losetup -r` (otherwise libext2fs creates `/.ismount-test-file`
+on the frozen / and hangs forever), under `fsfreeze` of / and /boot, the journal in /run for the time of the copy (`journalctl --relinquish-var`), sleep blocked
+(`systemd-inhibit`). The screen is black during the copy (Plasma waits for a write) — that is normal.
+
+## Testing the release image on our tablet (03.11)
+```bash
+systemctl reboot --reboot-argument=bootloader          # "systemctl reboot bootloader" → Too many arguments
+fastboot flash super BACKUP/partitions/super.img       # stock super (sha256 cf8ffbd0…), 15 parts, ~6 min
+echo YES | ./flash-all.sh                              # from the unpacked archive
+# sshd is off and sudo asks for a password in the image: on the tablet sudo systemctl start sshd, then the owner adds the Mac key (typing the password themselves).
+```

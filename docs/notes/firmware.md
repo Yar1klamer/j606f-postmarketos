@@ -2,7 +2,20 @@
 
 Everything was taken from the device on 2026-10-28 as root and stored in BACKUP/firmware/*.tar (this is stock S120184_210520_ROW).
 
-## How it works now (since 31.10, device r16+)
+## How it works now (since 03.11, device r23+)
+- The firmware package is no longer required: `-nonfree-firmware` does not pull firmware-lenovo-j606f, firmware-extract takes everything, so the flashable
+  image ships no Lenovo blobs. First boot of a clean install: the DSPs start right after the extraction, and when the GPU zap / touch firmware is added —
+  mkinitfs and a single reboot (r23). The zap is marked `!optional` in `30-gpu-firmware.files` (r24), otherwise mkinitfs fails before the extraction.
+- r22: firmware-extract also builds the tree for the sensors (dsp, vendor /etc/sensors, persist registry, socinfo), see sensors.md.
+- If vendor is wiped (as on ours before 03.11: super overwritten), the zap/Himax/acf/sensor configs have no source — then `apk add firmware-lenovo-j606f`
+  (the shared set from the apk repository; it has no sensor configs).
+
+Checked on a real device 03.11 (release image, stock super): the first boot added adsp/cdsp/modem/venus/wlanmdsp from modem_a,
+crbtfw21/crnv21 from bluetooth_a, the adsp tree from dsp_a, registry + sns_reg_version from persist, socinfo, and a610_zap, Himax_firmware/mpfw,
+aw882xx_acf, sensors/config, sns_reg.conf from vendor_a → "initramfs rebuilt", "rebooting once" (at second 89). Later boots add nothing.
+Afterwards /dev/mapper is empty (mappings removed), nothing is mounted. GPU (FD610), touch, speakers and sensors work.
+
+## How it was (since 31.10, device r16–r22)
 - The `firmware-lenovo-j606f` package: either a personal one (pkgver 1, a tarball from one's own device, not published; ours is 1-r3 with venus.mbn and the awinic acf),
   or the shared set of the S320208 stock (Android 11) `0.320208-r1` — only in the apk repository, verified by sha256 at publication.
 - `/usr/lib/j606f/firmware-extract` (device package) takes the firmware from the tablet's own partitions (read only) on install, update and every boot:

@@ -12,7 +12,8 @@ A port of [postmarketOS](https://postmarketos.org) (since 2026 the project is ca
 > the GPU is 2.5–7 times faster after fixing the DDR bandwidth vote (patch 0009). **Hardware H.264/HEVC decoding through Venus** works (patch 0011).
 > **The speakers work** (4× AW88258, stereo, since kernel r117 + device r17); no microphones or USB-C headset yet.
 > **Both cameras work** (rear OV13B10 with manual focus, front S5K4H7 with our own driver; kernel r121 + libcamera r6).
-> Suspend and offline charging are in final testing.
+> Suspend is experimental (a CrashDump is possible a couple of minutes after a resume — better turn automatic sleep off), offline charging is in progress.
+> **Installation: a ready archive from the [Releases](https://github.com/Yar1klamer/j606f-postmarketos/releases) page and one script** (see [Installation](#installation)).
 > Updates are installed through the **apk repository** (see [below](#updates-through-the-apk-repository)). Details are in [STATE.md](STATE.md).
 
 **The author of the port and of the apk repository is [@nnshould](https://t.me/nnshould) (Telegram).** Questions about the repository, installation and help go there.
@@ -94,9 +95,9 @@ Tested in the installed pmOS (kernel 7.2.3 with patches up to 0024, Plasma Deskt
 | Stylus | ❓ | the `himax-pen` device exists, not tested with a pen |
 | Speakers | ✅ | 4× AW88258 (own driver, patch 0013) on PRIMARY TDM (0014): stereo, the left pair plays the left channel, the right pair the right one; amplifier volume is limited to −6 dB (the stock speaker protection on the DSP is missing), a battery/temperature monitor as in stock; the amplifier settings `awinic/aw882xx_acf.bin` come from the tablet's own vendor partition. UCM: the "Speaker" device in PulseAudio |
 | Microphones, headset | ❌ | ES7210 — needs a driver port; the headset goes through USB-C (WCD937x behind the FSA4480, the codec and SoundWire already come up) |
-| Sensors (accelerometer, light, proximity) | ✅ | Qualcomm SSC on the ADSP: hexagonrpcd (own patch, `pmaports/temp/hexagonrpcd`) + libssc + iio-sensor-proxy; the SSC files come from one's own device. The accelerometer mount matrix is not found yet |
+| Sensors (accelerometer, light, proximity) | ✅ | Qualcomm SSC on the ADSP: hexagonrpcd (own patch, `pmaports/temp/hexagonrpcd`) + libssc + iio-sensor-proxy; since device r22 the SSC files are taken from the tablet's own partitions (dsp, vendor, persist) automatically. The accelerometer mount matrix is not found yet |
 | Charge control (PMI632) | ⚠️ read only | own read-only driver (patch 0004): online, status, USB type, limits. Charges on the bootloader settings (4.40 V / 3 A, 1.5 A input): the input limit is not raised for a 3 A charger, no PD/QC, no charge threshold and no parallel SMB1355 |
-| Suspend (s2idle) | ⚠️ experimental | r110 fixed USB ep0, r111 — a successful s2idle; on r121 (02.11) suspend and resume run without USB/ADSP errors, sound and BT come back. Since device r21 (nt36523w r11) the suspend helper is packaged: the sensors and BT are stopped before suspend and come back after it (tested 02.11, three cycles). Long suspend and suspend with OTG are not tested |
+| Suspend (s2idle) | ⚠️ experimental | r110 fixed USB ep0, r111 — a successful s2idle; on r121 (02.11) suspend and resume run without USB/ADSP errors, sound and BT come back. Since device r21 (nt36523w r11) the suspend helper is packaged: the sensors and BT are stopped before suspend and come back after it (tested 02.11, three cycles). ⚠ 03.11: CrashDump ~2 min after a resume (kernel r121, cause not found yet) — better turn automatic sleep off. Long suspend and suspend with OTG are not tested |
 | Offline charging | ⚠️ partial | device r11: charger mode from the PON reason + a reboot mark, a normal reboot is tested; the full poweroff/charger/unplug cycle is not finished yet |
 | Rear camera | ✅ | OV13B10 (13 MP) through the SM6115 CAMSS (patches 0017–0021) and libcamera with the GPU software ISP (`pmaports/temp/libcamera`, own patch 0007): auto exposure and white balance, 2104×1560 ~28 fps, 1280×720 ~117 fps; in PipeWire — "ov13b10 [libcamera]". The DW9763 focus (0022) is manual only (`focus_absolute`): the software ISP has no autofocus |
 | Front camera | 🟡 | S5K4H7 (8 MP): no mainline driver — own one (patch 0023, registers from the stock CamX module), DT (0024) and a libcamera helper (own patch 0008); 3264×2448 at 30 fps through libcamera. Kernel r121 + libcamera r6 (in the apk repository since 02.11). With strong backlight (a window in the frame) the libcamera auto exposure overexposes the frame — tuning is ahead |
@@ -176,10 +177,11 @@ docs/
 ## Building
 
 ### 1. Firmware
-The easiest is to do nothing: `device-lenovo-j606f-nonfree-firmware` pulls `firmware-lenovo-j606f` from the
-[apk repository](#updates-through-the-apk-repository). This is the **shared stock S320208 set** (Android 11) with version `0.320208`.
-The device package (r16+) takes the DSP firmware of **your** tablet from its own partitions and puts it in front of this set (see below).
-Your own backup is only needed if you want fully your own firmware. A package built from it (`pkgver 1`) always takes precedence over the shared set.
+The easiest is to do nothing: since **device r23** the image needs no Lenovo blobs at all — on the first boot `j606f-firmware-extract` takes
+**everything** from the tablet's own partitions (modem, bluetooth, dsp, vendor from super, persist: DSP, Wi-Fi/BT, GPU zap, Himax touch, speaker acf, sensor files)
+and reboots once. `device-lenovo-j606f-nonfree-firmware` no longer pulls `firmware-lenovo-j606f`.
+If vendor on the tablet is wiped, install the **shared stock S320208 set** (Android 11, version `0.320208`) from the [apk repository](#updates-through-the-apk-repository):
+`sudo apk add firmware-lenovo-j606f`. Your own backup is only needed if you want fully your own firmware. A package built from it (`pkgver 1`) always takes precedence over the shared set.
 
 #### Your own backup
 Needs root (Magisk) in the stock Android:
@@ -252,8 +254,28 @@ Tested on x86_64 Ubuntu 22.04 (the kernel is built cross-native) and **on the ta
 > **The revision with the Novatek NT36523W panel** (`dsi_display0=…nt36523w…`): a separate device `lenovo-j606f-nt36523w`,
 > instructions — [`docs/notes/install_nt36523w.md`](docs/notes/install_nt36523w.md) (not yet tested on hardware, no touch).
 
-The recommended scheme: **rootfs in userdata** (~100 GiB), boot.img in **boot_b**, dtbo_b erased, slot a untouched.
+### The ready archive (recommended)
+
+Download **`j606f-pmos-hx83102p-<date>.zip`** from the [Releases](https://github.com/Yar1klamer/j606f-postmarketos/releases) page — the image is already built
+and is flashed by one script. Only for the **TB-J606F with the HX83102P panel** (`dsi_display0=…hx83102p…`), an **unlocked bootloader** is required.
 **userdata is erased completely** (the Android data is lost).
+
+1. Unpack the whole archive into one folder.
+2. Power the tablet off, hold **Volume− + Power** → fastboot, connect it to the computer (fastboot from the Android platform-tools is needed).
+3. Run **`flash-all.bat`** (Windows; fastboot.exe next to it or in PATH) or **`./flash-all.sh`** (macOS / Linux; `FASTBOOT=/path/to/fastboot` if needed).
+4. The script checks the sha256 of the files, that this is a `bengal` with an unlocked bootloader, asks for `YES` and runs:
+   `flash userdata userdata.img`, `flash boot_b boot.img`, `erase dtbo_b`, `--set-active=b`, `reboot`. Slot a and the other partitions are not touched.
+5. **First boot:** the archive has no Lenovo firmware — `j606f-firmware-extract` reads it from the tablet's own partitions
+   (modem, bluetooth, dsp, vendor from super, persist), rebuilds the initramfs and **reboots once**. Login **user / 147147** → `passwd` right away.
+   The sensors show up about 2 minutes after boot.
+
+Tested 03.11 on our tablet with the stock super: the firmware is extracted, GPU, touch, speakers, BT, Wi-Fi and sensors work.
+`flash-all.bat` was not tested on Windows. If vendor on the tablet is wiped (a GSI replaced super), the GPU/touch/speakers find no firmware —
+install the shared set: `sudo apk add firmware-lenovo-j606f` (needs a network) and reboot. sshd is off in the image and `sudo` asks for the password.
+
+### Manual installation (from your own build)
+
+Same layout: **rootfs in userdata** (~100 GiB), boot.img in **boot_b**, dtbo_b erased, slot a untouched.
 ```bash
 fastboot flash userdata lenovo-j606f.img   # rootfs (pmOS_boot + pmOS_root), sparse image: fastboot only, not dd!
 fastboot boot boot.img                     # test the kernel without writing (fastboot boot — once per bootloader session)
@@ -263,11 +285,10 @@ fastboot erase dtbo_b                      # ABL stops applying the stock overla
 fastboot --set-active=b && fastboot reboot
 ```
 With device package r6, `pmbootstrap flasher flash_rootfs` writes to userdata by itself (`deviceinfo_flash_fastboot_partition_rootfs="userdata"`).
+An image without Lenovo blobs, like the archive — [`docs/COMMANDS.md`](docs/COMMANDS.md) ("Flashable image"), the archive scripts — [`release/`](release/).
 - **Do not keep a pmOS layout in two partitions at once.** The initramfs takes the first partition with two subpartitions in the order of
   `/proc/diskstats`, and super (sda14) comes before userdata (sda15). On a clean device super holds the Android partitions, which is fine.
-  If you installed pmOS into super earlier, remove the GPT there ([install_plan](docs/notes/install_plan.md)).
-- This port was first installed in super and moved to userdata block by block ([install_plan](docs/notes/install_plan.md)). A clean install straight into userdata with the commands above
-  was not tested by us: if the root does not take the whole partition, grow it (`sfdisk`/`resize2fs`).
+  If you installed pmOS into super earlier, remove the GPT there ([install_plan](docs/notes/install_plan.md)) or flash the stock super.
 
 In detail, with rollback: [`docs/notes/install_plan.md`](docs/notes/install_plan.md).
 [`scripts/device_install_pmos.sh`](scripts/device_install_pmos.sh) — the old script for installing into **super** from a running mainline (history).
@@ -298,14 +319,16 @@ and from `/etc/apk/world` — `linux-nura-qcom-sm61x5`, the `@j606f` tags and th
 removes the old kernel package (its files already belong to `linux-lenovo-j606f`). Copies of the original files — `*.before-j606f-<time>` next to them.
 The **NT36523W** revision: instead of `device-lenovo-j606f` and its `-nonfree-firmware` — `device-lenovo-j606f-nt36523w device-lenovo-j606f-nt36523w-nonfree-firmware`
 (the device packages of the two revisions cannot be installed together, see [install_nt36523w](docs/notes/install_nt36523w.md)).
-Install `hexagonrpcd` only if the sensors are set up (without the drop-ins with `-R` the ADSP crashes in a loop, see [sensors](docs/notes/sensors.md)).
-It kept the upstream name: our build 0.4.0-r50 (the `sns_reg_version` patch) is higher than Alpine 0.4.0-r3, but if Alpine releases 0.4.1,
+Since device r22 `hexagonrpcd` and the drop-ins with `-R` come with the device package (the services start only once the SSC files are extracted, see [sensors](docs/notes/sensors.md)).
+`hexagonrpcd` kept the upstream name: our build 0.4.0-r50 (the `sns_reg_version` patch) is higher than Alpine 0.4.0-r3, but if Alpine releases 0.4.1,
 apk installs it and the patch is gone (the sensors break, not the boot) — until the patch is accepted into hexagonrpc, check the sensors after such an update.
 
 Updating:
 ```bash
 sudo apk update && sudo apk upgrade && sudo reboot
 ```
+When moving to **device r23+** from an install where the firmware came from the `firmware-lenovo-j606f` package: if it is not in `/etc/apk/world`, apk removes it.
+A tablet with the stock vendor just extracts the files again (up to two reboots); if vendor is wiped — run `sudo apk add firmware-lenovo-j606f` beforehand.
 Since **device-lenovo-j606f r16** the DSP firmware of your own stock (including `venus.mbn` for video) is taken from the tablet's own partitions and
 comes before the shared set, see [Firmware](#1-firmware). If the shared set is installed by the same update, one reboot is enough.
 Since **device-lenovo-j606f r7** `deviceinfo_flash_kernel_on_update` is enabled: after a kernel or initramfs update boot-deploy itself writes
@@ -313,7 +336,7 @@ Since **device-lenovo-j606f r7** `deviceinfo_flash_kernel_on_update` is enabled:
 (on device ≤ r6 it is: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 If the new kernel does not boot or power was lost during the write — in fastboot (Vol− + Power) `fastboot flash boot_b <previous boot.img>`;
 before a kernel update it is handy to save a copy: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Check after the reboot: `uname -v` shows `#<pkgrel+1>-nura-qcom-sm61x5` (for example, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r21 and linux-lenovo-j606f r118 or newer.
+Check after the reboot: `uname -v` shows `#<pkgrel+1>-nura-qcom-sm61x5` (for example, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r24 and linux-lenovo-j606f r121 or newer.
 Sound: `pactl list short sinks` shows `alsa_output.platform-sound.HiFi__Speaker__sink`.
 The repository receives the port's packages and exactly one firmware package — the shared S320208 set, verified by sha256 at publication.
 Any other firmware, including personal builds from backups, and everything with `license = proprietary` is filtered out.
@@ -335,15 +358,15 @@ For bring-up without installing: [`scripts/make_debug_bootimg.py`](scripts/make_
 ## Known issues and plans
 - **Touch:** works (port of the Lenovo driver from [adazem009/kernel_lenovo_tbj606](https://github.com/adazem009/kernel_lenovo_tbj606), patch 0006). The pen is not tested. [Notes](docs/notes/touch.md).
 - **Sound:** the speakers work (r117). Next — the ES7210 microphones (port of the Lenovo driver) and the analogue headset over USB-C (FSA4480). The stock speaker protection (an algorithm on the ADSP) does not exist in mainline, so the amplifier volume is limited. Occasionally after boot the ADSP does not come up fully and there is no sound card — a reboot helps. [Notes](docs/notes/audio.md).
-- **Sensors:** work; what is left is to find the `ACCEL_MOUNT_MATRIX` for auto-rotation and to package the SSC files. [Notes](docs/notes/sensors.md).
+- **Sensors:** work out of the box (since device r22 the SSC files come from the tablet's partitions); what is left is to find the `ACCEL_MOUNT_MATRIX` for auto-rotation. [Notes](docs/notes/sensors.md).
 - **Storage:** the pmOS root is in userdata (~100 GiB), see [install_plan](docs/notes/install_plan.md).
 - **Charger:** charges, but the driver is read only. Next — the input limit by Type-C/APSD (now 1.5 A even from a 3 A charger), the charge threshold, JEITA; fast charging (PD/QC, the parallel SMB1355) is a separate big job. [Notes](docs/notes/power.md).
-- **Suspend:** r110/r111 + the suspend helper from device r21 give a successful s2idle with the sensors coming back; long suspend and suspend with OTG are left to test. **Offline charging:** device r11 implements the charger mode, the final unplug/poweroff testing is left.
+- **Suspend:** r110/r111 + the suspend helper from device r21 give s2idle with the sensors coming back, but **a CrashDump is possible a couple of minutes after a resume** (an SoC hang, kernel r121; looking for the cause) — better turn automatic sleep off for now. After suspend the USB network may not come back (a reboot is needed). [Notes](docs/notes/suspend.md). **Offline charging:** device r11 implements the charger mode, the final unplug/poweroff testing is left.
 - **Venus:** hardware H.264/HEVC decoding works (0011/r115), but in mpv `hwdec=v4l2m2m-copy` drops frames on output (1080p30 ~180 of 360, 1080p60 ~550 of 720) — the expensive copy of frames back; zero-copy (`v4l2m2m`) mpv does not bring up here. VA-API/Firefox and the encoder are not tested yet.
 - **Vulkan and vsync:** Vulkan applications in FIFO (vsync) mode get 48 fps instead of 60 (every 5th vblank is skipped; Mesa 26.2 + KWin 6.8, the wp_fifo_v1 protocol); OpenGL gets an honest 60. The cause is not found yet.
 - **Cameras:** the rear one works (r120+ + libcamera r5+), focus is manual for now; next — autofocus, colour tuning (ov13b10.yaml), the PMI632 flash. The S5K4H7 front one: our own driver works (kernel r121 + libcamera r6); next — the 2x2 binning mode, s5k4h7.yaml tuning and AGC with backlight; the CSID1/TFE1 path in CAMSS hangs the tablet — not used. Kernel r121 and libcamera r6 are in the apk repository (02.11). [Notes](docs/notes/camera.md).
 - The pogo-pin keyboard, the Hall sensor, the vibration motor/LED, the factory MACs from persist (bootmac currently generates stable ones from serialno).
-- **Default settings** (autologin, landscape, the Power button, the on-screen keyboard, the hexagonrpcd drop-ins) are still made by hand on the tablet, not moved into packages (STATE.md §2).
+- **Default settings** (autologin, landscape, the Power button, the on-screen keyboard) are still made by hand on the tablet, not moved into packages (STATE.md §2); the hexagonrpcd drop-ins are packaged since r22.
 - **Mirrors:** if mirror.nura.eco is slow, set others (these are fast for us from Russia):
   ```bash
   pmbootstrap config mirrors.alpine   http://mirror.yandex.ru/mirrors/alpine/

@@ -1,6 +1,6 @@
 # Suspend (s2idle)
 
-## Status (2026-11-02)
+## Status (2026-11-03)
 - Works with caveats: kernel r110 (patch 0010 — the dwc3 UTMI clock after resume) removed «failed to enable ep0out», r111 — a successful s2idle.
 - The suspend helper is in the device package since **r21** (nt36523w — r11), files `j606f-sleep.sh`, `j606f-sleep.service`, `j606f-resume.service`:
   - `j606f-sleep.service` (WantedBy/Before=sleep.target, StopWhenUnneeded): `pre` — remembers the enabled hexagonrpcd-adsp-rootpd/sensorspd and an active
@@ -15,6 +15,11 @@
   rootpd/sensorspd/iio-sensor-proxy active, `monitor-sensor` reports light/proximity/accelerometer, ADSP running, BT UP.
 - Observation: when suspended from ssh the tablet wakes after ~2 s, `/sys/power/pm_wakeup_irq` = 114 (msmgpio 11, `4a8c000.serial:wakeup` — the BT UART),
   although BT is rfkill-blocked; a suspend by the button on 02.11 lasted 4 min. Not investigated.
+- ⚠ 03.11, r121: **CrashDump ~2 min after a resume** (release image on our tablet; the tester gets CrashDumps too, on volume keys / browser / reboot).
+  Before the crash: BT reloads crbtfw21/crnv21, Himax "update fw after resume in zero flash mode", "[HXTP] point data_checksum not match"; no panic in the journal.
+  On the resume at 03.11 01:02 (our system) — dozens of "watchdog: CPUn: Watchdog detected hard LOCKUP on cpu m" with NMI traces in cpuidle_enter_s2idle.
+  Ramoops: read /var/lib/systemd/pstore on the first boot after the crash (console-ramoops-0 is overwritten by the next one). For now — turn automatic sleep off.
+- After suspend the USB gadget can die again: udc "not attached", usb0 DOWN, "HS-PHY not in L2"; soft_connect does not help — only a reboot.
 - Not tested: suspend with an OTG device attached after r110, long suspend (hours), Wi-Fi without WoWLAN (reconnects after resume).
 
 ## The original analysis (2026-10-30)

@@ -106,3 +106,18 @@ Mainline covers boot, UFS, display (for the BOE SKU), GPU, Wi-Fi, buttons, SD, U
 - The suspend helper is part of the device package (r21, nt36523w r11). hexagonrpcd-adsp-rootpd/sensorspd are restored after suspend when enabled
   (not by is-active: the stock `Conflicts=suspend.target` stops them at the same time as our `pre`); they are started from a separate `j606f-resume.service`
   (After=suspend.target), the stock hexagonrpcd units are left unchanged.
+
+## 2026-11-03 — a flashable image without fuss
+- Installation for everyone is a Pixel-style archive: userdata.img + boot.img + flash-all.{sh,bat} + SHA256SUMS + README.txt; the script checks product=bengal,
+  unlocked=yes, sha256, asks for YES; writes userdata, boot_b, erases dtbo_b, slot b. Slot a and the other partitions are left alone.
+- The image has no Lenovo blobs: since r22 firmware-extract takes everything from the tablet (DSP, BT, zap, Himax, acf, sensors), so since r23 -nonfree-firmware
+  does not depend on firmware-lenovo-j606f; the archive can go to GitHub Releases. The shared 0.320208 set stays in the apk repository for a wiped vendor.
+- The first boot of a clean install reboots by itself once (the GPU zap comes from the initramfs, the touch firmware at probe).
+- The image is built in a separate workdir (pmb-work-release) from a pmaports worktree without firmware-lenovo-j606f, without ssh keys, sshd off,
+  default password user/147147 (README and the post say to change it with passwd).
+- Before testing the image on our tablet — a userdata backup (used blocks only, Android sparse), restore through fastboot.
+- 03.11: the archive was tested on our tablet after restoring the stock super (the owner chose "on ours"): pmOS in userdata does not need our super anyway,
+  and the stock one gives firmware-extract vendor_a. Our system was then restored from the userdata + boot_b backup (dtbo_b was erased anyway).
+- The GitHub Release is created by the owner in the web interface (the owner is the release author; there is no gh on the Mac, we do not type tokens for the owner).
+- The archive README and the 4PDA post warn about the CrashDump after suspend and suggest turning automatic sleep off until the cause is found.
+- Backups over USB only, e2image through a read-only loop: freezing / for more than a couple of minutes kills journald (3 min watchdog) and the Wi-Fi link.

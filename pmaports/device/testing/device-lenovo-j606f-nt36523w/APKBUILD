@@ -5,7 +5,7 @@
 pkgname=device-lenovo-j606f-nt36523w
 pkgdesc="Lenovo Tab P11 (TB-J606F, NT36523W panel SKU)"
 pkgver=1
-pkgrel=11
+pkgrel=14
 url="https://nura.eco"
 license="MIT"
 arch="aarch64"
@@ -14,7 +14,11 @@ depends="
 	android-tools-mkbootimg
 	bootmac
 	device-mapper
+	hexagonrpcd
+	hexagonrpcd-systemd
+	hexagonrpcd-udev
 	kmod
+	libssc
 	linux-lenovo-j606f
 	make-dynpart-mappings
 	pil-squasher
@@ -42,6 +46,8 @@ source="
 	j606f-sleep.sh
 	j606f-sleep.service
 	j606f-resume.service
+	j606f-hexagonrpcd-rootpd.conf
+	j606f-hexagonrpcd-sensorspd.conf
 "
 
 build() {
@@ -74,11 +80,16 @@ package() {
 	mkdir -p "$pkgdir"/usr/lib/systemd/system/sleep.target.wants "$pkgdir"/usr/lib/systemd/system/suspend.target.wants
 	ln -s ../j606f-sleep.service "$pkgdir"/usr/lib/systemd/system/sleep.target.wants/
 	ln -s ../j606f-resume.service "$pkgdir"/usr/lib/systemd/system/suspend.target.wants/
+	# sensors: hexagonrpcd serves the ADSP the files firmware-extract takes from this tablet's partitions
+	install -Dm644 "$srcdir"/j606f-hexagonrpcd-rootpd.conf "$pkgdir"/usr/lib/systemd/system/hexagonrpcd-adsp-rootpd.service.d/j606f.conf
+	install -Dm644 "$srcdir"/j606f-hexagonrpcd-sensorspd.conf "$pkgdir"/usr/lib/systemd/system/hexagonrpcd-adsp-sensorspd.service.d/j606f.conf
 }
 
 nonfree_firmware() {
 	pkgdesc="GPU/WiFi/BT/DSP firmware"
-	depends="firmware-lenovo-j606f linux-firmware-ath10k linux-firmware-qcom
+	# no firmware-lenovo-j606f: firmware-extract takes the Lenovo firmware from the tablet's own
+	# partitions (an image without Lenovo blobs); the shared set stays in the repository for a wiped vendor
+	depends="linux-firmware-ath10k linux-firmware-qcom
 		rmtfs tqftpserv qbootctl"
 
 	# msm is in modules-initfs: the GPU needs its firmware already in the initramfs
@@ -90,8 +101,8 @@ sha512sums="
 b834870d791740c2fdfc1e620bc4f647e794a87bab228aefeca02ba991e43e79b92009a8fd4d669cdd084953e9b3306baf7492dd0db9a5eb4098b95b59c5315b  deviceinfo
 d1557e7dab8933129b82c4a6c370f9e341b3ac37178e6b045873bd7c620e6b7fcc5be8dfa0d5e6707e6927476331adf6bb168f80281973a17c2c4c4cdc3bae26  modules-initfs
 7f80465744962b7118a267c020cb0def18a7323fd2caf33c7527bc9c0133ebdf6f8fcc6778f812b4672169e71abdd66716d004f9d5478ab10cc8edbfc6a4be58  j606f-modules-load.conf
-9e3a863a8e641fab6d614b8fefd5ff96e8407240800430e0002f044869a73f7bfe7549164559509afdaeddbb69dee76ec3fb0978c86d0fc0c89b295663346c26  30-gpu-firmware.files
-a86dc31af7d0332a989b91930adeef2d7384ee2731b45dfa01afb57909532b958e989dc8305dec816d36797967957850f4ff8bddcbd2bb061dae4f728573ed08  j606f-firmware-extract.sh
+229bb700b39a04c713f584e7619f932ea7c973f17aa34d78daa5ed0bc2dc9b759fdabdfaa626f8bb9b05b35a6742eb0a5ecd9f904b6c93b8c354e66aaa483195  30-gpu-firmware.files
+e61947a59068d52c3c7d4869c014eecc18aa03397f1da4aab6d183ec06d084166f854fb188bdd799054edbd54b2c1261b345e79586da5e6edc75b231f123e6b9  j606f-firmware-extract.sh
 c0ea8de98daa6861179ab506eeb575db5b1a75f5e1030fc1757e303741ed1cf87c1f48f25099fb20ab7087c61a3697fe712c32265787de666eb77a244fdd3197  j606f-firmware-extract.service
 ee2e74b75ac9707643b9947010ec9962c76369674e5bf2d69e1655ec4d39605384546e4bae51e55fdfa6b96b3f97a136c10126ddaa8469fb3e9f63fbc4759cfd  Lenovo-TB-J606F.conf
 918a5e686d2f88125b8c5a031233b760ebdce7a8107091e94e6c6b330fbf690c019b24de91f720fc10ed7aa200af47df33e76c4a4a3d1ed34b9835a5fa3a8d98  HiFi.conf
@@ -103,4 +114,6 @@ b387858df93beb3091f20b9089274e802b65265b9189ba24932c3adaab1e5644e8076f83556d8730
 e03fab96baa4f66788bb5eb1cb5cb4bd2050820c44f6518d809f4739be75e83b39dc393bb4f71cd3abad3ef1c09d028ebf23c012ea4bb9eeee3e72c98e4c5dc0  j606f-sleep.sh
 3d3ae539ae8f35f4c126f1e4ac061460b0d45827c7a0f8a55155f2e8871165357ea6a890b030bd5d43bc4d4e81e8474dfdbc91ce92b95e414803ce3c336cdfcf  j606f-sleep.service
 f1378e2d8ff2288a442456a0c32f0e460af2e621d6bef885055e27b2de90a1b0abc4daa7d862ce87456cd9242f8ed1dac0409afe903edfb8ae43c3fd6a1d1444  j606f-resume.service
+88f63bb543c7ed13e13860dc894aee51db43aa5ad328348dbc74dc200179386c62547c1810b5277932b1db32892a93b7a8733bd492011baa4a7baa5969e5f173  j606f-hexagonrpcd-rootpd.conf
+4deb655490c48cca66b2706dcd14065451877bfd55b2cfe45c4683a90f8ebfe57d22e82a76d9202bd304f9ced9dff1b82db11505718821dff6585a9b64ca8ec6  j606f-hexagonrpcd-sensorspd.conf
 "
