@@ -12,10 +12,13 @@
 #                               firmware/awinic/aw882xx_acf.bin (speaker amplifier settings)
 #     -> /lib/firmware, only if no package has them (the GPU firmware also goes into the initramfs,
 #        and these files work with any stock version).
+#   dsp_a/b, vendor, persist   the files hexagonrpcd serves the ADSP for the sensors -> /usr/share/qcom/sm6115/LENOVO/J606F
+#     (see RPC below; hexagonrpcd-adsp-*.service get -R to it from the j606f.conf drop-ins)
 # vendor lives in super, which a pmOS install into userdata leaves alone; if super was overwritten,
 # the GPU and touch firmware come from the firmware package (the speakers need its awinic file too).
 #   firmware-extract          add what is missing (apk post-install/post-upgrade; reboot afterwards)
-#   firmware-extract --boot   the same at boot, then start the DSPs and Venus that missed their firmware
+#   firmware-extract --boot   the same at boot, then start the DSPs and Venus that missed their firmware;
+#                             a new GPU or touch firmware reboots the tablet once (first boot of a fresh install)
 # For testing: J606F_FIRMWARE_ROOT=<dir> writes there instead of /lib/firmware.
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 FW=${J606F_FIRMWARE_ROOT:-/lib/firmware}
@@ -66,7 +69,27 @@ MODEM_FILES="$OWN/adsp.mbn $OWN/cdsp.mbn $OWN/modem.mbn $OWN/venus.mbn $OWN/wlan
 BT_FILES="$BASE/qca/crbtfw21.tlv $BASE/qca/crnv21.bin"
 ACF=$FW/awinic/aw882xx_acf.bin
 VENDOR_FILES="$QC/a610_zap.mbn $FW/Himax_firmware.bin $FW/Himax_mpfw.bin $ACF"
-missing $MODEM_FILES $BT_FILES $VENDOR_FILES || exit 0
+
+# root of hexagonrpcd -R for the sensors (SSC on the ADSP), laid out as hexagonrpcd maps the ADSP paths:
+#   dsp_a/b (ext4)     adsp/                              -> dsp/adsp/
+#   vendor (ext4)      etc/sensors/config/                -> sensors/config/
+#                      etc/sensors/sns_reg_config         -> sensors/sns_reg.conf
+#   persist (ext4)     sensors/registry/registry/         -> sensors/registry/
+#                      sensors/registry/sns_reg_version   -> sensors/sns_reg_version
+#   /sys/devices/soc0  soc_id, revision (+ the fields as the stock Android had them) -> socinfo/
+RPC=${J606F_FIRMWARE_ROOT:+$J606F_FIRMWARE_ROOT/rpc}
+RPC=${RPC:-/usr/share/qcom/sm6115/LENOVO/J606F}
+RPC_DIRS="$RPC/dsp/adsp $RPC/sensors/config $RPC/sensors/registry"
+RPC_FILES="$RPC/sensors/sns_reg.conf $RPC/sensors/sns_reg_version $RPC/socinfo/soc_id"
+
+empty() {	# true if one of the directories has no files
+	for d in "$@"; do
+		[ -n "$(ls -A "$d" 2>/dev/null)" ] || return 0
+	done
+	return 1
+}
+
+missing $MODEM_FILES $BT_FILES $VENDOR_FILES $RPC_FILES || empty $RPC_DIRS || exit 0
 
 part() {
 	if [ -b "/dev/disk/by-partlabel/$1" ]; then
@@ -107,6 +130,18 @@ add() {	# add <source> <target>: install one file if the target is still missing
 	log "added $2 (from $3)"
 }
 
+addtree() {	# addtree <source> <target> <origin>: copy a whole directory if the target has no files yet
+	empty "$2" || return 0
+	empty "$1" && return 0
+	mkdir -p "$(dirname "$2")"
+	rm -rf "$2.new"
+	cp -R "$1" "$2.new" && chmod -R a+rX,go-w "$2.new" && rm -rf "$2" && mv "$2.new" "$2" || { rm -rf "$2.new"; return 1; }
+	mkdir -p "$(dirname "$LIST")"
+	echo "$2/" >> "$LIST"
+	ADDED="$ADDED $(basename "$2")/"
+	log "added $2/ (from $3)"
+}
+
 squash() {	# squash <dir> <name> <target> <origin>: .mdt + .bNN -> one ELF .mbn
 	[ -s "$3" ] && return 0
 	[ -s "$1/$2.mdt" ] || return 0
@@ -144,9 +179,38 @@ for s in _a _b; do
 	umount "$MNT"
 done
 
-if missing $VENDOR_FILES && super=$(part super) && command -v make-dynpart-mappings >/dev/null; then
+for s in _a _b; do
+	empty "$RPC/dsp/adsp" || break
+	dev=$(part "dsp$s") || continue
+	mount_ro "$dev" ext4 || continue
+	addtree "$MNT/adsp" "$RPC/dsp/adsp" "dsp$s"
+	umount "$MNT"
+done
+
+# persist is only read, like every partition here
+if { empty "$RPC/sensors/registry" || missing "$RPC/sensors/sns_reg_version"; } && dev=$(part persist) && mount_ro "$dev" ext4; then
+	addtree "$MNT/sensors/registry/registry" "$RPC/sensors/registry" persist
+	add "$MNT/sensors/registry/sns_reg_version" "$RPC/sensors/sns_reg_version" persist
+	umount "$MNT"
+fi
+
+if missing "$RPC/socinfo/soc_id" && [ -s /sys/devices/soc0/soc_id ]; then
+	mkdir -p "$TMP/socinfo"
+	cat /sys/devices/soc0/soc_id > "$TMP/socinfo/soc_id"
+	cat /sys/devices/soc0/revision > "$TMP/socinfo/revision"
+	echo IDP > "$TMP/socinfo/hw_platform"
+	echo 65536 > "$TMP/socinfo/platform_version"
+	echo Unknown > "$TMP/socinfo/platform_subtype"
+	addtree "$TMP/socinfo" "$RPC/socinfo" /sys/devices/soc0
+fi
+
+vendor_missing() {
+	missing $VENDOR_FILES "$RPC/sensors/sns_reg.conf" || empty "$RPC/sensors/config"
+}
+
+if vendor_missing && super=$(part super) && command -v make-dynpart-mappings >/dev/null; then
 	for n in 0 1; do
-		missing $VENDOR_FILES || break
+		vendor_missing || break
 		s=$([ $n = 0 ] && echo _a || echo _b)
 		if [ ! -b "/dev/mapper/vendor$s" ]; then
 			before=$(dmsetup ls 2>/dev/null | cut -f1)
@@ -166,12 +230,17 @@ if missing $VENDOR_FILES && super=$(part super) && command -v make-dynpart-mappi
 		# the old Awinic container (first bytes 08 f9 15 0a) is the only format the driver reads
 		[ "$(od -An -tx1 -N4 "$MNT/firmware/awinic/aw882xx_acf.bin" 2>/dev/null | tr -d ' \n')" = "08f9150a" ] &&
 			add "$MNT/firmware/awinic/aw882xx_acf.bin" "$ACF" "vendor$s"
+		addtree "$MNT/etc/sensors/config" "$RPC/sensors/config" "vendor$s"
+		add "$MNT/etc/sensors/sns_reg_config" "$RPC/sensors/sns_reg.conf" "vendor$s"
 		umount "$MNT"
 	done
 fi
 
-for f in $MODEM_FILES $BT_FILES $VENDOR_FILES; do
+for f in $MODEM_FILES $BT_FILES $VENDOR_FILES $RPC_FILES; do
 	[ -s "$f" ] || log "not found on this tablet: $f"
+done
+for d in $RPC_DIRS; do
+	empty "$d" && log "not found on this tablet: $d/"
 done
 [ -n "$ADDED" ] || exit 0
 
@@ -212,9 +281,13 @@ case "$ADDED" in
 		log "speaker settings in place, sound card tried again"
 	fi ;;
 esac
-# the GPU firmware is taken from the initramfs, the touch firmware at probe: both need a new boot
+# the GPU firmware is taken from the initramfs, the touch firmware at probe: both need a new boot,
+# which the first boot of an install without the firmware package gets right away (only once:
+# the files are there afterwards)
 case "$ADDED" in
 *a610_zap*|*Himax*)
-	mkinitfs >/dev/null 2>&1 && log "initramfs rebuilt with the GPU firmware - reboot to use the GPU and touch" ;;
+	mkinitfs >/dev/null 2>&1 && log "initramfs rebuilt with the GPU firmware"
+	log "rebooting once to use the GPU and touch firmware"
+	systemctl --no-block reboot ;;
 esac
 exit 0

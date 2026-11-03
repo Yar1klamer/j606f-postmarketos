@@ -106,3 +106,18 @@ Mainline покрывает загрузку, UFS, дисплей (для BOE-SK
 - Помощник сна входит в device-пакет (r21, nt36523w r11). hexagonrpcd-adsp-rootpd/sensorspd восстанавливаются после сна, если enabled
   (а не по is-active: штатный `Conflicts=suspend.target` гасит их одновременно с нашим `pre`); запуск — из отдельного `j606f-resume.service`
   (After=suspend.target), штатные юниты hexagonrpcd не меняем.
+
+## 2026-11-03 — образ для прошивки без возни
+- Установка для всех — архив «как у Pixel»: userdata.img + boot.img + flash-all.{sh,bat} + SHA256SUMS + README.txt; скрипт проверяет product=bengal,
+  unlocked=yes, sha256, просит YES; пишет userdata, boot_b, стирает dtbo_b, слот b. Слот a и прочие разделы не трогает.
+- В образе нет блобов Lenovo: с r22 firmware-extract берёт с планшета всё (DSP, BT, zap, Himax, acf, датчики), поэтому с r23 -nonfree-firmware
+  не зависит от firmware-lenovo-j606f; архив можно выкладывать на GitHub Releases. Общий набор 0.320208 остаётся в apk-репозитории для затёртого vendor.
+- Первая загрузка чистой установки перезагружается сама один раз (zap GPU берётся из initramfs, прошивка тача — при probe).
+- Образ собирается в отдельном workdir (pmb-work-release) из worktree pmaports без firmware-lenovo-j606f, без ssh-ключей, sshd выключен,
+  пароль по умолчанию user/147147 (в README и посте — сменить через passwd).
+- Перед проверкой образа на нашем планшете — бэкап userdata (только занятые блоки, Android sparse), восстановление через fastboot.
+- 03.11: архив проверен на нашем планшете после восстановления стокового super (владелец выбрал «у нас»): наш super всё равно не нужен pmOS в userdata,
+  а стоковый даёт firmware-extract vendor_a. Наша система затем возвращена из бэкапа userdata + boot_b (dtbo_b и так стёрт).
+- GitHub Release создаёт владелец через веб-интерфейс (автор релиза — он; на Mac нет gh, токены за владельца не вводим); текст — release/github_release.md.
+- В README архива и посте 4PDA — предупреждение про CrashDump после сна и совет отключить автоматический сон, пока причина не найдена.
+- Бэкап только по USB, e2image через ro-loop: заморозка / дольше пары минут роняет journald (watchdog 3 мин) и сеть по Wi-Fi.

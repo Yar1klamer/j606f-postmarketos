@@ -9,7 +9,15 @@
 В Linux нужно: ADSP remoteproc + fastrpc + hexagonrpcd + libssc + iio-sensor-proxy (SSC-путь, работает на других qcom-устройствах в pmOS). Нужны /vendor/dsp/* и sns-регистрация (/mnt/vendor/persist/sensors, есть в BACKUP/firmware/mnt_vendor_persist.tar).
 
 ## Статус: **работают** свет, приближение, акселерометр (с 29.10, подробно ниже)
-- 02.11: после сна датчики не возвращаются (sensorspd останавливается из-за `Conflicts=suspend.target`), см. suspend.md.
+- 02.11: после сна датчики не возвращались (`Conflicts=suspend.target`) — исправлено в device r21 (j606f-resume.service), см. suspend.md.
+- **С device r22 всё в пакете** (до этого — руками только на нашем планшете): firmware-extract собирает корень hexagonrpcd
+  `/usr/share/qcom/sm6115/LENOVO/J606F` из разделов самого планшета (только чтение): dsp_a/b `adsp/` → `dsp/adsp/`; vendor `etc/sensors/config/` →
+  `sensors/config/`, `etc/sensors/sns_reg_config` → `sensors/sns_reg.conf`; persist `sensors/registry/registry/` → `sensors/registry/`,
+  `sensors/registry/sns_reg_version` → `sensors/sns_reg_version`; socinfo: soc_id/revision из /sys/devices/soc0 + hw_platform IDP, platform_version 65536,
+  platform_subtype Unknown. Drop-in'ы `/usr/lib/systemd/system/hexagonrpcd-adsp-{rootpd,sensorspd}.service.d/j606f.conf`: `-R`,
+  After=j606f-firmware-extract.service, ConditionDirectoryNotEmpty (без дерева не стартуют и не роняют ADSP). depends: hexagonrpcd(-systemd,-udev), libssc.
+  Проверка 02.11: дерево из разделов (vendor — из копии super) побайтно = рабочему; после перезагрузки на пакетных drop-in'ах датчики через ~2 мин
+  (ADSP пересобирает реестр; «Tried to open …/temp.json for writing» — на каждой загрузке, норма).
 
 ## Попытки SSC в mainline (2026-10-29), 1–3 не получились (история, LOG.md)
 - ADSP стартует со стоковым adsp.mbn; fastrpc.ko даёт /dev/fastrpc-adsp; hexagonrpcd 1.x и libssc (ssccli) из Alpine community.

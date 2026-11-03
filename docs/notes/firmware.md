@@ -2,7 +2,20 @@
 
 Всё снято с устройства 2026-10-28 под root, лежит в BACKUP/firmware/*.tar (это сток S120184_210520_ROW).
 
-## Как устроено сейчас (с 31.10, device r16+)
+## Как устроено сейчас (с 03.11, device r23+)
+- Пакет прошивок больше не обязателен: `-nonfree-firmware` не тянет firmware-lenovo-j606f, всё берёт firmware-extract — поэтому образ для прошивки
+  не содержит блобов Lenovo. Первая загрузка чистой установки: DSP стартуют после извлечения сразу, а при добавлении zap GPU / прошивки тача —
+  mkinitfs и однократная перезагрузка (r23). zap в `30-gpu-firmware.files` помечен `!optional` (r24), иначе mkinitfs падает до извлечения.
+- r22: firmware-extract собирает и дерево для датчиков (dsp, vendor /etc/sensors, persist registry, socinfo), см. sensors.md.
+- Если vendor затёрт (как у нас: super перезаписан), zap/Himax/acf/конфиги датчиков взять неоткуда — тогда `apk add firmware-lenovo-j606f`
+  (общий набор из apk-репозитория; конфигов датчиков в нём нет).
+
+Проверено на живом устройстве 03.11 (релизный образ, стоковый super): первая загрузка добавила из modem_a adsp/cdsp/modem/venus/wlanmdsp,
+из bluetooth_a crbtfw21/crnv21, из dsp_a дерево adsp, из persist registry + sns_reg_version, socinfo, из vendor_a a610_zap, Himax_firmware/mpfw,
+aw882xx_acf, sensors/config, sns_reg.conf → «initramfs rebuilt», «rebooting once» (на 89-й секунде). Следующие загрузки — ничего не добавляют.
+После — /dev/mapper пуст (маппинги сняты), ничего не смонтировано. GPU (FD610), тач, динамики, датчики работают.
+
+## Как было (с 31.10, device r16–r22)
 - Пакет `firmware-lenovo-j606f`: либо личный (pkgver 1, тарбол со своего устройства, не публикуется; у нас 1-r3 с venus.mbn и awinic acf),
   либо общий набор стока S320208 (Android 11) `0.320208-r1` — только в apk-репозитории, сверяется по sha256 при публикации.
 - `/usr/lib/j606f/firmware-extract` (device-пакет) при установке, обновлении и каждой загрузке берёт прошивки с разделов самого планшета (только чтение):

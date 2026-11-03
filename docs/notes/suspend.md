@@ -1,6 +1,6 @@
 # Сон (s2idle)
 
-## Статус (2026-11-02)
+## Статус (2026-11-03)
 - Работает с оговорками: ядро r110 (патч 0010 — UTMI-клок dwc3 после resume) убрало «failed to enable ep0out», r111 — успешный s2idle.
 - Помощник сна в device-пакете с **r21** (nt36523w — r11), файлы `j606f-sleep.sh`, `j606f-sleep.service`, `j606f-resume.service`:
   - `j606f-sleep.service` (WantedBy/Before=sleep.target, StopWhenUnneeded): `pre` — запоминает enabled hexagonrpcd-adsp-rootpd/sensorspd и активный
@@ -15,6 +15,11 @@
   rootpd/sensorspd/iio-sensor-proxy active, `monitor-sensor` отдаёт свет/приближение/акселерометр, ADSP running, BT UP.
 - Наблюдение: при сне из ssh планшет просыпается через ~2 с, `/sys/power/pm_wakeup_irq` = 114 (msmgpio 11, `4a8c000.serial:wakeup` — UART BT),
   хотя BT в rfkill block; сон по кнопке 02.11 длился 4 мин. Не разбиралось.
+- ⚠ 03.11, r121: **CrashDump через ~2 мин после выхода из сна** (релизный образ на нашем планшете; у тестера CrashDump тоже, при громкости/браузере/перезагрузке).
+  Перед сбоем: BT заново грузит crbtfw21/crnv21, Himax «update fw after resume in zero flash mode», «[HXTP] point data_checksum not match»; паники в журнале нет.
+  На выходе из сна 03.11 01:02 (наша система) — десятки «watchdog: CPUn: Watchdog detected hard LOCKUP on cpu m» с NMI-трассами в cpuidle_enter_s2idle.
+  Ramoops: читать /var/lib/systemd/pstore на первой загрузке после сбоя (console-ramoops-0 перезаписывается следующей). Пока — совет отключить автосон.
+- После сна USB-гаджет снова может умереть: udc «not attached», usb0 DOWN, «HS-PHY not in L2»; soft_connect не помогает — только перезагрузка.
 - Не проверено: сон с подключённым OTG-устройством после r110, долгий сон (часы), Wi-Fi без WoWLAN (переподключается после пробуждения).
 
 ## Исходный разбор (2026-10-30)
