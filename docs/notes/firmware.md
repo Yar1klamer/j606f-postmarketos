@@ -15,6 +15,17 @@
 aw882xx_acf, sensors/config, sns_reg.conf → «initramfs rebuilt», «rebooting once» (на 89-й секунде). Следующие загрузки — ничего не добавляют.
 После — /dev/mapper пуст (маппинги сняты), ничего не смонтировано. GPU (FD610), тач, динамики, датчики работают.
 
+## wlanmdsp.mbn должен совпадать с modem_a (03.11)
+- Симптом: после возврата нашей системы из бэкапа (до этого на планшете запускался релизный образ) wlan0 нет, в Wi-Fi «тип неизвестен».
+  dmesg: `qcom_q6v5_pas 6080000.remoteproc: fatal error received: dog_virtual_root.c:92:User-PD grace timer expired for wlan_process (ASID: 1)`
+  каждые ~41 с, затем «crash detected in modem» и перезапуск; tqftpserv раз за разом отдаёт `/readonly/vendor/firmware_mnt/image/wlanmdsp.mbn`.
+- Причина: wlanmdsp.mbn в личном пакете 1-r3 отличается от `image/wlanmdsp.mbn` раздела modem_a (modem/adsp/cdsp/venus совпадают).
+  До запуска релизного образа (он берёт wlanmdsp из modem_a) тот же 1-r3 работал — видимо, модем запомнил версию WLAN-образа в EFS (modemst через rmtfs).
+- Исправление: стоковый файл в `/lib/firmware/updates/qcom/sm6115/LENOVO/J606F/wlanmdsp.mbn` (tqftpserv и ядро ищут updates первыми), перезапуск
+  модема через `/sys/class/remoteproc/<modem>/state` (stop, start) → `ath10k_snoc … fw_build_id … WLAN.HL.3.2.4-00564`, wlan0 появляется, NM подключается.
+  Команды — COMMANDS.md «Wi-Fi: wlanmdsp из modem_a».
+- Вывод: в пакет прошивок класть wlanmdsp только из modem_a того же планшета (firmware-extract так и делает); личный пакет — пересобрать (TODO).
+
 ## Как было (с 31.10, device r16–r22)
 - Пакет `firmware-lenovo-j606f`: либо личный (pkgver 1, тарбол со своего устройства, не публикуется; у нас 1-r3 с venus.mbn и awinic acf),
   либо общий набор стока S320208 (Android 11) `0.320208-r1` — только в apk-репозитории, сверяется по sha256 при публикации.

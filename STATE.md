@@ -1,4 +1,4 @@
-# STATE — где мы остановились (2026-11-03)
+# STATE — где мы остановились (2026-11-04)
 
 > Текущее состояние порта. Устройство: [DEVICE.md](DEVICE.md). Решения: [docs/DECISIONS.md](docs/DECISIONS.md).
 > Подробные заметки по подсистемам: `docs/notes/*.md`.
@@ -52,6 +52,12 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 0a. **CrashDump** (у тестировщика — при громкости, перезагрузке страницы в браузере и перезагрузке; у нас — через ~2 мин после пробуждения из s2idle),
    ядро r121. Паники в журнале нет (зависание SoC → watchdog). На выходе из сна — «Watchdog detected hard LOCKUP» в cpuidle_enter_s2idle.
    Дальше: воспроизвести и снять ramoops (`/var/lib/systemd/pstore`) на первой загрузке после сбоя. Пока — совет отключить автоматический сон.
+0c. **Wi-Fi и wlanmdsp.mbn** (03.11): на нашей системе с личным пакетом прошивок после запуска релизного образа модем перестал принимать
+   свой wlanmdsp.mbn (он отличался от файла в modem_a): «User-PD grace timer expired for wlan_process», wlan0 нет. Стоковый файл из modem_a
+   в `/lib/firmware/updates` вернул Wi-Fi ([docs/notes/firmware.md](docs/notes/firmware.md)). Релизный архив и общий набор не затронуты
+   (firmware-extract берёт wlanmdsp из modem_a). Кнопки громкости проверены evtest.
+0d. **UEFI и Windows on ARM** (с 04.11): исследуется отдельно — UEFI [Project Aloha mu_aloha_platforms](https://github.com/Project-Aloha/mu_aloha_platforms/releases),
+   установка по [гайду Renegade Project](https://renegade-project.tech/en/install). pmOS остаётся основной системой.
 0b. Камеры: обе работают (r121 + libcamera r6). Дальше — автофокус, AGC фронта при контровом свете, тюнинг цвета (ov13b10.yaml, s5k4h7.yaml),
    скрыть сырые узлы CAMSS в PipeWire (правило WirePlumber), вспышка PMI632.
 1. ✅ **Venus работает**: ядро r115 + firmware r2, аппаратные H.264 и HEVC 1080p проверены через `v4l2m2m-copy` с корректным EOF. Опубликовано (патч 0011 в репозитории, пакеты в apk-репозитории); в mpv по умолчанию программное декодирование (r20).

@@ -365,6 +365,9 @@ sudo apk update && sudo apk upgrade && sudo reboot
 - **Venus:** аппаратное H.264/HEVC-декодирование работает (0011/r115), но в mpv `hwdec=v4l2m2m-copy` теряет кадры на выводе (1080p30 ~180 из 360, 1080p60 ~550 из 720) — дорогое копирование кадров обратно; zero-copy (`v4l2m2m`) mpv здесь не поднимает. VA-API/Firefox и энкодер пока не проверялись.
 - **Vulkan и vsync:** Vulkan-приложения в режиме FIFO (vsync) получают 48 кадров/с вместо 60 (каждый 5-й vblank пропускается; Mesa 26.2 + KWin 6.8, протокол wp_fifo_v1); OpenGL — честные 60. Причина пока не найдена.
 - **Камеры:** задняя работает (r120+ + libcamera r5+), фокус пока вручную; дальше — автофокус, тюнинг цвета (ov13b10.yaml), вспышка PMI632. Фронтальная S5K4H7: свой драйвер работает (ядро r121 + libcamera r6); дальше — режим 2x2 binning, тюнинг s5k4h7.yaml и AGC при контровом свете; путь CSID1/TFE1 в CAMSS вешает планшет — не используется. Ядро r121 и libcamera r6 — в apk-репозитории (02.11). [Заметки](docs/notes/camera.md).
+- **Wi-Fi и свой пакет прошивок:** wlanmdsp.mbn в пакете должен совпадать с `image/wlanmdsp.mbn` раздела modem_a. Иначе модем перезапускается каждые ~40 с
+  («User-PD grace timer expired for wlan_process») и wlan0 нет; помогает стоковый файл в `/lib/firmware/updates/qcom/sm6115/LENOVO/J606F/`. [Заметки](docs/notes/firmware.md).
+- **UEFI и Windows on ARM:** исследуется отдельно ([Project Aloha mu_aloha_platforms](https://github.com/Project-Aloha/mu_aloha_platforms/releases)).
 - Клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
 - **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2); drop-in'ы hexagonrpcd — в пакете с r22.
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):

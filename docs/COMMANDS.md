@@ -159,3 +159,21 @@ fastboot flash super BACKUP/partitions/super.img       # стоковый super 
 echo YES | ./flash-all.sh                              # из распакованного архива
 # в образе sshd выключен и sudo с паролем: на планшете sudo systemctl start sshd, затем владелец сам добавляет ключ Mac (вводит пароль).
 ```
+
+## Wi-Fi: wlanmdsp из modem_a (03.11)
+Проверка: `sudo dmesg | grep -E "wlan_process|crash detected"` (циклические падения модема) и сравнение
+```
+sudo mkdir -p /tmp/m && sudo mount -t vfat -o ro /dev/disk/by-partlabel/modem_a /tmp/m
+sha256sum /tmp/m/image/wlanmdsp.mbn /lib/firmware/updates/qcom/sm6115/LENOVO/J606F/wlanmdsp.mbn /lib/firmware/qcom/sm6115/LENOVO/J606F/wlanmdsp.mbn
+```
+Исправление (sh-скрипт под sudo):
+```
+U=/lib/firmware/updates/qcom/sm6115/LENOVO/J606F; mkdir -p $U && cp /tmp/m/image/wlanmdsp.mbn $U/ && umount /tmp/m
+R=$(grep -l '^modem$' /sys/class/remoteproc/*/name | xargs dirname)
+echo stop > $R/state; echo start > $R/state
+```
+Через ~30 с: `ip -br link show wlan0`, `dmesg | grep fw_build_id`.
+
+## Кнопки (evtest)
+`sudo timeout 30 evtest /dev/input/event1` (pm8941_resin, Громкость−) и `/dev/input/event2` (gpio-keys, Громкость+); список: `cat /sys/class/input/event*/device/name`.
+
