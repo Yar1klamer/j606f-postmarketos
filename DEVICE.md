@@ -39,7 +39,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ✅ динамики (AW88258, PRIMARY TDM, патчи 0012–0016); ❌ микрофоны ES7210 и гарнитура USB-C |
 | Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ✅ свет, приближение, акселерометр (hexagonrpcd с патчем + libssc + iio-sensor-proxy) |
 | SD | sdhc_2, cd tlmm 88 | ✅ подключается и монтируется |
-| Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ❓ клавиатуры нет |
+| Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ✅ клавиатура 17ef:6103 + тачпад 04f3:3164 (hid-multitouch), nodes в common.dtsi; проверено на железе |
 | Камеры | задняя OV13B10 (CCI0 0x10, 4 линии CSIPHY0) + VCM DW9763 (CCI0 0x0c); фронт S5K4H7 (CCI1 0x10, CSIPHY2); питание — LDO по gpio112/108/40 (PM8008 из стокового DT не распаян) | ✅ задняя: CAMSS + libcamera (патчи 0017–0022), фокус вручную; 🟡 фронт: свой драйвер S5K4H7 + DT (0023–0024), ядро r121 + libcamera r6 (apk-репозиторий 02.11) |
 | Вибро, RGB LED, датчик Холла (tlmm 36) | — | ❓ не проверялось |
 
