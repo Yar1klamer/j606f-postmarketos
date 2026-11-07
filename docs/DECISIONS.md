@@ -128,3 +128,10 @@ Mainline покрывает загрузку, UFS, дисплей (для BOE-SK
 - 04.11: новое направление — UEFI (Project Aloha mu_aloha_platforms) и Windows on ARM. Ведётся отдельно: подпапка `../uefi-winarm/`, свой чат,
   свои STATE/LOG; общие правила (без записи в modem/persist/abl/xbl, спрашивать перед fastboot flash, пароли/токены не вводить) — те же.
   pmOS остаётся основной системой: UEFI сначала только через `fastboot boot`.
+
+## 07.11
+- PR #1 (kruzeman, пого-док) принят как патч ядра 0025 → linux-lenovo-j606f r122 (узлы перенесены в существующие блоки, лишний interrupt-parent убран),
+  PR слит merge-коммитом (авторство сохранено). Утверждение PR про dtc не берём (upstream dtc round-trip честный), совет «cmp после round-trip» — берём.
+- Ядро на планшете больше не ставим через boot-deploy: при `androidboot.slot_suffix=_a` он писал бы в boot_a (UEFI), а mkbootimg (Python) падает.
+  boot.img собираем на Mac (scripts/mkbootimg_v2.py), пишем в boot_b вручную с cmp и контролем sha256 boot_a.
+- `fastboot boot` для проверки ядра — только при активном слоте b (dtbo_a стоковый); после проверки слот возвращаем, как его оставила сессия uefi-winarm.
