@@ -176,3 +176,24 @@ After ~30 s: `ip -br link show wlan0`, `dmesg | grep fw_build_id`.
 
 ## Keys (evtest)
 `sudo timeout 30 evtest /dev/input/event1` (pm8941_resin, Volume−) and `/dev/input/event2` (gpio-keys, Volume+); list: `cat /sys/class/input/event*/device/name`.
+
+## Kernel without boot-deploy (since 07.11: slot a = UEFI, mkbootimg crashes on the tablet)
+```sh
+# 0. test only with slot b active (otherwise ABL applies the stock dtbo_a)
+~/platform-tools/fastboot set_active b
+~/platform-tools/fastboot boot TEST.img          # check: cat /proc/device-tree/model → "Lenovo Tab P11 (HX83102P)"
+# 1. backup on the tablet
+sudo dd if=/dev/disk/by-partlabel/boot_b of=/home/user/boot_b-before-rN.img bs=1M
+sudo sha256sum /dev/disk/by-partlabel/boot_a > /home/user/boot_a.sha.before
+# 2. package without flashing the partition
+scp scripts/kernel_apk_add_noflash.sh linux-lenovo-j606f-7.2.3-rN.apk user@172.16.42.1:
+ssh user@172.16.42.1 'sudo sh kernel_apk_add_noflash.sh /home/user/linux-lenovo-j606f-7.2.3-rN.apk'
+# 3. boot.img on the Mac (template = the current working boot.img: cmdline/addresses)
+scp user@172.16.42.1:/boot/vmlinuz user@172.16.42.1:/boot/initramfs .
+python3 -I scripts/mkbootimg_v2.py boot-current.img vmlinuz initramfs sm6115p-lenovo-j606f-hx83102p.dtb boot-rN.img
+# 4. fastboot boot boot-rN.img → check → write from pmOS
+sudo dd if=/home/user/boot-rN.img of=/dev/disk/by-partlabel/boot_b bs=1M conv=fsync
+sudo cmp -n $(stat -c %s /home/user/boot-rN.img) /home/user/boot-rN.img /dev/disk/by-partlabel/boot_b && sudo cp /home/user/boot-rN.img /boot/boot.img
+sudo sha256sum /dev/disk/by-partlabel/boot_a | cmp - /home/user/boot_a.sha.before   # boot_a untouched
+# 5. restore the slot: fastboot set_active a
+```

@@ -128,3 +128,10 @@ Mainline covers boot, UFS, display (for the BOE SKU), GPU, Wi-Fi, buttons, SD, U
 - 04.11: a new direction — UEFI (Project Aloha mu_aloha_platforms) and Windows on ARM. Kept separate: the `../uefi-winarm/` subfolder, its own chat,
   its own STATE/LOG; the common rules (no writes to modem/persist/abl/xbl, ask before fastboot flash, no typing passwords/tokens) are the same.
   pmOS stays the main system: UEFI only through `fastboot boot` at first.
+
+## 07.11
+- PR #1 (kruzeman, pogo dock) accepted as kernel patch 0025 → linux-lenovo-j606f r122 (nodes moved into the existing blocks, redundant interrupt-parent dropped),
+  PR merged with a merge commit (authorship kept). The PR's claim about dtc is not taken (upstream dtc round-trips exactly); the "cmp after a round-trip" advice is.
+- The kernel is no longer installed on the tablet through boot-deploy: with `androidboot.slot_suffix=_a` it would write to boot_a (UEFI), and mkbootimg (Python) crashes.
+  boot.img is built on the Mac (scripts/mkbootimg_v2.py) and written to boot_b by hand, with cmp and a sha256 check of boot_a.
+- `fastboot boot` for kernel testing — only with slot b active (dtbo_a is stock); afterwards the slot is restored to what the UEFI/Windows work left it at.
