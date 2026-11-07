@@ -13,14 +13,13 @@
 - GPIO (mainline, debugfs): gpio38 (usb_vbus) in low; gpio41 (mcu_switch) in low pull-down; gpio48 (mcu_reset) in high; gpio66 (usb_charge_status) low; gpio67 (dock_status) low → клавиатура, вероятно, не пристыкована; gpio74 (charge_enable) low.
 - Следующий шаг: узлы `hid-over-i2c` (i2c0@0x60 irq tlmm 93, i2c1@0x61 irq tlmm 96, hid-descr-addr 0x1, post-power-on-delay-ms 100) + проверка с пристыкованной клавиатурой (нужен пользователь и сама клавиатура).
 
-## Статус в pmOS (29.10, пого — 06.11)
+## Статус в pmOS (29.10)
 - Power, Vol+, Vol− работают (громкость проверил владелец). Power гасит/включает экран: PowerDevil `PowerButtonAction=128` (локальная настройка, STATE §2).
 - Экранная клавиатура: plasma-keyboard (KWin InputMethod, EN/RU) — локальная настройка, в device-пакет не перенесена.
-- **Пого-док (Lenovo Keyboard Pack) работает** с 06.11: клавиатура и тачпад. Узлы `hid-over-i2c` (`0x60` на I2C0, `0x61` на I2C1) и pinctrl-состояния для `gpio93`/`gpio96` добавлены в `kernel/dts/sm6115p-lenovo-j606f-common.dtsi`, отдельных проприетарных прошивок не требуется. Признаки в `dmesg`:
-  ```
-  input: hid-over-i2c 04F3:3164 Touchpad as .../i2c-0/0-0060/...  (hid-multitouch, Mouse + Touchpad)
-  input: hid-over-i2c 17EF:6103 Keyboard as .../i2c-1/1-0061/...   (модификаторы + Consumer)
-  ```
-  IRQ — `LEVEL_LOW`; `EDGE_FALLING` не понадобился. В `gpioinfo`: 93/96 в покое high.
-- **`dock_status` (gpio67) не является признаком пристёгнутой клавиатуры**: остаётся low и при работающих клавиатуре/тачпаде. Ничего на него завязывать нельзя.
+- **Пого-док (Lenovo Keyboard Pack)** — узлы `hid-over-i2c` прислал kruzeman (PR #1, 06.11, проверено на его планшете на r121):
+  I2C0 0x60 — тачпад Elan 04f3:3164 (hid-multitouch), I2C1 0x61 — клавиатура Lenovo 17ef:6103; IRQ gpio93/gpio96 `LEVEL_LOW`,
+  pinctrl как в стоке (`bias-disable`, `input-enable`). Ядро: патч 0025 (автор kruzeman, узлы перенесены в существующие блоки i2c0/i2c1/tlmm),
+  linux-lenovo-j606f **r122** (`CONFIG_I2C_HID_OF=m`, `HID_MULTITOUCH=m` уже есть). Признаки в dmesg:
+  `input: hid-over-i2c 04F3:3164 Touchpad …/i2c-0/0-0060`, `input: hid-over-i2c 17EF:6103 Keyboard …/i2c-1/1-0061`.
+- `dock_status` (gpio67) остаётся low и с пристёгнутой работающей клавиатурой — признаком стыковки не является.
 - Hall (SW_LID), вибромотор, RGB-светодиод, вспышка — в DTS не описаны, не проверялись.

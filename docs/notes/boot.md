@@ -51,24 +51,20 @@ deviceinfo_append_dtb="false"
   На устройстве: `ip addr add 169.254.42.1/16 dev usb0` (через ACM: scripts/acm_run.py), дальше `nc -lk -p 9100 -e /bin/sh` и scripts/tcp_run.sh.
 - Страховка: если за 300 с не было обращения к CGI (/tmp/keepalive), то `reboot -f`. Без httpd CGI нет, поэтому keepalive надо создать вручную через ACM.
 
-## ★ Правка готового DTB (декомпиляция/пересборка): сначала побайтовый round-trip
-
-Если DTB правится не из `kernel/dts/`, а декомпиляцией уже собранного (`dtc -I dtb -O dts`), есть ловушка:
-**`dtc` теряет байт в свойствах, значение которых начинается с `0x00`** — печатает их как C-строку.
-Реальный случай: у регулятора `l15` (`/remoteproc/glink-edge/rpm-requests/regulators-0`)
-`regulator-max-microvolt = 00 31 51 00` (3.23 В) после пересборки стал `01 51 00` (86 мВ), то есть max ниже min
-(2.92 В) — rail не поднимается, планшет даёт **чёрный экран сразу после логотипа Lenovo**, без Wi-Fi, без USB-гаджета
-и без возврата в fastboot. Симптом неотличим от битого драйвера, и падает **любой** образ, собранный из такого дерева,
-даже без реальных правок.
-
-Порядок, который это ловит:
-
+## ★ Правка готового DTB (декомпиляция/пересборка): сначала побайтовый round-trip (kruzeman, PR #1)
+Если DTB правится декомпиляцией уже собранного, а не из `kernel/dts/`, сначала убедиться, что пересборка без правок даёт тот же файл:
 ```sh
 dtc -I dtb -O dts -o base.dts orig.dtb
 dtc -I dts -O dtb -o rt.dtb  base.dts
-cmp orig.dtb rt.dtb            # должно быть тихо; иначе правим source и повторяем
+cmp orig.dtb rt.dtb            # должно быть тихо
 ```
+У автора PR после такой пересборки `regulator-max-microvolt` регулятора l15 стал меньше min → чёрный экран после логотипа.
+Upstream dtc такие значения (`00 31 51 00`) печатает числом и round-trip честный, так что, вероятно, виноват другой инструмент;
+но проверка `cmp` дешёвая и ловит любую такую порчу. Точечная сверка свойств — `scripts/fdtread.py <путь-узла> <свойство> a.dtb b.dtb`.
 
-Найденные такие свойства записывать массивом байт (`regulator-max-microvolt = [00 31 51 00];`) до тех пор, пока
-`cmp` не станет тихим, и только потом добавлять узлы. Сверить значения точечно — `scripts/fdtread.py` (чистый python,
-без libfdt): `scripts/fdtread.py <путь-узла> <свойство> orig.dtb patched.dtb`.
+## ⚠ `fastboot boot` при активном слоте a (07.11)
+С 04.11 активен слот a (UEFI в boot_a, сессия uefi-winarm), а **dtbo_a стоковый**. `fastboot boot` берёт dtbo текущего слота → ABL накладывает
+стоковый оверлей на наш DTB: model «Lenovo P11 WIFI PVT», Wi-Fi не поднимается (нет qmi от wlan), бывает ребут. Это стоило нам ложной тревоги
+«r122 ломает Wi-Fi». Перед тестом ядра: `fastboot set_active b` → `fastboot boot …` → после теста `fastboot set_active a`.
+Проверка: `cat /proc/device-tree/model` должно быть «Lenovo Tab P11 (HX83102P)».
+«qcom_q6v5_pas a400000.remoteproc: Handover signaled, but it already happened» ~57 раз за первые ~2 мин — норма при загрузке со слота b (и r121, и r122).

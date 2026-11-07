@@ -9,7 +9,7 @@
 > **Статус: pmOS (Nura edge) с KDE Plasma Desktop ставится во внутреннюю память и грузится сам.** Работают дисплей, GPU (OpenGL ES и Vulkan),
 > Plasma (Wayland), Wi-Fi, **Bluetooth (полностью: сопряжение и устройства ввода)**, USB-сеть/SSH, кнопки, батарея и статус зарядки.
 > Работают датчики (свет, приближение, акселерометр), **тачскрин** (порт GPL-драйвера Lenovo для HX83102E), **USB OTG** и зарядка от сетевой USB-C,
-> **пого-док Lenovo Keyboard Pack — клавиатура и тачпад** (hid-over-i2c 0x60/0x61, узлы в `common.dtsi`, проверено на железе 06.11),
+> **пого-док Lenovo Keyboard Pack — клавиатура и тачпад** (hid-over-i2c 0x60/0x61, ядро r122, спасибо kruzeman за PR #1),
 > GPU после исправления голосования за память DDR (патч 0009) быстрее в 2.5–7 раз. Работает **аппаратное H.264/HEVC-декодирование через Venus** (патч 0011).
 > **Работают динамики** (4× AW88258, стерео, с ядра r117 + device r17); микрофонов и гарнитуры через USB-C пока нет.
 > **Работают обе камеры** (задняя OV13B10 с ручным фокусом, фронтальная S5K4H7 — свой драйвер; ядро r121 + libcamera r6).
@@ -102,7 +102,7 @@
 | Офлайн-зарядка | ⚠️ частично | device r11: charger mode из PON reason + reboot mark, обычный reboot проверен; полный цикл poweroff/charger/unplug ещё не завершён |
 | Задняя камера | ✅ | OV13B10 (13 Мп) через CAMSS SM6115 (патчи 0017–0021) и libcamera с программным ISP на GPU (`pmaports/temp/libcamera`, свой патч 0007): автоэкспозиция и баланс белого, 2104×1560 ~28 кадров/с, 1280×720 ~117 кадров/с; в PipeWire — «ov13b10 [libcamera]». Фокус DW9763 (0022) — только вручную (`focus_absolute`): автофокуса в программном ISP нет |
 | Фронтальная камера | 🟡 | S5K4H7 (8 Мп): драйвера в mainline нет — свой (патч 0023, регистры из стокового CamX-модуля), DT (0024) и хелпер libcamera (свой патч 0008); 3264×2448 30 кадров/с через libcamera. Ядро r121 + libcamera r6 (в apk-репозитории с 02.11). Автоэкспозиция libcamera при ярком контровом свете (окно в кадре) пересвечивает кадр — тюнинг впереди |
-| Клавиатура на pogo-пинах | ❓ | не проверялось |
+| Клавиатура на pogo-пинах | ✅ | Lenovo Keyboard Pack: клавиатура 17ef:6103 и тачпад 04f3:3164 (hid-over-i2c, патч 0025, ядро r122) |
 
 ## Главная особенность: загрузчик Lenovo и dtbo
 
@@ -156,7 +156,7 @@ kernel/
   himax83102p-port/         как получен 0006: port.py (исходники Lenovo → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     те же DTS отдельными файлами
 pmaports/device/testing/
-  linux-lenovo-j606f/      пакет ядра: linux-nura-qcom-sm61x5 7.2.3 + патчи 0001, 0003–0024 (pkgrel 121); своё имя, чтобы апстримный пакет его не заменил
+  linux-lenovo-j606f/      пакет ядра: linux-nura-qcom-sm61x5 7.2.3 + патчи 0001, 0003–0025 (pkgrel 122); своё имя, чтобы апстримный пакет его не заменил
   device-lenovo-j606f-nt36523w/  device-пакет ревизии NT36523W (не проверен)
   device-lenovo-j606f/     device-пакет (deviceinfo: rootfs → userdata, автозапись boot_b при обновлении; modules-initfs, прошивка GPU в initramfs, bootmac)
   firmware-lenovo-j606f/   firmware-пакет (APKBUILD — свой тарбол; APKBUILD.shared — общий набор S320208 из apk-репозитория)
@@ -226,7 +226,7 @@ Super не трогается при установке в userdata. Если о
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0024
+cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # ядро 7.2.3 + патчи 0001, 0003–0025
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # для датчиков (см. docs/notes/sensors.md)
 cp -r pmaports/temp/libcamera                        <pmaports>/temp/              # для камер (см. docs/notes/camera.md)
 # прошивка: либо свой тарбол
@@ -369,7 +369,7 @@ sudo apk update && sudo apk upgrade && sudo reboot
 - **Wi-Fi и свой пакет прошивок:** wlanmdsp.mbn в пакете должен совпадать с `image/wlanmdsp.mbn` раздела modem_a. Иначе модем перезапускается каждые ~40 с
   («User-PD grace timer expired for wlan_process») и wlan0 нет; помогает стоковый файл в `/lib/firmware/updates/qcom/sm6115/LENOVO/J606F/`. [Заметки](docs/notes/firmware.md).
 - **UEFI и Windows on ARM:** исследуется отдельно ([Project Aloha mu_aloha_platforms](https://github.com/Project-Aloha/mu_aloha_platforms/releases)).
-- Клавиатура на pogo-пинах, датчик Холла, вибромотор/светодиод, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
+- Датчик Холла, вибромотор/светодиод, заводские MAC из persist (сейчас bootmac генерирует стабильные из serialno).
 - **Настройки по умолчанию** (автологин, ландшафт, кнопка Power, экранная клавиатура) пока сделаны вручную на планшете, в пакеты не перенесены (STATE.md §2); drop-in'ы hexagonrpcd — в пакете с r22.
 - **Зеркала:** если mirror.nura.eco медленный, задайте другие (у нас из России быстро работают эти):
   ```bash
@@ -387,6 +387,7 @@ sudo apk update && sudo apk upgrade && sudo reboot
 - Ядро `linux-nura-qcom-sm61x5`: [sm61x5-mainline](https://codeberg.org/sm61x5-mainline/linux), Barnabás Czémán.
 - Драйвер `panel-himax-hx83102`: Cong Yang и др.; postmarketOS/Nura, pmbootstrap, Mesa freedreno.
 - За помощь тестирования и нахождения багов в порте - @dogotrigger ( Telegram )
+- Пого-док (клавиатура и тачпад Lenovo Keyboard Pack): Maksim Kruzeman ([@kruzeman](https://github.com/kruzeman), PR #1).
 
 Лицензии:
 - патчи ядра и DTS: **GPL-2.0** (DTS: GPL-2.0+ OR BSD-3-Clause, как в исходниках);

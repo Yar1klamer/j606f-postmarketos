@@ -5,8 +5,8 @@
 
 ## 1. Одной строкой
 **pmOS (Nura edge) с KDE Plasma Desktop установлен во внутреннюю память и грузится сам** на Lenovo Tab P11 TB-J606F (ревизия Himax HX83102P):
-**rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 с патчами 0001, 0003–0024)
-(в pmaports **pkgrel 121**; без HACK 0002). Работают: Plasma, Wi-Fi, Bluetooth, батарея, датчики, **тач**, **USB OTG**, зарядка от сетевой USB-C (FUSB302), **пого-док Lenovo Keyboard Pack (клавиатура + тачпад, `hid-over-i2c` в `common.dtsi`)**,
+**rootfs в `userdata` (~100 ГиБ)**, boot.img в `boot_b`, **dtbo_b стёрт**, активный слот **b**. Ядро — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 с патчами 0001, 0003–0025)
+(в pmaports **pkgrel 122**; без HACK 0002). Работают: Plasma, Wi-Fi, Bluetooth, батарея, датчики, **тач**, **USB OTG**, зарядка от сетевой USB-C (FUSB302), **пого-док Lenovo Keyboard Pack (клавиатура + тачпад, `hid-over-i2c` в `common.dtsi`)**,
 GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппаратное H.264/HEVC-декодирование через Venus** (патч 0011, firmware r2) и **динамики** (4× AW88258, стерео, 0012–0016), **задняя камера** (OV13B10 + фокус DW9763, CAMSS 0017–0022) и **фронтальная камера** (свой драйвер S5K4H7, 0023–0024); libcamera r6.
 Нет: микрофоны, гарнитура (USB-C), стабильный сон (CrashDump после пробуждения) и финальный тест offline-зарядки. Пакеты раздаются через **https://repo.yarnick.ru/j606f** (README).
 **Готовый архив для прошивки** (без блобов Lenovo, один скрипт) — [Releases](https://github.com/Yar1klamer/j606f-postmarketos/releases), проверен 03.11.
@@ -18,7 +18,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 | Что запущено | pmOS + Plasma Desktop (автологин user), обычная загрузка со слота b |
 | Активный слот | **b** (`slot-successful:b` = yes) |
 | boot_a | стоковый boot + Magisk; стоковый оригинал в приватном бэкапе |
-| boot_b | ядро **linux-lenovo-j606f r121** (uname `#122`, обе камеры), boot.img записан boot-deploy автоматически; перед этим r121 проверен через `fastboot boot`; откатные образы в приватном бэкапе |
+| boot_b | ядро **linux-lenovo-j606f r122** (uname `#123`, обе камеры + пого-док), перед установкой r122 проверен через `fastboot boot`; откатные образы в приватном бэкапе |
 | dtbo_b | **стёрт** (`fastboot erase dtbo_b`): ABL не накладывает оверлей, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | стоковые |
 | userdata (102 ГиБ) | **rootfs pmOS**: GPT (сектор 4096) pmOS_boot 480 МиБ + pmOS_root 102 ГиБ (перенесено поблочно из super с теми же UUID, 29.10) |
@@ -49,7 +49,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
    r24 (zap GPU в initramfs необязателен) — в apk-репозитории. Архив: userdata.img + boot.img + flash-all.{sh,bat} + SHA256SUMS + README.txt ([`release/`](release/)).
    Проверен на нашем планшете со стоковым super: первая загрузка извлекла прошивки из modem, bluetooth, dsp, persist и vendor, GPU (FD610), тач, динамики,
    BT, Wi-Fi, датчики работают. Не проверены flash-all.bat (Windows) и установка при затёртом vendor.
-0d. ✅ **Пого-док (Lenovo Keyboard Pack): клавиатура и тачпад работают** (06.11). Узлы `hid-over-i2c`
+0e. ✅ **Пого-док (Lenovo Keyboard Pack): клавиатура и тачпад работают** (06.11, [PR #1](https://github.com/Yar1klamer/j606f-postmarketos/pull/1) от kruzeman; в ядре с **r122**, патч 0025, apk-репозиторий 07.11). Узлы `hid-over-i2c`
    0x60 (I2C0, irq gpio93) и 0x61 (I2C1, irq gpio96) + pinctrl-состояния добавлены в
    `kernel/dts/sm6115p-lenovo-j606f-common.dtsi`; проверено на железе, IRQ `LEVEL_LOW`.
    `dock_status` (gpio67) признаком пристёгнутой клавиатуры **не является**. [notes](docs/notes/input_keyboard.md).
@@ -94,7 +94,7 @@ GPU с голосованием за DDR (патч 0009, ×2.5–7), **аппа�
 
 ## 6. Версии
 - pmbootstrap **3.12.1**; pmaports ветка **main** + локальные коммиты; канал **systemd-edge**.
-- Ядро: **linux-lenovo-j606f 7.2.3-r121** на планшете и в apk-репозитории (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0024`), uname `7.2.3-sm61x5 #122`.
+- Ядро: **linux-lenovo-j606f 7.2.3-r122** на планшете и в apk-репозитории (до r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0024`), uname `7.2.3-sm61x5 #122`.
 - libcamera: **99990.7.2-r6** (pmaports temp/libcamera + 0007 OV13B10, 0008 S5K4H7) на планшете и в apk-репозитории (выше pmOS r4).
 - device-lenovo-j606f **r24** в pmaports и apk-репозитории, r23 на нашем планшете (r22: датчики из пакета; r23: без блобов Lenovo; r24: zap необязателен; помощник сна j606f-sleep/j606f-resume, репозиторий порта и его ключ, `/etc/mpv/mpv.conf`, rootfs → userdata, автозапись boot_b, offline-charger hook, UCM динамиков, softdep SoundWire → WCD937x, прошивка из modem/bluetooth/super самого планшета — при общем наборе в /lib/firmware/updates, apk-триггер); firmware-lenovo-j606f: личный **1-r3** (из своего бэкапа, не публикуется) или общий **0.320208** из apk-репозитория (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (наш патч `sns_reg_version`).
 - postmarketos-ui-plasma-desktop 5; Plasma 6.8.1; Mesa 26.2.5 (freedreno FD610); Alpine edge.

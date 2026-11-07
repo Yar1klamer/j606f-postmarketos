@@ -6,7 +6,7 @@ maintainer="Barnabas Czeman <barnabas.czeman@postmarketos.org>"
 _flavor="nura-qcom-sm61x5"
 pkgname=linux-lenovo-j606f
 pkgver=7.2.3
-pkgrel=121
+pkgrel=122
 pkgdesc="Close to mainline linux kernel for Qualcomm Snapdragon SM61x5, Lenovo Tab P11 (TB-J606F)"
 replaces="linux-$_flavor"
 arch="aarch64"
@@ -62,6 +62,7 @@ source="
 	0022-media-i2c-dw9719-add-DW9763.patch
 	0023-media-i2c-add-Samsung-S5K4H7-sensor-driver.patch
 	0024-arm64-dts-qcom-sm6115p-lenovo-j606f-enable-front-camera.patch
+	0025-arm64-dts-qcom-sm6115p-lenovo-j606f-add-pogo-keyboard-and-touchpad.patch
 "
 builddir="$srcdir/linux"
 
@@ -121,4 +122,5 @@ a4f9ee095160252212270c61ed7c5f14415fedccd0521bc3be20f839b679f6948ecbb9bd8d0a05a4
 722cc6bfdc3b9515b9b75056adc4006ff08d1f7040b7e32c658810d142f63e33d9f6b838490bd1b8bdf19116f50ec30df844145ffa2f0a2be704df8902c5a458  0022-media-i2c-dw9719-add-DW9763.patch
 b303ef2547d5149cff9df3a0bb322119971623cf6150173df67fd7c6a734d98667b2ddb4dfe6adbef225136c9549bd49e6c369299db51e366ed32822ca8ecd2e  0023-media-i2c-add-Samsung-S5K4H7-sensor-driver.patch
 9303042649f59af2d2c75c4bad4f05cff835a9ed9f57f455a9c6f4fd2e14b9f4d2c239e545fb8a54903e7ff1460328258592182b627250d52e70093f1c6ef619  0024-arm64-dts-qcom-sm6115p-lenovo-j606f-enable-front-camera.patch
+0ffcc11031fcffb7a156de90835dd9319a5917872b7396043b41459950d4f014e8f3615fd92da7774e8c5cf0ca99fb18efd5921253d3b8b3d33cae4677420d56  0025-arm64-dts-qcom-sm6115p-lenovo-j606f-add-pogo-keyboard-and-touchpad.patch
 "

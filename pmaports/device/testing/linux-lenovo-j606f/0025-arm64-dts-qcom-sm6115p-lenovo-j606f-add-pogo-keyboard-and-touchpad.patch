@@ -1,0 +1,90 @@
+From: Maksim Kruzeman <kruzeman@users.noreply.github.com>
+Subject: [PATCH] arm64: dts: qcom: sm6115p-lenovo-j606f: add the pogo dock
+ keyboard and touchpad
+
+The Lenovo Keyboard Pack on the pogo pins is two HID-over-I2C devices behind
+the dock MCU, as in the stock device tree (dock_pogo / mcu_pogo@60,@61):
+
+  I2C0 0x60  04f3:3164  Elan touchpad (Mouse + Touch Pad, hid-multitouch)
+  I2C1 0x61  17ef:6103  Lenovo keyboard (modifiers + Consumer keys)
+
+Both answer with a standard 30-byte HID descriptor even with the keyboard
+detached. IRQs on gpio93 (stock mcu_tp_int) and gpio96 (stock mcu_kbd_int),
+level low, pin config as in stock. dock_status (gpio67) stays low with the
+keyboard attached, so it is not a dock-presence signal.
+
+Tested on hardware by the author (TB-J606F HX83102P, kernel 7.2.3 r121).
+Link: https://github.com/Yar1klamer/j606f-postmarketos/pull/1
+[Yar1klamer: nodes moved into the existing i2c0/i2c1/tlmm blocks, dropped
+ the redundant interrupt-parent]
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+@@ -46,11 +46,37 @@
+ 		reg = <0x55>;
+ 		power-supplies = <&pmi632_charger>;
+ 	};
++
++	/*
++	 * Pogo dock (Lenovo Keyboard Pack), stock mcu_pogo@60: Elan touchpad
++	 * 04f3:3164 (Mouse + Touch Pad, hid-multitouch). The dock MCU answers
++	 * with a 30-byte HID descriptor even with the keyboard detached.
++	 */
++	touchpad@60 {
++		compatible = "hid-over-i2c";
++		reg = <0x60>;
++		hid-descr-addr = <0x1>;
++		post-power-on-delay-ms = <100>;
++		interrupts-extended = <&tlmm 93 IRQ_TYPE_LEVEL_LOW>;
++		pinctrl-0 = <&pogo_touchpad_int_default>;
++		pinctrl-names = "default";
++	};
+ };
+ 
+ &i2c1 {
+ 	clock-frequency = <400000>;
+ 	status = "okay";
++
++	/* pogo dock, stock mcu_pogo@61: Lenovo keyboard 17ef:6103 */
++	keyboard@61 {
++		compatible = "hid-over-i2c";
++		reg = <0x61>;
++		hid-descr-addr = <0x1>;
++		post-power-on-delay-ms = <100>;
++		interrupts-extended = <&tlmm 96 IRQ_TYPE_LEVEL_LOW>;
++		pinctrl-0 = <&pogo_keyboard_int_default>;
++		pinctrl-names = "default";
++	};
+ };
+ 
+ &pmi632_gpios {
+@@ -81,6 +107,27 @@
+ 		bias-pull-up;
+ 	};
+ 
++	/*
++	 * Pogo dock IRQs, stock mcu_tp_int / mcu_kbd_int. dock_status (gpio67)
++	 * stays low with the keyboard attached and working: it is not a
++	 * dock-presence signal.
++	 */
++	pogo_touchpad_int_default: pogo-touchpad-int-default-state {
++		pins = "gpio93";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		input-enable;
++	};
++
++	pogo_keyboard_int_default: pogo-keyboard-int-default-state {
++		pins = "gpio96";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++		input-enable;
++	};
++
+ 	/* WCN3990 BT UART (QUP SE3), pins from stock qupv3_se3_4uart */
+ 	bt_uart3_default: bt-uart3-default-state {
+ 		cts-pins {
