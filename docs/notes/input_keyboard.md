@@ -16,4 +16,10 @@
 ## Status in pmOS (29.10)
 - Power, Vol+, Vol− work (volume checked by the owner). Power turns the screen off/on: PowerDevil `PowerButtonAction=128` (local setting, STATE §2).
 - On-screen keyboard: plasma-keyboard (KWin InputMethod, EN/RU) — a local setting, not moved into the device package.
-- Hall (SW_LID), pogo keyboard, vibration motor, RGB LED, flash — not described in the DTS, not tested.
+- **Pogo dock (Lenovo Keyboard Pack)** — the `hid-over-i2c` nodes were contributed by kruzeman (PR #1, 06.11, tested on their tablet on r121):
+  I2C0 0x60 — Elan touchpad 04f3:3164 (hid-multitouch), I2C1 0x61 — Lenovo keyboard 17ef:6103; IRQ gpio93/gpio96 `LEVEL_LOW`,
+  pinctrl as in stock (`bias-disable`, `input-enable`). Kernel: patch 0025 (author kruzeman, nodes moved into the existing i2c0/i2c1/tlmm blocks),
+  linux-lenovo-j606f **r122** (`CONFIG_I2C_HID_OF=m`, `HID_MULTITOUCH=m` were already set). dmesg markers:
+  `input: hid-over-i2c 04F3:3164 Touchpad …/i2c-0/0-0060`, `input: hid-over-i2c 17EF:6103 Keyboard …/i2c-1/1-0061`.
+- `dock_status` (gpio67) stays low even with a working keyboard attached — it is not a docking signal.
+- Hall (SW_LID), vibration motor, RGB LED, flash — not described in the DTS, not tested.

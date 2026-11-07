@@ -8,7 +8,8 @@ A port of [postmarketOS](https://postmarketos.org) (since 2026 the project is ca
 
 > **Status: pmOS (Nura edge) with KDE Plasma Desktop installs to internal storage and boots on its own.** Working: display, GPU (OpenGL ES and Vulkan),
 > Plasma (Wayland), Wi-Fi, **Bluetooth (fully: pairing and input devices)**, USB networking/SSH, buttons, battery and charging status.
-> The sensors (light, proximity, accelerometer), the **touchscreen** (a port of the Lenovo GPL driver for HX83102E), **USB OTG** and charging from a USB-C wall charger work;
+> The sensors (light, proximity, accelerometer), the **touchscreen** (a port of the Lenovo GPL driver for HX83102E), **USB OTG** and charging from a USB-C wall charger work,
+> as does the **Lenovo Keyboard Pack pogo dock — keyboard and touchpad** (hid-over-i2c 0x60/0x61, kernel r122, thanks to kruzeman for PR #1);
 > the GPU is 2.5–7 times faster after fixing the DDR bandwidth vote (patch 0009). **Hardware H.264/HEVC decoding through Venus** works (patch 0011).
 > **The speakers work** (4× AW88258, stereo, since kernel r117 + device r17); no microphones or USB-C headset yet.
 > **Both cameras work** (rear OV13B10 with manual focus, front S5K4H7 with our own driver; kernel r121 + libcamera r6).
@@ -101,7 +102,7 @@ Tested in the installed pmOS (kernel 7.2.3 with patches up to 0024, Plasma Deskt
 | Offline charging | ⚠️ partial | device r11: charger mode from the PON reason + a reboot mark, a normal reboot is tested; the full poweroff/charger/unplug cycle is not finished yet |
 | Rear camera | ✅ | OV13B10 (13 MP) through the SM6115 CAMSS (patches 0017–0021) and libcamera with the GPU software ISP (`pmaports/temp/libcamera`, own patch 0007): auto exposure and white balance, 2104×1560 ~28 fps, 1280×720 ~117 fps; in PipeWire — "ov13b10 [libcamera]". The DW9763 focus (0022) is manual only (`focus_absolute`): the software ISP has no autofocus |
 | Front camera | 🟡 | S5K4H7 (8 MP): no mainline driver — own one (patch 0023, registers from the stock CamX module), DT (0024) and a libcamera helper (own patch 0008); 3264×2448 at 30 fps through libcamera. Kernel r121 + libcamera r6 (in the apk repository since 02.11). With strong backlight (a window in the frame) the libcamera auto exposure overexposes the frame — tuning is ahead |
-| Pogo-pin keyboard | ❓ | not tested |
+| Pogo-pin keyboard | ✅ | Lenovo Keyboard Pack: keyboard 17ef:6103 and touchpad 04f3:3164 (hid-over-i2c, patch 0025, kernel r122) |
 
 ## The main quirk: the Lenovo bootloader and dtbo
 
@@ -155,7 +156,7 @@ kernel/
   himax83102p-port/         how 0006 was made: port.py (Lenovo sources → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     the same DTS as separate files
 pmaports/device/testing/
-  linux-lenovo-j606f/      kernel package: linux-nura-qcom-sm61x5 7.2.3 + patches 0001, 0003–0024 (pkgrel 121); its own name so that the upstream package does not replace it
+  linux-lenovo-j606f/      kernel package: linux-nura-qcom-sm61x5 7.2.3 + patches 0001, 0003–0025 (pkgrel 122); its own name so that the upstream package does not replace it
   device-lenovo-j606f-nt36523w/  device package of the NT36523W revision (not tested)
   device-lenovo-j606f/     device package (deviceinfo: rootfs → userdata, automatic boot_b write on update; modules-initfs, GPU firmware in the initramfs, bootmac)
   firmware-lenovo-j606f/   firmware package (APKBUILD — own tarball; APKBUILD.shared — the shared S320208 set from the apk repository)
@@ -225,7 +226,7 @@ So reboot the tablet once more after the first boot (the journal says: `running 
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # kernel 7.2.3 + patches 0001, 0003–0024
+cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # kernel 7.2.3 + patches 0001, 0003–0025
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # for the sensors (see docs/notes/sensors.md)
 cp -r pmaports/temp/libcamera                        <pmaports>/temp/              # for the cameras (see docs/notes/camera.md)
 # firmware: either your own tarball
@@ -368,7 +369,7 @@ For bring-up without installing: [`scripts/make_debug_bootimg.py`](scripts/make_
 - **Wi-Fi and your own firmware package:** wlanmdsp.mbn in the package must match `image/wlanmdsp.mbn` of the modem_a partition. Otherwise the modem restarts every ~40 s
   ("User-PD grace timer expired for wlan_process") and there is no wlan0; the stock file in `/lib/firmware/updates/qcom/sm6115/LENOVO/J606F/` fixes it. [Notes](docs/notes/firmware.md).
 - **UEFI and Windows on ARM:** explored separately ([Project Aloha mu_aloha_platforms](https://github.com/Project-Aloha/mu_aloha_platforms/releases)).
-- The pogo-pin keyboard, the Hall sensor, the vibration motor/LED, the factory MACs from persist (bootmac currently generates stable ones from serialno).
+- The Hall sensor, the vibration motor/LED, the factory MACs from persist (bootmac currently generates stable ones from serialno).
 - **Default settings** (autologin, landscape, the Power button, the on-screen keyboard) are still made by hand on the tablet, not moved into packages (STATE.md §2); the hexagonrpcd drop-ins are packaged since r22.
 - **Mirrors:** if mirror.nura.eco is slow, set others (these are fast for us from Russia):
   ```bash
@@ -386,6 +387,7 @@ For bring-up without installing: [`scripts/make_debug_bootimg.py`](scripts/make_
 - The `linux-nura-qcom-sm61x5` kernel: [sm61x5-mainline](https://codeberg.org/sm61x5-mainline/linux), Barnabás Czémán.
 - The `panel-himax-hx83102` driver: Cong Yang et al.; postmarketOS/Nura, pmbootstrap, Mesa freedreno.
 - For help with testing and finding bugs in the port — @dogotrigger (Telegram)
+- Pogo dock (Lenovo Keyboard Pack keyboard and touchpad): Maksim Kruzeman ([@kruzeman](https://github.com/kruzeman), PR #1).
 
 Licences:
 - kernel patches and DTS: **GPL-2.0** (DTS: GPL-2.0+ OR BSD-3-Clause, as in the sources);

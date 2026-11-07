@@ -50,3 +50,21 @@ deviceinfo_append_dtb="false"
 - Alpine busybox-static has NO udhcpd/httpd/telnetd (they are in busybox-extras), so DHCP does not work. The Mac takes a link-local 169.254.x.x by itself.
   On the device: `ip addr add 169.254.42.1/16 dev usb0` (over ACM: scripts/acm_run.py), then `nc -lk -p 9100 -e /bin/sh` and scripts/tcp_run.sh.
 - Safety net: if the CGI (/tmp/keepalive) is not touched within 300 s, `reboot -f`. Without httpd there is no CGI, so keepalive has to be created by hand over ACM.
+
+## ★ Editing a built DTB (decompile/recompile): do a byte-exact round-trip first (kruzeman, PR #1)
+If you edit a DTB by decompiling a built one rather than from `kernel/dts/`, first make sure a rebuild without changes gives the same file:
+```sh
+dtc -I dtb -O dts -o base.dts orig.dtb
+dtc -I dts -O dtb -o rt.dtb  base.dts
+cmp orig.dtb rt.dtb            # must be silent
+```
+For the PR author, such a rebuild turned `regulator-max-microvolt` of regulator l15 below its min → black screen after the logo.
+Upstream dtc prints such values (`00 31 51 00`) as numbers and the round-trip is exact, so another tool was probably at fault;
+but the `cmp` check is cheap and catches any such corruption. Spot-check properties with `scripts/fdtread.py <node-path> <property> a.dtb b.dtb`.
+
+## ⚠ `fastboot boot` with slot a active (07.11)
+Since 04.11 slot a is active (UEFI in boot_a, the UEFI/Windows work), and **dtbo_a is stock**. `fastboot boot` uses the dtbo of the current slot → ABL applies
+the stock overlay on top of our DTB: model "Lenovo P11 WIFI PVT", Wi-Fi does not come up (no qmi from wlan), sometimes a reboot. This cost us a false alarm
+"r122 breaks Wi-Fi". Before testing a kernel: `fastboot set_active b` → `fastboot boot …` → after the test `fastboot set_active a`.
+Check: `cat /proc/device-tree/model` must say "Lenovo Tab P11 (HX83102P)".
+"qcom_q6v5_pas a400000.remoteproc: Handover signaled, but it already happened" ~57 times in the first ~2 min is normal when booting from slot b (both r121 and r122).

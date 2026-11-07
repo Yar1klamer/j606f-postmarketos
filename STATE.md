@@ -5,8 +5,8 @@
 
 ## 1. In one line
 **pmOS (Nura edge) with KDE Plasma Desktop is installed to internal storage and boots on its own** on the Lenovo Tab P11 TB-J606F (Himax HX83102P revision):
-**rootfs in `userdata` (~100 GiB)**, boot.img in `boot_b`, **dtbo_b erased**, active slot **b**. Kernel — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 with patches 0001, 0003–0024)
-(**pkgrel 121** in pmaports; without HACK 0002). Working: Plasma, Wi-Fi, Bluetooth, battery, sensors, **touch**, **USB OTG**, charging from a USB-C wall charger (FUSB302),
+**rootfs in `userdata` (~100 GiB)**, boot.img in `boot_b`, **dtbo_b erased**, active slot **b**. Kernel — linux-lenovo-j606f (linux-nura-qcom-sm61x5 7.2.3 with patches 0001, 0003–0025)
+(**pkgrel 122** in pmaports; without HACK 0002). Working: Plasma, Wi-Fi, Bluetooth, battery, sensors, **touch**, **USB OTG**, charging from a USB-C wall charger (FUSB302), **the Lenovo Keyboard Pack pogo dock (keyboard + touchpad, `hid-over-i2c` in `common.dtsi`)**,
 GPU with a DDR bandwidth vote (patch 0009, ×2.5–7), **hardware H.264/HEVC decoding through Venus** (patch 0011, firmware r2), **speakers** (4× AW88258, stereo, 0012–0016) and the **rear camera** (OV13B10 + DW9763 focus, CAMSS 0017–0022) and the **front camera** (own S5K4H7 driver, 0023–0024); libcamera r6.
 Missing: microphones, headset (USB-C), a stable suspend (CrashDump after a resume) and the final offline-charging test. Packages are served from **https://repo.yarnick.ru/j606f** (README).
 **A ready archive to flash** (no Lenovo blobs, one script) — [Releases](https://github.com/Yar1klamer/j606f-postmarketos/releases), tested 03.11.
@@ -18,7 +18,7 @@ A second tablet (a tester's, also HX83102P, Android 11 in stock) runs an image w
 | Running | pmOS + Plasma Desktop (autologin user), normal boot from slot b |
 | Active slot | **b** (`slot-successful:b` = yes) |
 | boot_a | stock boot + Magisk; the stock original is in the private backup |
-| boot_b | kernel **linux-lenovo-j606f r121** (uname `#122`, both cameras), boot.img written by boot-deploy automatically; r121 was tested through `fastboot boot` first; rollback images in the private backup |
+| boot_b | kernel **linux-lenovo-j606f r122** (uname `#123`, both cameras + pogo dock), r122 was tested through `fastboot boot` before installing; rollback images in the private backup |
 | dtbo_b | **erased** (`fastboot erase dtbo_b`): ABL applies no overlay, compatible = `lenovo,j606f` |
 | dtbo_a, vbmeta_a / vbmeta_b | stock |
 | userdata (102 GiB) | **pmOS rootfs**: GPT (sector 4096) pmOS_boot 480 MiB + pmOS_root 102 GiB (moved block by block from super with the same UUIDs, 29.10) |
@@ -56,6 +56,10 @@ Local settings on the tablet (lost on a full reinstall of the image):
    accepting its wlanmdsp.mbn (it differed from the file in modem_a): "User-PD grace timer expired for wlan_process", no wlan0. The stock file from modem_a
    in `/lib/firmware/updates` brought Wi-Fi back ([docs/notes/firmware.md](docs/notes/firmware.md)). The release archive and the shared set are not affected
    (firmware-extract takes wlanmdsp from modem_a). Volume keys checked with evtest.
+0e. ✅ **Pogo dock (Lenovo Keyboard Pack): keyboard and touchpad work** (06.11, [PR #1](https://github.com/Yar1klamer/j606f-postmarketos/pull/1) by kruzeman; in the kernel since **r122**, patch 0025, apk repository 07.11). `hid-over-i2c` nodes
+   0x60 (I2C0, irq gpio93) and 0x61 (I2C1, irq gpio96) + pinctrl states in
+   `kernel/dts/sm6115p-lenovo-j606f-common.dtsi`; tested on hardware, IRQ `LEVEL_LOW`.
+   `dock_status` (gpio67) does **not** indicate an attached keyboard. [notes](docs/notes/input_keyboard.md).
 0d. **UEFI and Windows on ARM** (since 04.11): explored separately — UEFI [Project Aloha mu_aloha_platforms](https://github.com/Project-Aloha/mu_aloha_platforms/releases),
    installation following the [Renegade Project guide](https://renegade-project.tech/en/install). pmOS stays the main system.
 0b. Cameras: both work (r121 + libcamera r6). Next — autofocus, front AGC with backlight, colour tuning (ov13b10.yaml, s5k4h7.yaml),
@@ -90,7 +94,7 @@ A full reinstall resets the local settings and needs fastboot. Instead:
 
 ## 6. Versions
 - pmbootstrap **3.12.1**; pmaports branch **main** + local commits; channel **systemd-edge**.
-- Kernel: **linux-lenovo-j606f 7.2.3-r121** on the tablet and in the apk repository (up to r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0024`), uname `7.2.3-sm61x5 #122`.
+- Kernel: **linux-lenovo-j606f 7.2.3-r122** on the tablet and in the apk repository (up to r117 — linux-nura-qcom-sm61x5; codeberg.org/sm61x5-mainline/linux v7.2.3-r0 + `kernel/patches/0001, 0003–0025`), uname `7.2.3-sm61x5 #123`.
 - libcamera: **99990.7.2-r6** (pmaports temp/libcamera + 0007 OV13B10, 0008 S5K4H7) on the tablet and in the apk repository (above pmOS r4).
 - device-lenovo-j606f **r24** in pmaports and the apk repository, r23 on our tablet (r22: sensors from the package; r23: no Lenovo blobs; r24: optional zap; the j606f-sleep/j606f-resume suspend helper, the port's repository and its key, `/etc/mpv/mpv.conf`, rootfs → userdata, automatic boot_b write, offline-charger hook, speaker UCM, SoundWire → WCD937x softdep, firmware from the tablet's own modem/bluetooth/super — into /lib/firmware/updates with the shared set, an apk trigger); firmware-lenovo-j606f: personal **1-r3** (from our own backup, not published) or the shared **0.320208** from the apk repository (`APKBUILD.shared`); hexagonrpcd 0.4.0-r50 (our `sns_reg_version` patch).
 - postmarketos-ui-plasma-desktop 5; Plasma 6.8.1; Mesa 26.2.5 (freedreno FD610); Alpine edge.

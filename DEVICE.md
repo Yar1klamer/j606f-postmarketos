@@ -39,7 +39,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b had never booted 
 | Audio | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250 (rouleur), FSA4480 | ✅ speakers (AW88258, PRIMARY TDM, patches 0012–0016); ❌ ES7210 microphones and USB-C headset |
 | Sensors | ICM4x6xx, LTR578, TMF8801, SX932x — through SSC/ADSP | ✅ light, proximity, accelerometer (patched hexagonrpcd + libssc + iio-sensor-proxy) |
 | SD | sdhc_2, cd tlmm 88 | ✅ detected and mounted |
-| Pogo keyboard | hid-over-i2c 0x60 (I2C0, irq 93) and 0x61 (I2C1, irq 96), the MCU answers | ❓ no keyboard to test |
+| Pogo keyboard | hid-over-i2c 0x60 (I2C0, irq 93) and 0x61 (I2C1, irq 96), the MCU answers | ✅ keyboard 17ef:6103 + touchpad 04f3:3164 (hid-multitouch), nodes in common.dtsi; tested on hardware |
 | Cameras | rear OV13B10 (CCI0 0x10, 4 lanes CSIPHY0) + VCM DW9763 (CCI0 0x0c); front S5K4H7 (CCI1 0x10, CSIPHY2); supply — LDOs on gpio112/108/40 (the PM8008 from the stock DT is not fitted) | ✅ rear: CAMSS + libcamera (patches 0017–0022), manual focus; 🟡 front: own S5K4H7 driver + DT (0023–0024), kernel r121 + libcamera r6 (apk repository 02.11) |
 | Vibration, RGB LED, Hall sensor (tlmm 36) | — | ❓ not tested |
 

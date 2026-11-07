@@ -46,11 +46,37 @@
 		reg = <0x55>;
 		power-supplies = <&pmi632_charger>;
 	};
+
+	/*
+	 * Pogo dock (Lenovo Keyboard Pack), stock mcu_pogo@60: Elan touchpad
+	 * 04f3:3164 (Mouse + Touch Pad, hid-multitouch). The dock MCU answers
+	 * with a 30-byte HID descriptor even with the keyboard detached.
+	 */
+	touchpad@60 {
+		compatible = "hid-over-i2c";
+		reg = <0x60>;
+		hid-descr-addr = <0x1>;
+		post-power-on-delay-ms = <100>;
+		interrupts-extended = <&tlmm 93 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&pogo_touchpad_int_default>;
+		pinctrl-names = "default";
+	};
 };
 
 &i2c1 {
 	clock-frequency = <400000>;
 	status = "okay";
+
+	/* pogo dock, stock mcu_pogo@61: Lenovo keyboard 17ef:6103 */
+	keyboard@61 {
+		compatible = "hid-over-i2c";
+		reg = <0x61>;
+		hid-descr-addr = <0x1>;
+		post-power-on-delay-ms = <100>;
+		interrupts-extended = <&tlmm 96 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-0 = <&pogo_keyboard_int_default>;
+		pinctrl-names = "default";
+	};
 };
 
 &pmi632_gpios {
@@ -79,6 +105,27 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	/*
+	 * Pogo dock IRQs, stock mcu_tp_int / mcu_kbd_int. dock_status (gpio67)
+	 * stays low with the keyboard attached and working: it is not a
+	 * dock-presence signal.
+	 */
+	pogo_touchpad_int_default: pogo-touchpad-int-default-state {
+		pins = "gpio93";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
+
+	pogo_keyboard_int_default: pogo-keyboard-int-default-state {
+		pins = "gpio96";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
 	};
 
 	/* WCN3990 BT UART (QUP SE3), pins from stock qupv3_se3_4uart */
