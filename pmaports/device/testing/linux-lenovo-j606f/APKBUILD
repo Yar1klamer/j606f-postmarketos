@@ -6,7 +6,7 @@ maintainer="Barnabas Czeman <barnabas.czeman@postmarketos.org>"
 _flavor="nura-qcom-sm61x5"
 pkgname=linux-lenovo-j606f
 pkgver=7.2.3
-pkgrel=122
+pkgrel=123
 pkgdesc="Close to mainline linux kernel for Qualcomm Snapdragon SM61x5, Lenovo Tab P11 (TB-J606F)"
 replaces="linux-$_flavor"
 arch="aarch64"
@@ -63,6 +63,12 @@ source="
 	0023-media-i2c-add-Samsung-S5K4H7-sensor-driver.patch
 	0024-arm64-dts-qcom-sm6115p-lenovo-j606f-enable-front-camera.patch
 	0025-arm64-dts-qcom-sm6115p-lenovo-j606f-add-pogo-keyboard-and-touchpad.patch
+	0026-arm64-dts-qcom-sm6115p-lenovo-j606f-built-in-microph.patch
+	0027-soundwire-qcom-ASoC-q6dsp-remoteproc-recover-audio-a.patch
+	0028-power-supply-qcom_pmi632_charger-set-the-input-and-c.patch
+	0029-Input-himax_hx83102e-unregister-the-input-device-and.patch
+	0030-power-supply-mm8013-retry-a-timed-out-I2C-read.patch
+	0031-arm64-dts-qcom-sm6115p-lenovo-j606f-cover-switch-tou.patch
 "
 builddir="$srcdir/linux"
 
@@ -123,4 +129,10 @@ a4f9ee095160252212270c61ed7c5f14415fedccd0521bc3be20f839b679f6948ecbb9bd8d0a05a4
 b303ef2547d5149cff9df3a0bb322119971623cf6150173df67fd7c6a734d98667b2ddb4dfe6adbef225136c9549bd49e6c369299db51e366ed32822ca8ecd2e  0023-media-i2c-add-Samsung-S5K4H7-sensor-driver.patch
 9303042649f59af2d2c75c4bad4f05cff835a9ed9f57f455a9c6f4fd2e14b9f4d2c239e545fb8a54903e7ff1460328258592182b627250d52e70093f1c6ef619  0024-arm64-dts-qcom-sm6115p-lenovo-j606f-enable-front-camera.patch
 0ffcc11031fcffb7a156de90835dd9319a5917872b7396043b41459950d4f014e8f3615fd92da7774e8c5cf0ca99fb18efd5921253d3b8b3d33cae4677420d56  0025-arm64-dts-qcom-sm6115p-lenovo-j606f-add-pogo-keyboard-and-touchpad.patch
+32be9bb10afe5cde1a7d2fd0508b49299f4fbcba9afa7b623556fd25baf08e04ccec0767da6f17c87b64b0b16b0dd91dc3936af8234740b0db3fb45bd2307981  0026-arm64-dts-qcom-sm6115p-lenovo-j606f-built-in-microph.patch
+73e1610b6811dad272545f69e5ae63e79fad803ab700be6952a3246361253dcd2c55f67496dbf045bdbfc6b592fa5ff3391e05d571c5b0f45bff064ef45e6ca4  0027-soundwire-qcom-ASoC-q6dsp-remoteproc-recover-audio-a.patch
+8cc515b227e47396417a8bfabd3282e0e0d0474e209020217e447762f61913ca2f8407dfc28663a9935f6c81144729c1387a152e469dfb17e81d490292ed774f  0028-power-supply-qcom_pmi632_charger-set-the-input-and-c.patch
+27218c5b975583cdc2f2930139823e3025033e64a170e50f1a151d543e238b8fe0b4c7d66bbbc6a6ca6b1d87b12339764c2133962528df1d4472f0cc0fe7707f  0029-Input-himax_hx83102e-unregister-the-input-device-and.patch
+14e9559bc81354b5d66dbd5285c21d246714c5bda1dcf1c12d11384b599f91cbe38e9e488984d6f420d1f97bc8feace878b3e4144a5fa73bc6c59e38bb8125a0  0030-power-supply-mm8013-retry-a-timed-out-I2C-read.patch
+b2664200a8c13c8dec2aa7f8846a3e59600db98c75632fb52b750aa308c505fefba87ac5160a43202e95ae2db25a7d1077ee4ac6381cdcad3a635c29f2612277  0031-arm64-dts-qcom-sm6115p-lenovo-j606f-cover-switch-tou.patch
 "

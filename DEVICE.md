@@ -36,7 +36,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b не загруж
 | CPU/thermal | qcom-cpufreq-hw (1.8/2.016 ГГц), tsens 16 зон, cooling-maps (наш DTS) | ✅ |
 | DSP | modem (MPSS), ADSP, CDSP (стоковые .mbn) | ✅ стартуют |
 | Видео | Venus (SM6115), стоковый venus.mbn (патч 0011) | ✅ аппаратные H.264/HEVC 1080p (v4l2m2m) |
-| Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250(rouleur), FSA4480 | ✅ динамики (AW88258, PRIMARY TDM, патчи 0012–0016); ❌ микрофоны ES7210 и гарнитура USB-C |
+| Звук | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), микрофон на WCD9370 (AMIC1), WCD937x + PM2250(rouleur), FSA4480 | ✅ динамики (AW88258, PRIMARY TDM, патчи 0012–0016); ✅ встроенный микрофон (патч 0026 + UCM, device r26); ❌ гарнитура USB-C |
 | Датчики | ICM4x6xx, LTR578, TMF8801, SX932x — через SSC/ADSP | ✅ свет, приближение, акселерометр (hexagonrpcd с патчем + libssc + iio-sensor-proxy) |
 | SD | sdhc_2, cd tlmm 88 | ✅ подключается и монтируется |
 | Клавиатура pogo | hid-over-i2c 0x60 (I2C0, irq 93) и 0x61 (I2C1, irq 96), MCU отвечает | ✅ клавиатура 17ef:6103 + тачпад 04f3:3164 (hid-multitouch), nodes в common.dtsi; проверено на железе |

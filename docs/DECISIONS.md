@@ -135,3 +135,4 @@ Mainline покрывает загрузку, UFS, дисплей (для BOE-SK
 - Ядро на планшете больше не ставим через boot-deploy: при `androidboot.slot_suffix=_a` он писал бы в boot_a (UEFI), а mkbootimg (Python) падает.
   boot.img собираем на Mac (scripts/mkbootimg_v2.py), пишем в boot_b вручную с cmp и контролем sha256 boot_a.
 - `fastboot boot` для проверки ядра — только при активном слоте b (dtbo_a стоковый); после проверки слот возвращаем, как его оставила сессия uefi-winarm.
+- 18.11: НЕ читать /sys/kernel/debug/pinctrl/*tlmm*/pinconf-pins и /sys/kernel/debug/gpio целиком — вероятная причина CrashDump 18.11 (защищённые пины TZ). Конкретный GPIO — gpioget/gpioinfo.

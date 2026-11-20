@@ -1,0 +1,15 @@
+[Unit]
+Description=Disable the deep CPU idle states of the J606F (s2idle hard lockup)
+Documentation=https://github.com/kruzeman/ALARM-Lenovo-P11/blob/main/docs/power.md
+# With the deep idle state (cpu-sleep-0-0) entering s2idle hits a hard LOCKUP in
+# cpuidle_enter_s2idle and the tablet does not wake up again (found by kruzeman).
+# Only WFI is kept: a little more power in idle, a working suspend and resume.
+ConditionPathExists=/sys/devices/system/cpu/cpu0/cpuidle/state1/disable
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for d in /sys/devices/system/cpu/cpu[0-9]*/cpuidle/state[1-9]/disable; do echo 1 > "$d"; done'
+
+[Install]
+WantedBy=multi-user.target

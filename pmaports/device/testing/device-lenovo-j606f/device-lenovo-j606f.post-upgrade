@@ -1,4 +1,7 @@
 #!/bin/sh
 # take the Lenovo firmware that is not installed yet from this tablet's stock partitions
 /usr/lib/j606f/firmware-extract || true
+# presets do not run on upgrade: keep the deep-idle guard enabled (18.11: it was
+# left disabled after the r25 upgrade and had to be enabled by hand)
+systemctl -q enable j606f-cpuidle.service 2>/dev/null || true
 exit 0
