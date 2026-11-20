@@ -11,9 +11,9 @@ A port of [postmarketOS](https://postmarketos.org) (since 2026 the project is ca
 > The sensors (light, proximity, accelerometer), the **touchscreen** (a port of the Lenovo GPL driver for HX83102E), **USB OTG** and charging from a USB-C wall charger work,
 > as does the **Lenovo Keyboard Pack pogo dock — keyboard and touchpad** (hid-over-i2c 0x60/0x61, kernel r122, thanks to kruzeman for PR #1);
 > the GPU is 2.5–7 times faster after fixing the DDR bandwidth vote (patch 0009). **Hardware H.264/HEVC decoding through Venus** works (patch 0011).
-> **The speakers work** (4× AW88258, stereo, since kernel r117 + device r17); no microphones or USB-C headset yet.
+> **The speakers work** (4× AW88258, stereo, since kernel r117 + device r17) and so does the **built-in microphone** (mono, kernel r123 + device r26); no USB-C headset yet.
 > **Both cameras work** (rear OV13B10 with manual focus, front S5K4H7 with our own driver; kernel r121 + libcamera r6).
-> Suspend is experimental (a CrashDump is possible a couple of minutes after a resume — better turn automatic sleep off), offline charging is in progress.
+> **Suspend on closing the cover works** (s2idle, kernel r123 + device r26: only opening the cover wakes the tablet, spurious wakeups from the Bluetooth UART are disabled for the sleep time). Offline charging is in progress.
 > **Installation: a ready archive from the [Releases](https://github.com/Yar1klamer/j606f-postmarketos/releases) page and one script** (see [Installation](#installation)).
 > Updates are installed through the **apk repository** (see [below](#updates-through-the-apk-repository)). Details are in [STATE.md](STATE.md).
 
@@ -95,10 +95,12 @@ Tested in the installed pmOS (kernel 7.2.3 with patches up to 0024, Plasma Deskt
 | Touchscreen | ✅ | HX83102E (zero-flash, SPI): port of the Lenovo driver (patch 0006), firmware `Himax_firmware.bin` from the tablet's own vendor or the shared set; follows the panel when the screen is turned off |
 | Stylus | ❓ | the `himax-pen` device exists, not tested with a pen |
 | Speakers | ✅ | 4× AW88258 (own driver, patch 0013) on PRIMARY TDM (0014): stereo, the left pair plays the left channel, the right pair the right one; amplifier volume is limited to −6 dB (the stock speaker protection on the DSP is missing), a battery/temperature monitor as in stock; the amplifier settings `awinic/aw882xx_acf.bin` come from the tablet's own vendor partition. UCM: the "Speaker" device in PulseAudio |
-| Microphones, headset | ❌ | ES7210 — needs a driver port; the headset goes through USB-C (WCD937x behind the FSA4480, the codec and SoundWire already come up) |
+| Microphone | ✅ | built-in, mono (WCD9370: ADC1 → SoundWire TX → DSP, kernel r123 patch 0026 + UCM from device r26, 16-bit capture through PipeWire) — thanks to kruzeman (ALARM-Lenovo-P11) |
+| Headset | ❌ | goes through USB-C (WCD937x behind the FSA4480, the codec and SoundWire already come up) |
+| Cover (hall sensor) | ✅ | SW_LID on gpio36 (patch 0031): closing suspends, opening wakes |
 | Sensors (accelerometer, light, proximity) | ✅ | Qualcomm SSC on the ADSP: hexagonrpcd (own patch, `pmaports/temp/hexagonrpcd`) + libssc + iio-sensor-proxy; since device r22 the SSC files are taken from the tablet's own partitions (dsp, vendor, persist) automatically. The accelerometer mount matrix is not found yet |
 | Charge control (PMI632) | ⚠️ read only | own read-only driver (patch 0004): online, status, USB type, limits. Charges on the bootloader settings (4.40 V / 3 A, 1.5 A input): the input limit is not raised for a 3 A charger, no PD/QC, no charge threshold and no parallel SMB1355 |
-| Suspend (s2idle) | ⚠️ experimental | r110 fixed USB ep0, r111 — a successful s2idle; on r121 (02.11) suspend and resume run without USB/ADSP errors, sound and BT come back. Since device r21 (nt36523w r11) the suspend helper is packaged: the sensors and BT are stopped before suspend and come back after it (tested 02.11, three cycles). ⚠ 03.11: CrashDump ~2 min after a resume (kernel r121, cause not found yet) — better turn automatic sleep off. Long suspend and suspend with OTG are not tested |
+| Suspend (s2idle) | ✅ | since kernel r123 + device r26: the suspend helper stops the sensors and BT, unbinds the pogo HID and USB3, **disables the Bluetooth UART wakeup for the sleep time** (otherwise it woke the system within ~2 s), re-applies the panel brightness; deep cpuidle states are off (hard LOCKUP in s2idle). Tested 20.11: 4.5 min of cover sleep, wake on opening, Wi-Fi/BT/sound/sensors fine, no CrashDump. Long sleep (hours) and sleep with OTG are not tested. After suspend the USB network may not come back (a reboot is needed) |
 | Offline charging | ⚠️ partial | device r11: charger mode from the PON reason + a reboot mark, a normal reboot is tested; the full poweroff/charger/unplug cycle is not finished yet |
 | Rear camera | ✅ | OV13B10 (13 MP) through the SM6115 CAMSS (patches 0017–0021) and libcamera with the GPU software ISP (`pmaports/temp/libcamera`, own patch 0007): auto exposure and white balance, 2104×1560 ~28 fps, 1280×720 ~117 fps; in PipeWire — "ov13b10 [libcamera]". The DW9763 focus (0022) is manual only (`focus_absolute`): the software ISP has no autofocus |
 | Front camera | 🟡 | S5K4H7 (8 MP): no mainline driver — own one (patch 0023, registers from the stock CamX module), DT (0024) and a libcamera helper (own patch 0008); 3264×2448 at 30 fps through libcamera. Kernel r121 + libcamera r6 (in the apk repository since 02.11). With strong backlight (a window in the frame) the libcamera auto exposure overexposes the frame — tuning is ahead |
@@ -156,7 +158,7 @@ kernel/
   himax83102p-port/         how 0006 was made: port.py (Lenovo sources → 7.2), make_patch.sh, Kconfig/Makefile
   dts/                     the same DTS as separate files
 pmaports/device/testing/
-  linux-lenovo-j606f/      kernel package: linux-nura-qcom-sm61x5 7.2.3 + patches 0001, 0003–0025 (pkgrel 122); its own name so that the upstream package does not replace it
+  linux-lenovo-j606f/      kernel package: linux-nura-qcom-sm61x5 7.2.3 + patches 0001, 0003–0031 (pkgrel 123); its own name so that the upstream package does not replace it
   device-lenovo-j606f-nt36523w/  device package of the NT36523W revision (not tested)
   device-lenovo-j606f/     device package (deviceinfo: rootfs → userdata, automatic boot_b write on update; modules-initfs, GPU firmware in the initramfs, bootmac)
   firmware-lenovo-j606f/   firmware package (APKBUILD — own tarball; APKBUILD.shared — the shared S320208 set from the apk repository)
@@ -226,7 +228,7 @@ So reboot the tablet once more after the first boot (the journal says: `running 
 git clone https://gitlab.postmarketos.org/postmarketOS/pmaports.git
 cp -r pmaports/device/testing/device-lenovo-j606f    <pmaports>/device/testing/
 cp -r pmaports/device/testing/firmware-lenovo-j606f  <pmaports>/device/testing/
-cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # kernel 7.2.3 + patches 0001, 0003–0025
+cp -r pmaports/device/testing/linux-lenovo-j606f    <pmaports>/device/testing/   # kernel 7.2.3 + patches 0001, 0003–0031
 cp -r pmaports/temp/hexagonrpcd                      <pmaports>/temp/              # for the sensors (see docs/notes/sensors.md)
 cp -r pmaports/temp/libcamera                        <pmaports>/temp/              # for the cameras (see docs/notes/camera.md)
 # firmware: either your own tarball
@@ -337,7 +339,7 @@ Since **device-lenovo-j606f r7** `deviceinfo_flash_kernel_on_update` is enabled:
 (on device ≤ r6 it is: `sudo dd if=/boot/boot.img of=/dev/disk/by-partlabel/boot_b bs=4M conv=fsync`).
 If the new kernel does not boot or power was lost during the write — in fastboot (Vol− + Power) `fastboot flash boot_b <previous boot.img>`;
 before a kernel update it is handy to save a copy: `sudo head -c $(stat -c %s /boot/boot.img) /dev/disk/by-partlabel/boot_b > ~/boot_b-backup.img`.
-Check after the reboot: `uname -v` shows `#<pkgrel+1>-nura-qcom-sm61x5` (for example, r118 → `#119`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r24 and linux-lenovo-j606f r121 or newer.
+Check after the reboot: `uname -v` shows `#<pkgrel+1>-nura-qcom-sm61x5` (for example, r123 → `#124`), `apk list -I | grep -E 'device-lenovo|linux-lenovo'` — device r26 and linux-lenovo-j606f r123 or newer.
 Sound: `pactl list short sinks` shows `alsa_output.platform-sound.HiFi__Speaker__sink`.
 The repository receives the port's packages and exactly one firmware package — the shared S320208 set, verified by sha256 at publication.
 Any other firmware, including personal builds from backups, and everything with `license = proprietary` is filtered out.
@@ -358,11 +360,11 @@ For bring-up without installing: [`scripts/make_debug_bootimg.py`](scripts/make_
 
 ## Known issues and plans
 - **Touch:** works (port of the Lenovo driver from [adazem009/kernel_lenovo_tbj606](https://github.com/adazem009/kernel_lenovo_tbj606), patch 0006). The pen is not tested. [Notes](docs/notes/touch.md).
-- **Sound:** the speakers work (r117). Next — the ES7210 microphones (port of the Lenovo driver) and the analogue headset over USB-C (FSA4480). The stock speaker protection (an algorithm on the ADSP) does not exist in mainline, so the amplifier volume is limited. Occasionally after boot the ADSP does not come up fully and there is no sound card — a reboot helps. [Notes](docs/notes/audio.md).
+- **Sound:** the speakers (r117) and the built-in microphone (r123 + device r26) work. Next — the analogue headset over USB-C (FSA4480). The stock speaker protection (an algorithm on the ADSP) does not exist in mainline, so the amplifier volume is limited. Occasionally after boot the ADSP does not come up fully and there is no sound card — a reboot helps. [Notes](docs/notes/audio.md).
 - **Sensors:** work out of the box (since device r22 the SSC files come from the tablet's partitions); what is left is to find the `ACCEL_MOUNT_MATRIX` for auto-rotation. [Notes](docs/notes/sensors.md).
 - **Storage:** the pmOS root is in userdata (~100 GiB), see [install_plan](docs/notes/install_plan.md).
 - **Charger:** charges, but the driver is read only. Next — the input limit by Type-C/APSD (now 1.5 A even from a 3 A charger), the charge threshold, JEITA; fast charging (PD/QC, the parallel SMB1355) is a separate big job. [Notes](docs/notes/power.md).
-- **Suspend:** r110/r111 + the suspend helper from device r21 give s2idle with the sensors coming back, but **a CrashDump is possible a couple of minutes after a resume** (an SoC hang, kernel r121; looking for the cause) — better turn automatic sleep off for now. After suspend the USB network may not come back (a reboot is needed). [Notes](docs/notes/suspend.md). **Offline charging:** device r11 implements the charger mode, the final unplug/poweroff testing is left.
+- **Suspend:** works since kernel r123 + device r26 (see the table above): spurious wakeups from the Bluetooth UART are gone, deep cpuidle states are off. A CrashDump was seen once after a warm reboot (not reproduced, no logs) — if you hit one, please send `/var/lib/systemd/pstore/` from the first boot after the crash. Long sleep (hours) is not tested yet. After suspend the USB network may not come back (a reboot is needed). [Notes](docs/notes/suspend.md). **Offline charging:** device r11 implements the charger mode, the final unplug/poweroff testing is left.
 - **Venus:** hardware H.264/HEVC decoding works (0011/r115), but in mpv `hwdec=v4l2m2m-copy` drops frames on output (1080p30 ~180 of 360, 1080p60 ~550 of 720) — the expensive copy of frames back; zero-copy (`v4l2m2m`) mpv does not bring up here. VA-API/Firefox and the encoder are not tested yet.
 - **Vulkan and vsync:** Vulkan applications in FIFO (vsync) mode get 48 fps instead of 60 (every 5th vblank is skipped; Mesa 26.2 + KWin 6.8, the wp_fifo_v1 protocol); OpenGL gets an honest 60. The cause is not found yet.
 - **Cameras:** the rear one works (r120+ + libcamera r5+), focus is manual for now; next — autofocus, colour tuning (ov13b10.yaml), the PMI632 flash. The S5K4H7 front one: our own driver works (kernel r121 + libcamera r6); next — the 2x2 binning mode, s5k4h7.yaml tuning and AGC with backlight; the CSID1/TFE1 path in CAMSS hangs the tablet — not used. Kernel r121 and libcamera r6 are in the apk repository (02.11). [Notes](docs/notes/camera.md).

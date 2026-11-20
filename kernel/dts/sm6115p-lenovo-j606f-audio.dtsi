@@ -55,10 +55,26 @@
 		model = "Lenovo-TB-J606F";
 		pinctrl-0 = <&lpass_tdm1_active>;
 		pinctrl-names = "default";
+		/* Пути со stock-роутинга (bolero/wcd937x, fragment@1 в dtbo):
+		 * входы TX-макроса <- выходы АЦП кодека.
+		 *
+		 * Имена входов зависят от варианта макроса: у sm6115
+		 * (lpass_ver_10_sm6115 -> tx_macro_dapm_widgets_v9_2) это
+		 * TX SWR_INPUT0..7, у sm8250/sm8450 те же входы зовутся TX SWR_ADCn.
+		 * С чужими именами карта не собирается: "ASoC: Failed to add route".
+		 *
+		 * ADC2_OUTPUT (встроенный микрофон, amic2) приходит на вход,
+		 * который соответствует порту 2 TX-слейва. Какой именно вход
+		 * макроса выбран, задаёт TX SMIC MUX0 (см. UCM Lenovo/TB-J606F).
+		 */
 		audio-routing = "IN1_HPHL", "HPHL_OUT",
 				"IN2_HPHR", "HPHR_OUT",
+				"AMIC1", "MIC BIAS1",
 				"AMIC2", "MIC BIAS2",
-				"TX SWR_INPUT1", "ADC2_OUTPUT";
+				"AMIC3", "MIC BIAS3",
+				"TX SWR_INPUT0", "ADC1_OUTPUT",
+				"TX SWR_INPUT1", "ADC2_OUTPUT",
+				"TX SWR_INPUT2", "ADC3_OUTPUT";
 
 		mm1-dai-link {
 			link-name = "MultiMedia1";
@@ -125,6 +141,34 @@
 			};
 
 			cpu {
+				sound-dai = <&q6afedai TX_CODEC_DMA_TX_4>;
+			};
+
+			platform {
+				sound-dai = <&q6routing>;
+			};
+		};
+		builtin-mic-dai-link {
+			link-name = "Built-in Mic Capture";
+
+			/* Встроенные микрофоны: АЦП WCD9370 -> SoundWire (swr0, шину
+			 * тактирует TX-макрос) -> TX-макрос (SWR_ADC -> SMIC MUX ->
+			 * DEC MUX) -> CDC DMA TX -> DSP.
+			 *
+			 * Раньше здесь стоял vamacro: это неверно, VA-макрос
+			 * обслуживает голосовую активацию, а не микрофоны. Именно из-за
+			 * этого DSP не отдавал ни одного периода при захвате.
+			 */
+			codec {
+				sound-dai = <&wcd937x 1>, <&swr0 0>, <&txmacro 0>;
+			};
+
+			cpu {
+				/*
+				 * Стоковый mixer_paths.xml снимает amic2 с TX_CDC_DMA_TX_4,
+				 * то есть через TX-макрос, а не через VA-макрос. Проверяем этот
+				 * путь: VA_CODEC_DMA_TX_0 у нас вешает подготовку потока.
+				 */
 				sound-dai = <&q6afedai TX_CODEC_DMA_TX_3>;
 			};
 
@@ -132,6 +176,14 @@
 				sound-dai = <&q6routing>;
 			};
 		};
+
+		/* Второй CDC-DMA порт для того же тракта: stock mixer_paths.xml
+		 * снимает микрофоны с TX_CDC_DMA_TX_4, референс qcm6490-idp — с TX_3.
+		 * Держать оба нельзя: codec DAI у них общий, ASoC отвечает
+		 * "too many users Capture at open" и заваливает журнал. Поэтому порт
+		 * переключается правкой cpu.sound-dai ниже, между загрузками.
+		 */
+
 	};
 };
 
@@ -258,7 +310,13 @@
 	wcd937x_tx: codec@0,3 {
 		compatible = "sdw20217010a00";
 		reg = <0 3>;
-		qcom,tx-port-mapping = <1 1 2 3>;
+		qcom,tx-port-mapping = <1 2 3 4>;
+		/* Статический маппинг каналов слейв->мастер для TX-портов кодека.
+		 * Без него драйвер берёт дефолты, порт настраивается неверно, и слейв
+		 * висит в состоянии Alert (захват потом не стартует и валит ADSP).
+		 * Порядок: adc1, adc2, adc3, mic0, dmic1, mbhc, dmic2..dmic7.
+		 */
+		qcom,tx-channel-mapping = /bits/ 8 <1 1 2 1 2 3 1 2 3 4 3 4>;
 	};
 };
 
@@ -271,6 +329,8 @@
 		compatible = "sdw20217010a00";
 		reg = <0 4>;
 		qcom,rx-port-mapping = <1 2 3 4 5>;
+		/* hph_l, hph_r, clsh, comp_l, comp_r, lo, dsd_r, dsd_l */
+		qcom,rx-channel-mapping = /bits/ 8 <1 2 1 1 2 1 1 2>;
 	};
 };
 

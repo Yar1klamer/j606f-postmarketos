@@ -1,0 +1,118 @@
+From 9f65e525eae799697668ad9f2c4afc9201e86282 Mon Sep 17 00:00:00 2001
+From: nnshould <yarnick.ps4@gmail.com>
+Date: Sat, 14 Nov 2026 05:41:33 +0000
+Subject: [PATCH 29/31] Input: himax_hx83102e: unregister the input device and
+ the power-supply notifier
+
+The driver is reloaded at boot to win the TDDI probe race; the notifier and the
+input device of the first instance stayed registered and pointed into the freed
+module (CFI oops in notifier_call_chain, dead touch screen).
+
+From kruzeman's ALARM-Lenovo-P11 (github.com/kruzeman/ALARM-Lenovo-P11), checked on the hardware there.
+---
+ .../touchscreen/himax_hx83102e/himax_common.c | 49 ++++++++++++++++++-
+ .../touchscreen/himax_hx83102e/himax_common.h |  7 +++
+ 2 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/input/touchscreen/himax_hx83102e/himax_common.c b/drivers/input/touchscreen/himax_hx83102e/himax_common.c
+index 8ec02f286..e9e1dd240 100644
+--- a/drivers/input/touchscreen/himax_hx83102e/himax_common.c
++++ b/drivers/input/touchscreen/himax_hx83102e/himax_common.c
+@@ -1045,6 +1045,7 @@ int himax_input_register(struct himax_ts_data *ts)
+ /*			0, 0);*/
+ 
+ 	if (himax_input_register_device(ts->input_dev) == 0) {
++		ts->input_registered = true;
+ 		ret = NO_ERR;
+ 	} else {
+ 		E("%s: input register fail\n", __func__);
+@@ -1082,6 +1083,7 @@ int himax_input_register(struct himax_ts_data *ts)
+ 	input_abs_set_res(ts->hx_pen_dev, ABS_Y, 8);
+ 
+ 	if (himax_input_register_device(ts->hx_pen_dev) == 0) {
++		ts->pen_registered = true;
+ 		ret = NO_ERR;
+ 	} else {
+ 		E("%s: input register pen fail\n", __func__);
+@@ -3297,7 +3299,13 @@ int himax_chip_common_init(void)
+ err_get_intr_bit_failed:
+ #endif
+ err_input_register_device_failed:
+-	input_free_device(ts->input_dev);
++	if (ts->input_dev) {
++		if (ts->input_registered)
++			input_unregister_device(ts->input_dev);
++		else
++			input_free_device(ts->input_dev);
++		ts->input_dev = NULL;
++	}
+ /*err_detect_failed:*/
+ 
+ #if defined(HX_CONTAINER_SPEED_UP)
+@@ -3380,7 +3388,44 @@ void himax_chip_common_deinit(void)
+ 	}
+ 	destroy_workqueue(ts->himax_att_wq);
+ #endif
+-	input_free_device(ts->input_dev);
++	/*
++	 * Устройства зарегистрированы в input-ядре. input_free_device() на
++	 * зарегистрированном устройстве оставляет висячую запись в /sys/class/input:
++	 * имя указывает на освобождённую память, и чтение uevent такого устройства
++	 * роняет ядро (upowerd/udev первыми натыкаются). Нужен unregister.
++	 */
++	if (ts->input_dev) {
++		if (ts->input_registered)
++			input_unregister_device(ts->input_dev);
++		else
++			input_free_device(ts->input_dev);
++		ts->input_dev = NULL;
++	}
++	if (ts->hx_pen_dev) {
++		if (ts->pen_registered)
++			input_unregister_device(ts->hx_pen_dev);
++		else
++			input_free_device(ts->hx_pen_dev);
++		ts->hx_pen_dev = NULL;
++	}
++#if defined(HX_USB_DETECT_GLOBAL)
++	/*
++	 * Симметрия с probe: без этой отписки power_supply-notifier остаётся
++	 * в глобальной цепочке и указывает в выгруженный модуль. Любое событие
++	 * питания (воткнули/вынули зарядку) зовёт мёртвый указатель, CFI ловит
++	 * несовпадение сигнатуры и ядро падает в Oops — на практике это
++	 * "CFI failure at notifier_call_chain ... target: himax_GESTURE_write"
++	 * и зависание планшета сразу после перезагрузки модуля тачскрина.
++	 */
++	if (ts->charger_detection) {
++		if (ts->charger_detection->charger_notif.notifier_call)
++			power_supply_unreg_notifier(&ts->charger_detection->charger_notif);
++		if (ts->charger_detection->himax_charger_notify_wq)
++			destroy_workqueue(ts->charger_detection->himax_charger_notify_wq);
++		kfree(ts->charger_detection);
++		ts->charger_detection = NULL;
++	}
++#endif
+ #if defined(HX_CONTAINER_SPEED_UP)
+ 	cancel_delayed_work_sync(&ts->ts_int_work);
+ 	destroy_workqueue(ts->ts_int_workqueue);
+diff --git a/drivers/input/touchscreen/himax_hx83102e/himax_common.h b/drivers/input/touchscreen/himax_hx83102e/himax_common.h
+index 7bb952ef3..c778d5da1 100644
+--- a/drivers/input/touchscreen/himax_hx83102e/himax_common.h
++++ b/drivers/input/touchscreen/himax_hx83102e/himax_common.h
+@@ -426,6 +426,13 @@ struct himax_usb_charger_detection {
+ struct himax_ts_data {
+ 	bool initialized;
+ 	bool suspended;
++	/* выставляются после успешного input_register_device(): при выгрузке модуля
++	 * для зарегистрированного устройства нужен input_unregister_device(),
++	 * а input_free_device() оставляет висячую запись в /sys/class/input
++	 * (её uevent роняет ядро при чтении).
++	 */
++	bool input_registered;
++	bool pen_registered;
+ 	int notouch_frame;
+ 	int ic_notouch_frame;
+ 	atomic_t suspend_mode;
+-- 
+2.34.1
+

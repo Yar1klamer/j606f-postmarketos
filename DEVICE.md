@@ -36,7 +36,7 @@ slot a successful=yes retry=6, slot b successful=no retry=0 (b had never booted 
 | CPU/thermal | qcom-cpufreq-hw (1.8/2.016 GHz), tsens 16 zones, cooling-maps (our DTS) | ✅ |
 | DSP | modem (MPSS), ADSP, CDSP (stock .mbn) | ✅ start |
 | Video | Venus (SM6115), stock venus.mbn (patch 0011) | ✅ hardware H.264/HEVC 1080p (v4l2m2m) |
-| Audio | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), ES7210 (I2C1 0x40), WCD937x + PM2250 (rouleur), FSA4480 | ✅ speakers (AW88258, PRIMARY TDM, patches 0012–0016); ❌ ES7210 microphones and USB-C headset |
+| Audio | 4× AW88258 (I2C0 0x34–0x37, ID 0x1852), microphone on the WCD9370 (AMIC1), WCD937x + PM2250 (rouleur), FSA4480 | ✅ speakers (AW88258, PRIMARY TDM, patches 0012–0016); ✅ built-in microphone (patch 0026 + UCM, device r26); ❌ USB-C headset |
 | Sensors | ICM4x6xx, LTR578, TMF8801, SX932x — through SSC/ADSP | ✅ light, proximity, accelerometer (patched hexagonrpcd + libssc + iio-sensor-proxy) |
 | SD | sdhc_2, cd tlmm 88 | ✅ detected and mounted |
 | Pogo keyboard | hid-over-i2c 0x60 (I2C0, irq 93) and 0x61 (I2C1, irq 96), the MCU answers | ✅ keyboard 17ef:6103 + touchpad 04f3:3164 (hid-multitouch), nodes in common.dtsi; tested on hardware |

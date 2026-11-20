@@ -1,0 +1,100 @@
+From 67b56b905fd20db8b6f5d2dd557c8c8b0d5bbd7e Mon Sep 17 00:00:00 2001
+From: nnshould <yarnick.ps4@gmail.com>
+Date: Sat, 14 Nov 2026 05:41:35 +0000
+Subject: [PATCH 31/31] arm64: dts: qcom: sm6115p-lenovo-j606f: cover switch,
+ touchpad delay, front camera rotation
+
+- Hall sensor of the cover (stock "hall-switch", tlmm 36, active low, pull-up)
+  as a gpio-keys SW_LID switch that wakes the system only when the cover
+  opens, so logind can suspend on close without the close edge waking it.
+- Give the pogo touchpad 400 ms after power-on: with 100 ms hid-over-i2c
+  reads a garbage report descriptor (kruzeman).
+- The front camera stream already comes out upright, report rotation 0
+  (kruzeman).
+---
+ .../dts/qcom/sm6115p-lenovo-j606f-camera.dtsi |  6 ++--
+ .../dts/qcom/sm6115p-lenovo-j606f-common.dtsi | 30 ++++++++++++++++++-
+ 2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
+index 802df2053..adfb19918 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-camera.dtsi
+@@ -189,8 +189,10 @@ camera@10 {
+ 		vddd-supply = <&cam_vdig>;
+ 
+ 		orientation = <0>;
+-		/* stock sensor-position-roll */
+-		rotation = <270>;
++		/* stock sensor-position-roll is 270, but the raw stream from this
++		 * module already comes out upright; the app was applying 270 on top
++		 * and showing the preview sideways. */
++		rotation = <0>;
+ 
+ 		port {
+ 			cam_front_ep: endpoint {
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+index de6ab73aa..275157992 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-common.dtsi
+@@ -6,6 +6,7 @@
+  * TB-J606F_S120184_210520_ROW (see notes/stock_dt/).
+  */
+ 
++#include <dt-bindings/input/gpio-keys.h>
+ #include "pmi632.dtsi"
+ /* Lenovo ABL applies the stock dtbo unconditionally unless dtbo is erased, see the dtsi */
+ #include "sm6115p-lenovo-j606f-abl-sink.dtsi"
+@@ -15,6 +16,26 @@
+ #include "sm6115p-lenovo-j606f-camera.dtsi"
+ 
+ / {
++	/* Hall sensor for the cover (stock "hall-switch", tlmm 36, active low).
++	 * Only opening the cover wakes the system: waking on the closing edge too
++	 * would undo the suspend that logind starts on SW_LID. */
++	gpio-keys-lid {
++		compatible = "gpio-keys";
++		label = "Cover";
++		pinctrl-0 = <&hall_int_default>;
++		pinctrl-names = "default";
++
++		switch-lid {
++			label = "Cover";
++			gpios = <&tlmm 36 GPIO_ACTIVE_LOW>;
++			linux,input-type = <EV_SW>;
++			linux,code = <SW_LID>;
++			debounce-interval = <15>;
++			wakeup-source;
++			wakeup-event-action = <EV_ACT_DEASSERTED>;
++		};
++	};
++
+ 	usb_otg_vbus: regulator-usb-otg-vbus {
+ 		compatible = "regulator-fixed";
+ 		regulator-name = "usb_otg_vbus";
+@@ -58,7 +79,7 @@ touchpad@60 {
+ 		compatible = "hid-over-i2c";
+ 		reg = <0x60>;
+ 		hid-descr-addr = <0x1>;
+-		post-power-on-delay-ms = <100>;
++		post-power-on-delay-ms = <400>;
+ 		interrupts-extended = <&tlmm 93 IRQ_TYPE_LEVEL_LOW>;
+ 		pinctrl-0 = <&pogo_touchpad_int_default>;
+ 		pinctrl-names = "default";
+@@ -92,6 +113,13 @@ backlight-en-hog {
+ };
+ 
+ &tlmm {
++	hall_int_default: hall-int-default-state {
++		pins = "gpio36";
++		function = "gpio";
++		drive-strength = <6>;
++		bias-pull-up;
++	};
++
+ 	/* stock dock_pogo usb_vbus: enable of the external 5 V OTG boost */
+ 	usb_otg_vbus_en_default: usb-otg-vbus-en-default-state {
+ 		pins = "gpio38";
+-- 
+2.34.1
+

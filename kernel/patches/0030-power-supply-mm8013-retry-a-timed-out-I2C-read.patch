@@ -1,0 +1,174 @@
+From b495b41cff8c952ea5f5ad0237f02770877e3140 Mon Sep 17 00:00:00 2001
+From: nnshould <yarnick.ps4@gmail.com>
+Date: Sat, 14 Nov 2026 05:41:34 +0000
+Subject: [PATCH 30/31] power: supply: mm8013: retry a timed out I2C read
+
+GENI I2C occasionally returns -ETIMEDOUT for a single read; the battery then
+disappeared for a moment and the desktop showed an empty battery.
+
+From kruzeman's ALARM-Lenovo-P11 (github.com/kruzeman/ALARM-Lenovo-P11), checked on the hardware there.
+---
+ drivers/power/supply/mm8013.c | 50 ++++++++++++++++++++++++-----------
+ 1 file changed, 35 insertions(+), 15 deletions(-)
+
+diff --git a/drivers/power/supply/mm8013.c b/drivers/power/supply/mm8013.c
+index 081b260a3..dd0574fa5 100644
+--- a/drivers/power/supply/mm8013.c
++++ b/drivers/power/supply/mm8013.c
+@@ -44,6 +44,26 @@ struct mm8013_chip {
+ 	struct regmap *regmap;
+ };
+ 
++/*
++ * GENI-I2C на этом SoC изредка отдаёт -ETIMEDOUT на одиночном чтении
++ * (geni_i2c_gpi_xfer: I2C timeout). Без повтора power_supply-ядро решает,
++ * что батарея пропала, и в DE на пару секунд всплывает "разряжен/нет батареи".
++ * Повторяем чтение, прежде чем отдавать ошибку наверх.
++ */
++static int mm8013_read(struct mm8013_chip *chip, unsigned int reg, unsigned int *val)
++{
++	int ret = 0, i;
++
++	for (i = 0; i < 4; i++) {
++		ret = regmap_read(chip->regmap, reg, val);
++		if (!ret)
++			return 0;
++		usleep_range(2000, 4000);
++	}
++
++	return ret;
++}
++
+ static int mm8013_checkdevice(struct mm8013_chip *chip)
+ {
+ 	int battery_id, ret;
+@@ -53,7 +73,7 @@ static int mm8013_checkdevice(struct mm8013_chip *chip)
+ 	if (ret < 0)
+ 		return ret;
+ 
+-	ret = regmap_read(chip->regmap, REG_BATID, &val);
++	ret = mm8013_read(chip, REG_BATID, &val);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -97,42 +117,42 @@ static int mm8013_get_property(struct power_supply *psy,
+ 
+ 	switch (psp) {
+ 	case POWER_SUPPLY_PROP_CAPACITY:
+-		ret = regmap_read(chip->regmap, REG_STATE_OF_CHARGE, &regval);
++		ret = mm8013_read(chip, REG_STATE_OF_CHARGE, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_CHARGE_FULL:
+-		ret = regmap_read(chip->regmap, REG_FULL_CHARGE_CAPACITY, &regval);
++		ret = mm8013_read(chip, REG_FULL_CHARGE_CAPACITY, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = 1000 * regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+-		ret = regmap_read(chip->regmap, REG_DESIGN_CAPACITY, &regval);
++		ret = mm8013_read(chip, REG_DESIGN_CAPACITY, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = 1000 * regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_CHARGE_NOW:
+-		ret = regmap_read(chip->regmap, REG_NOMINAL_CHARGE_CAPACITY, &regval);
++		ret = mm8013_read(chip, REG_NOMINAL_CHARGE_CAPACITY, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = 1000 * regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_CURRENT_MAX:
+-		ret = regmap_read(chip->regmap, REG_MAX_LOAD_CURRENT, &regval);
++		ret = mm8013_read(chip, REG_MAX_LOAD_CURRENT, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = -1000 * (s16)regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_CURRENT_NOW:
+-		ret = regmap_read(chip->regmap, REG_AVERAGE_CURRENT, &regval);
++		ret = mm8013_read(chip, REG_AVERAGE_CURRENT, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+@@ -140,14 +160,14 @@ static int mm8013_get_property(struct power_supply *psy,
+ 		val->intval = 1000 * (s16)regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
+-		ret = regmap_read(chip->regmap, REG_CYCLE_COUNT, &regval);
++		ret = mm8013_read(chip, REG_CYCLE_COUNT, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_HEALTH:
+-		ret = regmap_read(chip->regmap, REG_FLAGS, &regval);
++		ret = mm8013_read(chip, REG_FLAGS, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+@@ -165,14 +185,14 @@ static int mm8013_get_property(struct power_supply *psy,
+ 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+ 		break;
+ 	case POWER_SUPPLY_PROP_PRESENT:
+-		ret = regmap_read(chip->regmap, REG_TEMPERATURE, &regval);
++		ret = mm8013_read(chip, REG_TEMPERATURE, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = ((s16)regval > 0);
+ 		break;
+ 	case POWER_SUPPLY_PROP_STATUS:
+-		ret = regmap_read(chip->regmap, REG_FLAGS, &regval);
++		ret = mm8013_read(chip, REG_FLAGS, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+@@ -191,14 +211,14 @@ static int mm8013_get_property(struct power_supply *psy,
+ 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+ 		break;
+ 	case POWER_SUPPLY_PROP_TEMP:
+-		ret = regmap_read(chip->regmap, REG_TEMPERATURE, &regval);
++		ret = mm8013_read(chip, REG_TEMPERATURE, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+ 		val->intval = DECIKELVIN_TO_DECIDEGC(regval);
+ 		break;
+ 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
+-		ret = regmap_read(chip->regmap, REG_AVERAGE_TIME_TO_EMPTY, &regval);
++		ret = mm8013_read(chip, REG_AVERAGE_TIME_TO_EMPTY, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+@@ -209,7 +229,7 @@ static int mm8013_get_property(struct power_supply *psy,
+ 		val->intval = regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_TIME_TO_FULL_AVG:
+-		ret = regmap_read(chip->regmap, REG_AVERAGE_TIME_TO_FULL, &regval);
++		ret = mm8013_read(chip, REG_AVERAGE_TIME_TO_FULL, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+@@ -220,7 +240,7 @@ static int mm8013_get_property(struct power_supply *psy,
+ 		val->intval = regval;
+ 		break;
+ 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+-		ret = regmap_read(chip->regmap, REG_VOLTAGE, &regval);
++		ret = mm8013_read(chip, REG_VOLTAGE, &regval);
+ 		if (ret < 0)
+ 			return ret;
+ 
+-- 
+2.34.1
+

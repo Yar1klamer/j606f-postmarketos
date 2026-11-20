@@ -135,3 +135,4 @@ Mainline covers boot, UFS, display (for the BOE SKU), GPU, Wi-Fi, buttons, SD, U
 - The kernel is no longer installed on the tablet through boot-deploy: with `androidboot.slot_suffix=_a` it would write to boot_a (UEFI), and mkbootimg (Python) crashes.
   boot.img is built on the Mac (scripts/mkbootimg_v2.py) and written to boot_b by hand, with cmp and a sha256 check of boot_a.
 - `fastboot boot` for kernel testing — only with slot b active (dtbo_a is stock); afterwards the slot is restored to what the UEFI/Windows work left it at.
+- 18.11: do NOT read /sys/kernel/debug/pinctrl/*tlmm*/pinconf-pins or the whole /sys/kernel/debug/gpio — the likely cause of the 18.11 CrashDump (TZ-protected pins). For a specific GPIO use gpioget/gpioinfo.

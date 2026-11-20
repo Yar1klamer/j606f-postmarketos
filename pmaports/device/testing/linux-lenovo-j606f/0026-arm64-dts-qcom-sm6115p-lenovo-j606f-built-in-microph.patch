@@ -1,0 +1,239 @@
+From 48d7d7299a1e0980ec71294efcb43df881ac4332 Mon Sep 17 00:00:00 2001
+From: nnshould <yarnick.ps4@gmail.com>
+Date: Sat, 14 Nov 2026 05:41:31 +0000
+Subject: [PATCH 26/31] arm64: dts: qcom: sm6115p-lenovo-j606f: built-in
+ microphone through the TX macro
+
+The built-in microphone sits on ADC1/AMIC1 of the WCD9370 and reaches the DSP
+over SoundWire (swr0) -> TX macro -> TX_CODEC_DMA_TX_3, not through the VA
+macro. Add the stock routing, the TX port/channel mapping of the codec slave,
+a fourth din port on swr0, drop the audio protection domains from the APR
+services (the PDR notification does not come on every boot, the card then
+went missing) and let wcd937x return its SoundWire stream to the TX macro.
+
+From kruzeman's ALARM-Lenovo-P11 (github.com/kruzeman/ALARM-Lenovo-P11), checked on the hardware there.
+---
+ arch/arm64/boot/dts/qcom/sm6115.dtsi          | 33 +++++-----
+ .../dts/qcom/sm6115p-lenovo-j606f-audio.dtsi  | 64 ++++++++++++++++++-
+ sound/soc/codecs/wcd937x.c                    | 13 ++++
+ 3 files changed, 90 insertions(+), 20 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/sm6115.dtsi b/arch/arm64/boot/dts/qcom/sm6115.dtsi
+index c58677a76..7d0d94610 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115.dtsi
+@@ -2991,18 +2991,18 @@ swr0: soundwire@a740000 {
+ 			reset-names = "swr_audio_cgcr";
+ 
+ 			label = "VA_TX";
+-			qcom,din-ports = <3>;
++			qcom,din-ports = <4>;
+ 			qcom,dout-ports = <0>;
+ 
+-			qcom,ports-sinterval-low =	/bits/ 8 <0x03 0x03 0x03>;
+-			qcom,ports-offset1 =		/bits/ 8 <0x01 0x02 0x01>;
+-			qcom,ports-offset2 =		/bits/ 8 <0x00 0x00 0x00>;
+-			qcom,ports-hstart =		/bits/ 8 <0xff 0xff 0xff>;
+-			qcom,ports-hstop =		/bits/ 8 <0xff 0xff 0xff>;
+-			qcom,ports-word-length =	/bits/ 8 <0xff 0xff 0xff>;
+-			qcom,ports-block-pack-mode =	/bits/ 8 <0xff 0xff 0xff>;
+-			qcom,ports-block-group-count =	/bits/ 8 <0xff 0xff 0xff>;
+-			qcom,ports-lane-control =	/bits/ 8 <0x00 0x00 0x00>;
++			qcom,ports-sinterval-low =	/bits/ 8 <0x03 0x03 0x03 0x03>;
++			qcom,ports-offset1 =		/bits/ 8 <0x01 0x02 0x01 0x01>;
++			qcom,ports-offset2 =		/bits/ 8 <0x00 0x00 0x00 0x00>;
++			qcom,ports-hstart =		/bits/ 8 <0xff 0xff 0xff 0xff>;
++			qcom,ports-hstop =		/bits/ 8 <0xff 0xff 0xff 0xff>;
++			qcom,ports-word-length =	/bits/ 8 <0xff 0xff 0xff 0xff>;
++			qcom,ports-block-pack-mode =	/bits/ 8 <0xff 0xff 0xff 0xff>;
++			qcom,ports-block-group-count =	/bits/ 8 <0xff 0xff 0xff 0xff>;
++			qcom,ports-lane-control =	/bits/ 8 <0x00 0x00 0x00 0x00>;
+ 
+ 			#sound-dai-cells = <1>;
+ 			#address-cells = <2>;
+@@ -3048,6 +3048,11 @@ glink-edge {
+ 
+ 				apr {
+ 					compatible = "qcom,apr-v2";
++					/* Аудио-сервисы намеренно без qcom,protection-domain:
++					 * иначе ядро создаёт их только после PDR-сообщения о подъёме
++					 * audio_pd, а оно приходит по QRTR от ADSP, и канал IPCRTR
++					 * появляется не в каждой загрузке — карта пропадала.
++					 */
+ 					qcom,glink-channels = "apr_audio_svc";
+ 					qcom,domain = <APR_DOMAIN_ADSP>;
+ 					#address-cells = <1>;
+@@ -3056,15 +3061,11 @@ apr {
+ 					service@3 {
+ 						reg = <APR_SVC_ADSP_CORE>;
+ 						compatible = "qcom,q6core";
+-						qcom,protection-domain = "avs/audio",
+-									 "msm/adsp/audio_pd";
+ 					};
+ 
+ 					q6afe: service@4 {
+ 						compatible = "qcom,q6afe";
+ 						reg = <APR_SVC_AFE>;
+-						qcom,protection-domain = "avs/audio",
+-									 "msm/adsp/audio_pd";
+ 						q6afedai: dais {
+ 							compatible = "qcom,q6afe-dais";
+ 							#address-cells = <1>;
+@@ -3081,8 +3082,6 @@ q6afecc: clock-controller {
+ 					q6asm: service@7 {
+ 						compatible = "qcom,q6asm";
+ 						reg = <APR_SVC_ASM>;
+-						qcom,protection-domain = "avs/audio",
+-									 "msm/adsp/audio_pd";
+ 						q6asmdai: dais {
+ 							compatible = "qcom,q6asm-dais";
+ 							#address-cells = <1>;
+@@ -3107,8 +3106,6 @@ dai@2 {
+ 					q6adm: service@8 {
+ 						compatible = "qcom,q6adm";
+ 						reg = <APR_SVC_ADM>;
+-						qcom,protection-domain = "avs/audio",
+-									 "msm/adsp/audio_pd";
+ 						q6routing: routing {
+ 							compatible = "qcom,q6adm-routing";
+ 							#sound-dai-cells = <0>;
+diff --git a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-audio.dtsi b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-audio.dtsi
+index be798d253..d08625109 100644
+--- a/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-audio.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm6115p-lenovo-j606f-audio.dtsi
+@@ -55,10 +55,26 @@ sound {
+ 		model = "Lenovo-TB-J606F";
+ 		pinctrl-0 = <&lpass_tdm1_active>;
+ 		pinctrl-names = "default";
++		/* Пути со stock-роутинга (bolero/wcd937x, fragment@1 в dtbo):
++		 * входы TX-макроса <- выходы АЦП кодека.
++		 *
++		 * Имена входов зависят от варианта макроса: у sm6115
++		 * (lpass_ver_10_sm6115 -> tx_macro_dapm_widgets_v9_2) это
++		 * TX SWR_INPUT0..7, у sm8250/sm8450 те же входы зовутся TX SWR_ADCn.
++		 * С чужими именами карта не собирается: "ASoC: Failed to add route".
++		 *
++		 * ADC2_OUTPUT (встроенный микрофон, amic2) приходит на вход,
++		 * который соответствует порту 2 TX-слейва. Какой именно вход
++		 * макроса выбран, задаёт TX SMIC MUX0 (см. UCM Lenovo/TB-J606F).
++		 */
+ 		audio-routing = "IN1_HPHL", "HPHL_OUT",
+ 				"IN2_HPHR", "HPHR_OUT",
++				"AMIC1", "MIC BIAS1",
+ 				"AMIC2", "MIC BIAS2",
+-				"TX SWR_INPUT1", "ADC2_OUTPUT";
++				"AMIC3", "MIC BIAS3",
++				"TX SWR_INPUT0", "ADC1_OUTPUT",
++				"TX SWR_INPUT1", "ADC2_OUTPUT",
++				"TX SWR_INPUT2", "ADC3_OUTPUT";
+ 
+ 		mm1-dai-link {
+ 			link-name = "MultiMedia1";
+@@ -125,6 +141,34 @@ codec {
+ 			};
+ 
+ 			cpu {
++				sound-dai = <&q6afedai TX_CODEC_DMA_TX_4>;
++			};
++
++			platform {
++				sound-dai = <&q6routing>;
++			};
++		};
++		builtin-mic-dai-link {
++			link-name = "Built-in Mic Capture";
++
++			/* Встроенные микрофоны: АЦП WCD9370 -> SoundWire (swr0, шину
++			 * тактирует TX-макрос) -> TX-макрос (SWR_ADC -> SMIC MUX ->
++			 * DEC MUX) -> CDC DMA TX -> DSP.
++			 *
++			 * Раньше здесь стоял vamacro: это неверно, VA-макрос
++			 * обслуживает голосовую активацию, а не микрофоны. Именно из-за
++			 * этого DSP не отдавал ни одного периода при захвате.
++			 */
++			codec {
++				sound-dai = <&wcd937x 1>, <&swr0 0>, <&txmacro 0>;
++			};
++
++			cpu {
++				/*
++				 * Стоковый mixer_paths.xml снимает amic2 с TX_CDC_DMA_TX_4,
++				 * то есть через TX-макрос, а не через VA-макрос. Проверяем этот
++				 * путь: VA_CODEC_DMA_TX_0 у нас вешает подготовку потока.
++				 */
+ 				sound-dai = <&q6afedai TX_CODEC_DMA_TX_3>;
+ 			};
+ 
+@@ -132,6 +176,14 @@ platform {
+ 				sound-dai = <&q6routing>;
+ 			};
+ 		};
++
++		/* Второй CDC-DMA порт для того же тракта: stock mixer_paths.xml
++		 * снимает микрофоны с TX_CDC_DMA_TX_4, референс qcm6490-idp — с TX_3.
++		 * Держать оба нельзя: codec DAI у них общий, ASoC отвечает
++		 * "too many users Capture at open" и заваливает журнал. Поэтому порт
++		 * переключается правкой cpu.sound-dai ниже, между загрузками.
++		 */
++
+ 	};
+ };
+ 
+@@ -258,7 +310,13 @@ &swr0 {
+ 	wcd937x_tx: codec@0,3 {
+ 		compatible = "sdw20217010a00";
+ 		reg = <0 3>;
+-		qcom,tx-port-mapping = <1 1 2 3>;
++		qcom,tx-port-mapping = <1 2 3 4>;
++		/* Статический маппинг каналов слейв->мастер для TX-портов кодека.
++		 * Без него драйвер берёт дефолты, порт настраивается неверно, и слейв
++		 * висит в состоянии Alert (захват потом не стартует и валит ADSP).
++		 * Порядок: adc1, adc2, adc3, mic0, dmic1, mbhc, dmic2..dmic7.
++		 */
++		qcom,tx-channel-mapping = /bits/ 8 <1 1 2 1 2 3 1 2 3 4 3 4>;
+ 	};
+ };
+ 
+@@ -271,6 +329,8 @@ wcd937x_rx: codec@0,4 {
+ 		compatible = "sdw20217010a00";
+ 		reg = <0 4>;
+ 		qcom,rx-port-mapping = <1 2 3 4 5>;
++		/* hph_l, hph_r, clsh, comp_l, comp_r, lo, dsd_r, dsd_l */
++		qcom,rx-channel-mapping = /bits/ 8 <1 2 1 1 2 1 1 2>;
+ 	};
+ };
+ 
+diff --git a/sound/soc/codecs/wcd937x.c b/sound/soc/codecs/wcd937x.c
+index e0169e783..e3f6aaabd 100644
+--- a/sound/soc/codecs/wcd937x.c
++++ b/sound/soc/codecs/wcd937x.c
+@@ -2672,6 +2672,14 @@ static int wcd937x_codec_set_sdw_stream(struct snd_soc_dai *dai,
+ 	return 0;
+ }
+ 
++static void *wcd937x_codec_get_sdw_stream(struct snd_soc_dai *dai, int direction)
++{
++	struct wcd937x_priv *wcd937x = dev_get_drvdata(dai->dev);
++	struct wcd937x_sdw_priv *wcd = wcd937x->sdw_priv[dai->id];
++
++	return wcd->sruntime;
++}
++
+ static int wcd937x_get_channel_map(const struct snd_soc_dai *dai,
+ 				   unsigned int *tx_num, unsigned int *tx_slot,
+ 				   unsigned int *rx_num, unsigned int *rx_slot)
+@@ -2716,6 +2724,11 @@ static const struct snd_soc_dai_ops wcd937x_sdw_dai_ops = {
+ 	.hw_params = wcd937x_codec_hw_params,
+ 	.hw_free = wcd937x_codec_free,
+ 	.set_stream = wcd937x_codec_set_sdw_stream,
++	/* Без get_stream machine-драйвер (qcom_snd_sdw_prepare) не находит
++	 * SDW-поток и никогда не вызывает sdw_prepare_stream — шина остаётся
++	 * неподготовленной, DSP не получает буферов, захват падает EIO.
++	 */
++	.get_stream = wcd937x_codec_get_sdw_stream,
+ 	.get_channel_map = wcd937x_get_channel_map,
+ };
+ 
+-- 
+2.34.1
+

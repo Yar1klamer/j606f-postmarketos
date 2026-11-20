@@ -1,0 +1,132 @@
+From d09e065a0e66c1a1ca52c343dff8e78eb515d01f Mon Sep 17 00:00:00 2001
+From: nnshould <yarnick.ps4@gmail.com>
+Date: Sat, 14 Nov 2026 05:41:32 +0000
+Subject: [PATCH 27/31] soundwire: qcom, ASoC: q6dsp, remoteproc: recover audio
+ after an ADSP restart
+
+qcom_swrm_remove() disabled an already runtime-suspended clock and a re-probe
+forced a trigger type that did not match the existing hwirq mapping, so the
+SoundWire masters could not be rebound. The q6dsp clock provider can be
+prepared before its probe has set drvdata. Also quiet the repeated
+"Handover signaled, but it already happened" warning.
+
+From kruzeman's ALARM-Lenovo-P11 (github.com/kruzeman/ALARM-Lenovo-P11), checked on the hardware there.
+---
+ drivers/remoteproc/qcom_q6v5.c            |  9 ++++++++-
+ drivers/soundwire/qcom.c                  | 18 +++++++++++++++++-
+ sound/soc/qcom/qdsp6/q6dsp-lpass-clocks.c | 18 ++++++++++++++++++
+ 3 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/remoteproc/qcom_q6v5.c b/drivers/remoteproc/qcom_q6v5.c
+index 58d5b85e5..86ad2c085 100644
+--- a/drivers/remoteproc/qcom_q6v5.c
++++ b/drivers/remoteproc/qcom_q6v5.c
+@@ -165,7 +165,14 @@ static irqreturn_t q6v5_handover_interrupt(int irq, void *data)
+ 	struct qcom_q6v5 *q6v5 = data;
+ 
+ 	if (q6v5->handover_issued) {
+-		dev_err(q6v5->dev, "Handover signaled, but it already happened\n");
++		/*
++		 * Some vendor remote-processor images re-assert the SMP2P handover
++		 * item after the first handover (the SM6115 ADSP does it roughly
++		 * twice a second), and every re-assertion used to print here. The
++		 * condition is harmless - the remote keeps running - but the flood
++		 * flushes dmesg and hides real problems, so rate-limit it.
++		 */
++		dev_dbg(q6v5->dev, "Handover signaled, but it already happened\n");
+ 		return IRQ_HANDLED;
+ 	}
+ 
+diff --git a/drivers/soundwire/qcom.c b/drivers/soundwire/qcom.c
+index a6ac0064b..d3ee194b4 100644
+--- a/drivers/soundwire/qcom.c
++++ b/drivers/soundwire/qcom.c
+@@ -1624,9 +1624,14 @@ static int qcom_swrm_probe(struct platform_device *pdev)
+ 
+ 	ctrl->reg_read(ctrl, SWRM_COMP_HW_VERSION, &ctrl->version);
+ 
++	/* Do not force a trigger type here: it comes from the DT and is already
++	 * applied to the (shared) hwirq mapping. Requesting IRQF_TRIGGER_RISING
++	 * again on a re-probe makes the irqchip reject the new mapping with
++	 * "type mismatch, failed to map hwirq", after which request_irq() is
++	 * called with irq 0 and probe fails with -EINVAL. That is what made the
++	 * bus impossible to bring back after an ADSP restart. */
+ 	ret = devm_request_threaded_irq(dev, ctrl->irq, NULL,
+ 					qcom_swrm_irq_handler,
+-					IRQF_TRIGGER_RISING |
+ 					IRQF_ONESHOT,
+ 					"soundwire", ctrl);
+ 	if (ret) {
+@@ -1697,8 +1702,19 @@ static void qcom_swrm_remove(struct platform_device *pdev)
+ {
+ 	struct qcom_swrm_ctrl *ctrl = dev_get_drvdata(&pdev->dev);
+ 
++	/* The controller is almost always runtime-suspended here (autosuspend is
++	 * 3 s), which means hclk was already disabled by swrm_runtime_suspend().
++	 * Unpreparing it a second time underflows the clock refcount: the clk
++	 * core warns and the following probe fails with -EINVAL, so the bus can
++	 * never be brought back after an ADSP restart. Resume first, then the
++	 * unprepare below balances the prepare done by probe/runtime_resume. */
++	pm_runtime_get_sync(&pdev->dev);
++
+ 	sdw_bus_master_delete(&ctrl->bus);
+ 	clk_disable_unprepare(ctrl->hclk);
++
++	pm_runtime_put_noidle(&pdev->dev);
++	pm_runtime_disable(&pdev->dev);
+ }
+ 
+ static void swrm_reinit_link(struct qcom_swrm_ctrl *ctrl)
+diff --git a/sound/soc/qcom/qdsp6/q6dsp-lpass-clocks.c b/sound/soc/qcom/qdsp6/q6dsp-lpass-clocks.c
+index 03838582a..8e07659d6 100644
+--- a/sound/soc/qcom/qdsp6/q6dsp-lpass-clocks.c
++++ b/sound/soc/qcom/qdsp6/q6dsp-lpass-clocks.c
+@@ -38,6 +38,11 @@ static int clk_q6dsp_prepare(struct clk_hw *hw)
+ 	struct q6dsp_clk *clk = to_q6dsp_clk(hw);
+ 	struct q6dsp_cc *cc = dev_get_drvdata(clk->dev);
+ 
++	/* При перезапуске ADSP провайдер клоков переподвешивается раньше, чем
++	 * завершится его probe, поэтому drvdata ещё NULL. */
++	if (!cc || !cc->desc)
++		return -ENODEV;
++
+ 	return cc->desc->lpass_set_clk(clk->dev, clk->q6dsp_clk_id, clk->attributes,
+ 				     Q6DSP_LPASS_CLK_ROOT_DEFAULT, clk->rate);
+ }
+@@ -47,6 +52,10 @@ static void clk_q6dsp_unprepare(struct clk_hw *hw)
+ 	struct q6dsp_clk *clk = to_q6dsp_clk(hw);
+ 	struct q6dsp_cc *cc = dev_get_drvdata(clk->dev);
+ 
++	/* см. clk_q6dsp_prepare(): drvdata может быть ещё NULL. */
++	if (!cc || !cc->desc)
++		return;
++
+ 	cc->desc->lpass_set_clk(clk->dev, clk->q6dsp_clk_id, clk->attributes,
+ 			      Q6DSP_LPASS_CLK_ROOT_DEFAULT, 0);
+ }
+@@ -88,6 +97,11 @@ static int clk_vote_q6dsp_block(struct clk_hw *hw)
+ 	struct q6dsp_clk *clk = to_q6dsp_clk(hw);
+ 	struct q6dsp_cc *cc = dev_get_drvdata(clk->dev);
+ 
++	/* При перезапуске ADSP провайдер клоков переподвешивается раньше, чем
++	 * завершится его probe, поэтому drvdata ещё NULL. */
++	if (!cc || !cc->desc)
++		return -ENODEV;
++
+ 	return cc->desc->lpass_vote_clk(clk->dev, clk->q6dsp_clk_id,
+ 				  clk_hw_get_name(&clk->hw), &clk->handle);
+ }
+@@ -97,6 +111,10 @@ static void clk_unvote_q6dsp_block(struct clk_hw *hw)
+ 	struct q6dsp_clk *clk = to_q6dsp_clk(hw);
+ 	struct q6dsp_cc *cc = dev_get_drvdata(clk->dev);
+ 
++	/* см. clk_q6dsp_prepare(): drvdata может быть ещё NULL. */
++	if (!cc || !cc->desc)
++		return;
++
+ 	cc->desc->lpass_unvote_clk(clk->dev, clk->q6dsp_clk_id, clk->handle);
+ }
+ 
+-- 
+2.34.1
+

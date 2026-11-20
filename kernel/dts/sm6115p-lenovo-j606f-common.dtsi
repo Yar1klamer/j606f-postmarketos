@@ -6,13 +6,36 @@
  * TB-J606F_S120184_210520_ROW (see notes/stock_dt/).
  */
 
+#include <dt-bindings/input/gpio-keys.h>
 #include "pmi632.dtsi"
 /* Lenovo ABL applies the stock dtbo unconditionally unless dtbo is erased, see the dtsi */
 #include "sm6115p-lenovo-j606f-abl-sink.dtsi"
-/* headphone jack: LPASS macros, SoundWire, WCD937x */
+/* audio: LPASS macros, SoundWire, WCD937x, AW88258 speaker amplifiers */
 #include "sm6115p-lenovo-j606f-audio.dtsi"
+/* cameras: PM8008 rails, CCI sensors, CAMSS */
+#include "sm6115p-lenovo-j606f-camera.dtsi"
 
 / {
+	/* Hall sensor for the cover (stock "hall-switch", tlmm 36, active low).
+	 * Only opening the cover wakes the system: waking on the closing edge too
+	 * would undo the suspend that logind starts on SW_LID. */
+	gpio-keys-lid {
+		compatible = "gpio-keys";
+		label = "Cover";
+		pinctrl-0 = <&hall_int_default>;
+		pinctrl-names = "default";
+
+		switch-lid {
+			label = "Cover";
+			gpios = <&tlmm 36 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			debounce-interval = <15>;
+			wakeup-source;
+			wakeup-event-action = <EV_ACT_DEASSERTED>;
+		};
+	};
+
 	usb_otg_vbus: regulator-usb-otg-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_otg_vbus";
@@ -56,7 +79,7 @@
 		compatible = "hid-over-i2c";
 		reg = <0x60>;
 		hid-descr-addr = <0x1>;
-		post-power-on-delay-ms = <100>;
+		post-power-on-delay-ms = <400>;
 		interrupts-extended = <&tlmm 93 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-0 = <&pogo_touchpad_int_default>;
 		pinctrl-names = "default";
@@ -90,6 +113,13 @@
 };
 
 &tlmm {
+	hall_int_default: hall-int-default-state {
+		pins = "gpio36";
+		function = "gpio";
+		drive-strength = <6>;
+		bias-pull-up;
+	};
+
 	/* stock dock_pogo usb_vbus: enable of the external 5 V OTG boost */
 	usb_otg_vbus_en_default: usb-otg-vbus-en-default-state {
 		pins = "gpio38";
